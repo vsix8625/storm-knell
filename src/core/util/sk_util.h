@@ -87,4 +87,9 @@ static inline bool sk_util_is_digit(char c)
     return SK_UTIL_LEX_MAP[(u8) c] == 2;
 }
 
+bool sk_is_initialized(void);
+bool sk_is_initialized_at(const char *dir);
+
+void *sk_arena_alloc(void *user, size_t size);
+
 #endif  // SK_UTIL_H_

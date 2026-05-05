@@ -3,11 +3,10 @@
 
 major         = "0";
 minor         = "0";
-patch         = "1";
+patch         = "3";
 
 TARGET        = "sk";
-VERSION       = "${major}.${minor}.${patch}";    
-TARGET_TYPE   = "executable";
+VERSION       = "${major}.${minor}.${patch}";    TARGET_TYPE   = "executable";
 
 print("Building ${TARGET}-v${VERSION} | Type: ${TARGET_TYPE}");
 
@@ -18,18 +17,24 @@ BUILD_TYPE    = "debug";
 OUT_DIR       = "build/${TARGET}/${BUILD_TYPE}"; 
 
 std           = "-std=c23";             
-CFLAGS        = "${std} -Wall -Werror -Wextra -g";
-CFLAGS_RELEASE = "${std} -Wall -O3";             
+CFLAGS        = "${std} -Wall -Werror -Wextra -g -pthread";
 
-DEFINES       = "-DDEBUG";           
+opt_flags      = "-march=native -mbmi -mlzcnt -pthread";
+safety         = "-Wloop-analysis -Wthread-safety-pointer -Wvla -Wcast-align";
+quality        = "-Wdocumentation -Wunicode-whitespace -Wredundant-decls -Wmissing-noreturn";
+extra_flags    = "-fvisibility=hidden";
+
+CFLAGS_RELEASE = "${std} -Wall -O3 ${opt_flags} ${safety} ${quality} ${extra_flags}";             
+
+DEFINES       = "-DDEBUG -DVX_USE_THREADS";           
 
 MAIN_ENTRY = "storm-knell.c";
 
-# LFLAGS      = "-lpthread";        
+LFLAGS      = "-lpthread";        
 # LIB_PATHS   = "-L/usr/local/lib";
 
 GEN_COMPILE_COMMANDS = "on";
-# EXCLUDE_PATTERNS = "build test";
+EXCLUDE_PATTERNS = "build test docs";
 
 # CLEAN_TARGETS = "${engine_clean_targets} ${other_clean_targets}...";
 
@@ -45,5 +50,7 @@ file_write("#define SK_VERSION_PATCH ${patch}","${config_file}","true");
 file_write('#define SK_VERSION_STRING "${major}.${minor}.${patch}"',"${config_file}","true");
 file_write('#define SK_BUILD_TYPE "${BUILD_TYPE}"',"${config_file}","true");
 file_write('#define SK_ROOT_PATH "${BARR_CWD}"',"${config_file}","true");
+
+run_cmd("./scripts/sk_cp_path.sh");
 
 print("Barrfile execution finished");

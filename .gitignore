@@ -4,6 +4,7 @@
 .*
 build/
 test/
+docs/
 
 
 # Object files
