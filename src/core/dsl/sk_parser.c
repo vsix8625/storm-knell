@@ -97,6 +97,8 @@ vx_status sk_top_level_parse(struct sk_parser *p)
 
     while (!is_at_end(p))
     {
+        u32 pos_before = p->current;
+
         u32 node = SK_NODE_INVALID;
 
         sk_token_kind t1 = peek(p);
@@ -137,6 +139,7 @@ vx_status sk_top_level_parse(struct sk_parser *p)
             case SK_TOKEN_KWORD_CFLAGS:
             case SK_TOKEN_KWORD_LFLAGS:
             case SK_TOKEN_KWORD_DEFINES:
+            case SK_TOKEN_KWORD_MODE:
             {
                 node = parse_global(p);
                 break;
@@ -144,10 +147,22 @@ vx_status sk_top_level_parse(struct sk_parser *p)
 
             default:
             {
+                // vx_dbglog("Unexpected token at top level: %s line %u",
+                //           sk_token_tostr(t1),
+                //           p->tokens->lines[p->current]);
                 p->nodes->err_count++;
                 advance(p);
                 break;
             }
+        }
+
+        if (p->current == pos_before)
+        {
+            vx_errlog("INFINITE LOOP at token %u: %s line %u",
+                      p->current,
+                      sk_token_tostr(peek(p)),
+                      p->tokens->lines[p->current]);
+            return VX_ERROR;
         }
 
         // we might need re-peek
@@ -228,6 +243,8 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
 
     while (!is_at_end(p) && peek(p) != SK_TOKEN_RBRACE)
     {
+        u32 pos_before = p->current;
+
         u32 child = SK_NODE_INVALID;
 
         sk_token_kind t1 = peek(p);
@@ -242,6 +259,9 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
             case SK_TOKEN_KWORD_LFLAGS:
             case SK_TOKEN_KWORD_SOURCES:
             case SK_TOKEN_KWORD_INCLUDES:
+            case SK_TOKEN_KWORD_OUT:
+            case SK_TOKEN_KWORD_KIND:
+            case SK_TOKEN_KWORD_MODE:
             case SK_TOKEN_KWORD_DEPENDS:
             case SK_TOKEN_KWORD_DEFINES:
             case SK_TOKEN_IDENT:
@@ -271,6 +291,15 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
                 advance(p);
                 break;
             }
+        }
+
+        if (p->current == pos_before)
+        {
+            vx_errlog("STUCK in parse_body at token %u: %s line %u",
+                      p->current,
+                      sk_token_tostr(peek(p)),
+                      p->tokens->lines[p->current]);
+            return;
         }
 
         if (child != SK_NODE_INVALID)
@@ -465,9 +494,9 @@ static u32 parse_target(struct sk_parser *p)
 
     sk_token_kind name_kind = peek(p);
 
-    if (name_kind != SK_TOKEN_IDENT && name_kind != SK_TOKEN_LIT_STRING)
+    if (name_kind != SK_TOKEN_IDENT)
     {
-        syntax_error(p, "Expected identifier or literal string for target name");
+        syntax_error(p, "Expected identifier for target name");
         return SK_NODE_INVALID;
     }
 
@@ -500,6 +529,20 @@ static void parse_value_list(struct sk_parser *p, u32 node)
 
     while (!is_at_end(p))
     {
+        sk_token_kind t  = peek(p);
+        sk_token_kind t2 = peek_at(p, 1);
+
+        if (t == SK_TOKEN_LBRACE || t == SK_TOKEN_RBRACE || t == SK_TOKEN_LPAREN ||
+            t == SK_TOKEN_RPAREN || t == SK_TOKEN_COLON || t == SK_TOKEN_DOUBLE_COLON)
+        {
+            break;
+        }
+
+        if (t == SK_TOKEN_IDENT && (t2 == SK_TOKEN_COLON || t2 == SK_TOKEN_DOUBLE_COLON))
+        {
+            break;
+        }
+
         sk_ast_node_kind nkind = literal_kind(peek(p));
 
         if (nkind == SK_NODE_INVALID)
@@ -663,7 +706,6 @@ static void dump_node(struct sk_parser *p, u32 idx, u32 depth)
 
     if (n->kinds[idx] == SK_NODE_TARGET)
     {
-        // data_a is token index, not node
         vx_printf("  │   name_tok: %u\n", n->data_a[idx]);
         dump_node(p, n->data_b[idx], depth + 1);  // body
         dump_node(p, n->data_c[idx], depth + 1);  // else

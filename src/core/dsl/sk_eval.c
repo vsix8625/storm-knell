@@ -1,99 +1,190 @@
 #include "sk_eval.h"
-#include "mem_arena.h"
+#include "mem.h"
 #include "sk_globals.h"
+#include "sk_util.h"
+#include "sk_paths.h"
+#include "sk_array.h"
 
 #include "vx_io.h"
-#include "vx_util.h"
-#include <string.h>
 
-vx_status sk_eval_init(struct sk_ctx *ctx, struct sk_eval_result *result)
-{
-    if (ctx == nullptr || result == nullptr)
-    {
-        return VX_ERROR;
-    }
-
-    result->targets = mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_target) * SK_MAX_TARGETS);
-
-    if (result->targets == nullptr)
-    {
-        VX_ASSERT_LOG("Failed to allocate targets");
-        return VX_FATAL;
-    }
-
-    memset(result->targets, 0, sizeof(struct sk_target) * SK_MAX_TARGETS);
-    memset(&result->global, 0, sizeof(struct sk_cfg));
-
-    result->target_count = 0;
-
-    return VX_OK;
-}
+static bool eval_expr(struct sk_parser *p,
+                      vx_sv             stormfile,
+                      u32               node,
+                      char            **var_keys,
+                      char            **var_vals,
+                      u32               var_count);
 
 //----------------------------------------------------------------------------------------------------
 
-static void cfg_set_or_append(struct sk_parser *p, u32 *field, u32 val_node, bool append)
+static void cfg_push_flags(struct sk_parser *p,
+                           vx_sv             stormfile,
+                           u32               val_node,
+                           char            **flags,
+                           u32              *count,
+                           u32               max_limit,
+                           bool              append)
 {
-    if (append && *field != 0)
+    if (!append)
     {
-        u32 last = *field;
-        while (p->nodes->nexts[last] != 0)
-        {
-            last = p->nodes->nexts[last];
-        }
-        p->nodes->nexts[last] = val_node;
+        *count = 0;
     }
-    else
+
+    u32 cur = val_node;
+
+    while (cur != 0 && *count < max_limit)
     {
-        *field = val_node;
+        vx_sv sv = tok_to_sv(p, stormfile, p->nodes->token_idxs[cur]);
+
+        flags[*count] = sv_to_arena(g_sk_global_arena, sv);
+
+        (*count)++;
+        cur = p->nodes->nexts[cur];
     }
 }
 
-static void eval_cfg(struct sk_parser *p, u32 node, struct sk_cfg *cfg)
+static void eval_cfg(struct sk_parser *p,
+                     vx_sv             stormfile,
+                     u32               node,
+                     struct sk_cfg    *cfg,
+                     struct sk_target *target)
 {
-    u32 tok_idx = p->nodes->token_idxs[node];
+    sk_ast_node_kind kind     = p->nodes->kinds[node];
+    u32              tok_idx  = p->nodes->token_idxs[node];
+    sk_token_kind    tok_kind = p->tokens->kinds[tok_idx];
+    bool             append   = (kind == SK_NODE_APPEND);
 
-    sk_token_kind tok_kind = p->tokens->kinds[tok_idx];
-
-    bool append = p->nodes->kinds[node] == SK_NODE_APPEND;
-
-    // get first value token index
     u32 val_node = p->nodes->data_a[node];
+
     if (val_node == 0)
     {
         return;
     }
-    u32 val_tok = p->nodes->token_idxs[val_node];
 
     switch (tok_kind)
     {
         case SK_TOKEN_KWORD_CC:
         case SK_TOKEN_KWORD_COMPILER:
         {
-            cfg->cc = val_tok;
+            vx_sv sv = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
+            cfg->cc  = sv_to_arena(g_sk_global_arena, sv);
             break;
         }
 
         case SK_TOKEN_KWORD_LINKER:
         {
-            cfg->linker = val_tok;
+            vx_sv sv    = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
+            cfg->linker = sv_to_arena(g_sk_global_arena, sv);
             break;
         }
 
         case SK_TOKEN_KWORD_CFLAGS:
         {
-            cfg_set_or_append(p, &cfg->cflags, val_node, append);
+            cfg_push_flags(
+                p, stormfile, val_node, cfg->cflags, &cfg->cflags_count, SK_MAX_FLAGS, append);
             break;
         }
 
         case SK_TOKEN_KWORD_LFLAGS:
         {
-            cfg_set_or_append(p, &cfg->lflags, val_node, append);
+            cfg_push_flags(
+                p, stormfile, val_node, cfg->lflags, &cfg->lflags_count, SK_MAX_FLAGS, append);
             break;
         }
 
         case SK_TOKEN_KWORD_DEFINES:
         {
-            cfg_set_or_append(p, &cfg->defines, val_node, append);
+            cfg_push_flags(
+                p, stormfile, val_node, cfg->defines, &cfg->defines_count, SK_MAX_DEFINES, append);
+            break;
+        }
+
+        case SK_TOKEN_KWORD_INCLUDES:
+        {
+            cfg_push_flags(
+                p, stormfile, val_node, cfg->includes, &cfg->includes_count, SK_MAX_FLAGS, append);
+            break;
+        }
+
+        case SK_TOKEN_KWORD_KIND:
+        {
+            vx_sv sv     = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
+            char *t_kind = sv_to_arena(g_sk_global_arena, sv);
+            if (target)
+            {
+                if (strcmp(t_kind, "exec") == 0)
+                {
+                    target->kind = SK_TARGET_KIND_EXEC;
+                }
+                else if (strcmp(t_kind, "static") == 0)
+                {
+                    target->kind = SK_TARGET_KIND_STATIC;
+                }
+                else if (strcmp(t_kind, "shared") == 0)
+                {
+                    target->kind = SK_TARGET_KIND_SHARED;
+                }
+            }
+            break;
+        }
+
+        case SK_TOKEN_KWORD_MODE:
+        {
+            vx_sv sv   = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
+            char *mode = sv_to_arena(g_sk_global_arena, sv);
+            if (target)
+            {
+                target->build_mode = mode;
+            }
+            break;
+        }
+
+        case SK_TOKEN_KWORD_OUT:
+        {
+            if (target)
+            {
+                vx_sv sv         = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
+                target->out_name = sv_to_arena(g_sk_global_arena, sv);
+            }
+            break;
+        }
+
+        case SK_TOKEN_KWORD_SOURCES:
+        {
+            if (target == nullptr)
+            {
+                VX_ASSERT_LOG("Keyword 'sources' is not allowed in global scope");
+                break;
+            }
+
+            u32 cur = val_node;
+
+            while (cur != SK_NODE_INVALID)
+            {
+                vx_sv sv = tok_to_sv(p, stormfile, p->nodes->token_idxs[cur]);
+
+                char *path = sv_to_arena(g_sk_global_arena, sv);
+                sk_path_strip_trailing_sep(path);
+
+                if (vx_isdir(path))
+                {
+                    sk_scan_dir_r(target->sources, path);
+                }
+                else if (vx_isfile(path))
+                {
+                    if (!sk_arena_array_contains(target->sources, path))
+                    {
+                        sk_arena_array_push(target->sources, path);
+                    }
+                }
+                else
+                {
+                    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
+                    {
+                        vx_warn("Source file not found: %s", path);
+                    }
+                }
+                cur = p->nodes->nexts[cur];
+            }
             break;
         }
 
@@ -104,21 +195,19 @@ static void eval_cfg(struct sk_parser *p, u32 node, struct sk_cfg *cfg)
     }
 }
 
-static bool eval_expr(struct sk_parser *p, u32 node)
-{
-    VX_CAST(void, p);
-    VX_CAST(void, node);
-    vx_warn("eval_expr: not implemented yet");
-    return false;
-}
-
-static void eval_if(struct sk_parser *p, u32 node, struct sk_target *target)
+static void eval_if(struct sk_parser *p,
+                    vx_sv             stormfile,
+                    u32               node,
+                    struct sk_target *target,
+                    char            **var_keys,
+                    char            **var_vals,
+                    u32               var_count)
 {
     u32 cond_node = p->nodes->data_a[node];
 
-    bool result = eval_expr(p, cond_node);
+    bool cond = eval_expr(p, stormfile, cond_node, var_keys, var_vals, var_count);
 
-    if (result)
+    if (cond)
     {
         // walk then body — data_b
         u32 child = p->nodes->data_b[node];
@@ -131,13 +220,13 @@ static void eval_if(struct sk_parser *p, u32 node, struct sk_target *target)
                 case SK_NODE_ASSIGN:
                 case SK_NODE_APPEND:
                 {
-                    eval_cfg(p, child, &target->cfg);
+                    eval_cfg(p, stormfile, child, &target->cfg, target);
                     break;
                 }
 
                 case SK_NODE_IF:
                 {
-                    eval_if(p, child, target);
+                    eval_if(p, stormfile, child, target, var_keys, var_vals, var_count);
                     break;
                 }
 
@@ -154,10 +243,10 @@ static void eval_if(struct sk_parser *p, u32 node, struct sk_target *target)
         // else block — data_c
         u32              child = p->nodes->data_c[node];
         sk_ast_node_kind kind  = p->nodes->kinds[child];
+
         if (kind == SK_NODE_IF)
         {
-            // else if
-            eval_if(p, child, target);
+            eval_if(p, stormfile, child, target, var_keys, var_vals, var_count);
         }
         else
         {
@@ -170,12 +259,12 @@ static void eval_if(struct sk_parser *p, u32 node, struct sk_target *target)
                     case SK_NODE_ASSIGN:
                     case SK_NODE_APPEND:
                     {
-                        eval_cfg(p, child, &target->cfg);
+                        eval_cfg(p, stormfile, child, &target->cfg, target);
                         break;
                     }
                     case SK_NODE_IF:
                     {
-                        eval_if(p, child, target);
+                        eval_if(p, stormfile, child, target, var_keys, var_vals, var_count);
                         break;
                     }
 
@@ -190,11 +279,19 @@ static void eval_if(struct sk_parser *p, u32 node, struct sk_target *target)
     }
 }
 
-static void eval_target(struct sk_parser *p, u32 node, struct sk_target *target)
+static void eval_target(struct sk_parser *p,
+                        vx_sv             stormfile,
+                        u32               node,
+                        struct sk_target *target,
+                        char            **var_keys,
+                        char            **var_vals,
+                        u32               var_count)
 {
-    target->name_tok = p->nodes->data_a[node];
+    if (target->out_name == nullptr)
+    {
+        target->out_name = target->name;
+    }
 
-    // walk body
     u32 child = p->nodes->data_b[node];
 
     while (child != 0)
@@ -206,60 +303,218 @@ static void eval_target(struct sk_parser *p, u32 node, struct sk_target *target)
             case SK_NODE_ASSIGN:
             case SK_NODE_APPEND:
             {
-                u32 tok_idx = p->nodes->token_idxs[child];
-                if (p->tokens->kinds[tok_idx] == SK_TOKEN_KWORD_SOURCES)
-                {
-                    // collect sources
-                    u32 src = p->nodes->data_a[child];
-                    while (src != 0 && target->source_count < 256)
-                    {
-                        target->source_toks[target->source_count++] = p->nodes->token_idxs[src];
-                        src                                         = p->nodes->nexts[src];
-                    }
-                }
-                else if (p->tokens->kinds[tok_idx] == SK_TOKEN_KWORD_DEPENDS)
-                {
-                    u32 dep = p->nodes->data_a[child];
-                    while (dep != 0 && target->depend_count < 32)
-                    {
-                        target->depend_toks[target->depend_count++] = p->nodes->token_idxs[dep];
-                        dep                                         = p->nodes->nexts[dep];
-                    }
-                }
-                else
-                {
-                    eval_cfg(p, child, &target->cfg);
-                }
+                eval_cfg(p, stormfile, child, &target->cfg, target);
                 break;
             }
 
             case SK_NODE_FN_CALL:
             {
+                // eval_fn(p, stormfile, child, target);
                 break;
             }
 
             case SK_NODE_IF:
             {
-                eval_if(p, child, target);
+                eval_if(p, stormfile, child, target, var_keys, var_vals, var_count);
                 break;
             }
+
             default:
             {
                 break;
             }
         }
+
         child = p->nodes->nexts[child];
     }
 }
 
-vx_status sk_eval(struct sk_ctx *ctx, struct sk_parser *p, struct sk_eval_result *result)
+static void eval_var(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_eval_result *result)
 {
-    if (ctx == nullptr || p == nullptr || result == nullptr)
+    if (result->var_count >= SK_MAX_VARS)
+    {
+        return;
+    }
+
+    u32 key_tok  = p->nodes->token_idxs[node];
+    u32 val_node = p->nodes->data_a[node];
+
+    if (val_node == 0)
+    {
+        return;
+    }
+
+    u32 val_tok = p->nodes->token_idxs[val_node];
+
+    vx_sv key = tok_to_sv(p, stormfile, key_tok);
+    vx_sv val = tok_to_sv(p, stormfile, val_tok);
+
+    for (u32 i = 0; i < result->var_count; i++)
+    {
+        if (strncmp(result->var_keys[i], key.data, key.len) == 0 &&
+            result->var_keys[i][key.len] == CHAR_NULTERM)
+        {
+            result->var_vals[i] = sv_to_arena(g_sk_global_arena, val);
+            return;
+        }
+    }
+
+    if (result->var_count < SK_MAX_VARS)
+    {
+        result->var_keys[result->var_count] = sv_to_arena(g_sk_global_arena, key);
+        result->var_vals[result->var_count] = sv_to_arena(g_sk_global_arena, val);
+        result->var_count++;
+    }
+}
+
+static bool eval_expr(struct sk_parser *p,
+                      vx_sv             stormfile,
+                      u32               node,
+                      char            **var_keys,
+                      char            **var_vals,
+                      u32               var_count)
+{
+    if (node == 0)
+    {
+        return false;
+    }
+
+    sk_ast_node_kind kind = p->nodes->kinds[node];
+
+    if (kind == SK_NODE_EXPR)
+    {
+        u32           op_tok  = p->nodes->token_idxs[node];
+        sk_token_kind op_kind = p->tokens->kinds[op_tok];
+
+        u32 left  = p->nodes->data_a[node];
+        u32 right = p->nodes->data_b[node];
+
+        // resolve left — must be ident, look up in var store
+        vx_sv lhs = {0};
+        if (p->nodes->kinds[left] == SK_NODE_IDENT)
+        {
+            vx_sv key = tok_to_sv(p, stormfile, p->nodes->token_idxs[left]);
+
+            for (u32 i = 0; i < var_count; i++)
+            {
+                if (strncmp(var_keys[i], key.data, key.len) == 0 &&
+                    var_keys[i][key.len] == CHAR_NULTERM)
+                {
+                    lhs.data = var_vals[i];
+                    lhs.len  = strlen(var_vals[i]);
+                    break;
+                }
+            }
+        }
+
+        // resolve right — literal ident value
+        vx_sv rhs = tok_to_sv(p, stormfile, p->nodes->token_idxs[right]);
+
+        switch (op_kind)
+        {
+            case SK_TOKEN_DOUBLE_EQUAL:
+            {
+                return lhs.len == rhs.len && strncmp(lhs.data, rhs.data, rhs.len) == 0;
+            }
+
+            case SK_TOKEN_NOT_EQUAL:
+            {
+                return !(lhs.len == rhs.len && strncmp(lhs.data, rhs.data, rhs.len) == 0);
+            }
+
+            default:
+            {
+                return false;
+            }
+        }
+    }
+
+    return false;
+}
+
+static struct sk_target *
+target_init(struct mem_arena *ar, struct sk_eval_result *result, vx_sv name_sv)
+{
+    if (ar == nullptr || result == nullptr)
+    {
+        return nullptr;
+    }
+
+    struct sk_target *t = &result->targets[result->target_count++];
+
+    t->name       = sv_to_arena(ar, name_sv);
+    t->build_dir  = "crater";
+    t->build_mode = "debug";
+    t->kind       = SK_TARGET_KIND_EXEC;
+
+    t->exclude_count = 0;
+    t->depend_count  = 0;
+    t->cfg.cflags    = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_FLAGS);
+    t->cfg.lflags    = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_FLAGS);
+    t->cfg.defines   = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_DEFINES);
+    t->cfg.libs      = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_LIBS);
+    t->cfg.lib_paths = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_LIBS);
+    t->cfg.includes  = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_FLAGS);
+
+    t->excludes = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_EXCLUDES);
+    t->depends  = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_DEPENDS);
+
+    t->cfg.cflags_count = result->global.cflags_count;
+    memcpy(t->cfg.cflags, result->global.cflags, sizeof(char *) * t->cfg.cflags_count);
+
+    t->cfg.lflags_count = result->global.lflags_count;
+    memcpy(t->cfg.lflags, result->global.lflags, sizeof(char *) * t->cfg.lflags_count);
+
+    t->cfg.includes_count = result->global.includes_count;
+    memcpy(t->cfg.includes, result->global.includes, sizeof(char *) * t->cfg.includes_count);
+
+    t->cfg.defines_count = result->global.defines_count;
+    memcpy(t->cfg.defines, result->global.defines, sizeof(char *) * t->cfg.defines_count);
+
+    t->cfg.libs_count = result->global.libs_count;
+    memcpy(t->cfg.libs, result->global.libs, sizeof(char *) * t->cfg.libs_count);
+
+    t->cfg.lib_paths_count = result->global.lib_paths_count;
+    memcpy(t->cfg.lib_paths, result->global.lib_paths, sizeof(char *) * t->cfg.lib_paths_count);
+
+    t->sources   = sk_arena_array_create(g_sk_global_arena, VX_BUF_SIZE_8192);
+    t->scan_dirs = sk_arena_array_create(g_sk_global_arena, VX_BUF_SIZE_8192);
+
+    t->cfg.cc     = result->global.cc;
+    t->cfg.linker = result->global.linker;
+
+    return t;
+}
+
+// EVAL ENTRY
+vx_status sk_eval(struct sk_parser *p, struct sk_eval_result *result)
+{
+    if (p == nullptr || result == nullptr)
     {
         return VX_ERROR;
     }
 
+    struct mem_arena *ar     = g_sk_global_arena;
+    result->global.cflags    = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_FLAGS);
+    result->global.lflags    = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_FLAGS);
+    result->global.defines   = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_DEFINES);
+    result->global.libs      = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_LIBS);
+    result->global.lib_paths = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_LIBS);
+    result->global.includes  = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_FLAGS);
+
+    result->var_keys = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_VARS);
+    result->var_vals = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_VARS);
+
+    if (result->var_vals == nullptr)
+    {
+        VX_ASSERT_LOG("Failed to allocate arrays");
+        return VX_ERROR;
+    }
+
+    vx_sv stormfile = g_sk_global_ctx.stormfile;
+
     u32 node = p->nodes->data_a[1];  // program first child
+
     while (node != 0)
     {
         sk_ast_node_kind kind = p->nodes->kinds[node];
@@ -268,18 +523,46 @@ vx_status sk_eval(struct sk_ctx *ctx, struct sk_parser *p, struct sk_eval_result
             case SK_NODE_ASSIGN:
             case SK_NODE_APPEND:
             {
-                eval_cfg(p, node, &result->global);
+                u32 tok_idx = p->nodes->token_idxs[node];
+
+                sk_token_kind tok_kind = p->tokens->kinds[tok_idx];
+
+                if (tok_kind == SK_TOKEN_IDENT)
+                {
+                    eval_var(p, stormfile, node, result);
+                }
+                else
+                {
+                    eval_cfg(p, stormfile, node, &result->global, nullptr);
+                }
                 break;
             }
+
             case SK_NODE_TARGET:
             {
                 if (result->target_count >= SK_MAX_TARGETS)
                 {
-                    vx_errlog("Too many targets, max is %u", SK_MAX_TARGETS);
+                    VX_ASSERT_LOG("Max targets limit reached: %d", SK_MAX_TARGETS);
                     return VX_ERROR;
                 }
 
-                eval_target(p, node, &result->targets[result->target_count++]);
+                u32   name_tok = p->nodes->data_a[node];
+                vx_sv name_sv  = tok_to_sv(p, stormfile, name_tok);
+
+                for (u32 i = 0; i < result->target_count; i++)
+                {
+                    if (strncmp(result->targets[i].name, name_sv.data, name_sv.len) == 0 &&
+                        result->targets[i].name[name_sv.len] == CHAR_NULTERM)
+                    {
+                        vx_errlog("Duplicate target name: '%.*s'", (i32) name_sv.len, name_sv.data);
+                        return VX_ERROR;
+                    }
+                }
+
+                struct sk_target *t = target_init(ar, result, name_sv);
+
+                eval_target(
+                    p, stormfile, node, t, result->var_keys, result->var_vals, result->var_count);
                 break;
             }
 
@@ -294,72 +577,113 @@ vx_status sk_eval(struct sk_ctx *ctx, struct sk_parser *p, struct sk_eval_result
     return VX_OK;
 }
 
-static inline vx_sv cfg_val_to_sv(struct sk_parser *p, struct sk_ctx *ctx, u32 node_idx)
-{
-    if (node_idx == 0)
-    {
-        return (vx_sv) {.data = "(none)", .len = 6};
-    }
+//----------------------------------------------------------------------------------------------------
 
-    u32 tok_idx = p->nodes->token_idxs[node_idx];
-    return tok_to_sv(p, ctx, tok_idx);
+static const char *sk_target_kind_to_str(sk_target_kind kind)
+{
+    switch (kind)
+    {
+        case SK_TARGET_KIND_EXEC:
+        {
+            return "executable";
+        }
+        case SK_TARGET_KIND_STATIC: return "static_lib";
+        case SK_TARGET_KIND_SHARED: return "shared_lib";
+        default: return "none";
+    }
 }
 
-void sk_dbg_dump_eval(struct sk_ctx *ctx, struct sk_parser *p, struct sk_eval_result *result)
+static void cfg_list_dump(const char *label, char **list, u32 count)
 {
-    if (ctx == nullptr || p == nullptr || result == nullptr)
+    vx_printf("        %-9s: ", label);
+    if (count == 0 || list == nullptr)
+    {
+        vx_printf("(none)\n");
+        return;
+    }
+
+    for (u32 i = 0; i < count; i++)
+    {
+        vx_printf("%s%s", list[i], (i == count - 1) ? "" : ", ");
+    }
+    vx_printf("\n");
+}
+
+static void cfg_dump(struct sk_cfg *cfg)
+{
+    if (cfg == nullptr)
     {
         return;
     }
 
-    vx_sv cc      = cfg_val_to_sv(p, ctx, result->global.cc);
-    vx_sv linker  = cfg_val_to_sv(p, ctx, result->global.linker);
-    vx_sv cflags  = cfg_val_to_sv(p, ctx, result->global.cflags);
-    vx_sv lflags  = cfg_val_to_sv(p, ctx, result->global.lflags);
-    vx_sv defines = cfg_val_to_sv(p, ctx, result->global.defines);
+    vx_printf("        cc       : %s\n", (cfg->cc && cfg->cc[0]) ? cfg->cc : "(none)");
+    vx_printf("        linker   : %s\n", (cfg->linker && cfg->linker[0]) ? cfg->linker : "(none)");
 
-    vx_printf("=== EVAL DUMP ===\n");
-    vx_printf("global:\n");
-    vx_printf("  cc:      %.*s\n", (i32) cc.len, cc.data);
-    vx_printf("  linker:  %.*s\n", (i32) linker.len, linker.data);
-    vx_printf("  cflags:  %.*s\n", (i32) cflags.len, cflags.data);
-    vx_printf("  lflags:  %.*s\n", (i32) lflags.len, lflags.data);
-    vx_printf("  defines: %.*s\n", (i32) defines.len, defines.data);
+    cfg_list_dump("cflags", cfg->cflags, cfg->cflags_count);
+    cfg_list_dump("lflags", cfg->lflags, cfg->lflags_count);
+    cfg_list_dump("defines", cfg->defines, cfg->defines_count);
+    cfg_list_dump("includes", cfg->includes, cfg->includes_count);
+    cfg_list_dump("libs", cfg->libs, cfg->libs_count);
+    cfg_list_dump("libpaths", cfg->lib_paths, cfg->lib_paths_count);
+}
 
-    vx_printf("targets (%u):\n", result->target_count);
+void sk_dbg_dump_eval(struct sk_parser *p, struct sk_eval_result *result)
+{
+    if (p == nullptr || result == nullptr)
+    {
+        vx_printf("[!] Cannot dump eval: NULL pointers\n");
+        return;
+    }
+
+    vx_printf("\n--- SK EVALUATION RESULT DUMP ---\n");
+
+    vx_printf("variables (%u):\n", result->var_count);
+    for (u32 i = 0; i < result->var_count; i++)
+    {
+        vx_printf("    $%s = \"%s\"\n", result->var_keys[i], result->var_vals[i]);
+    }
+
+    vx_printf("\nglobal config:\n");
+    cfg_dump(&result->global);
+
+    vx_printf("\ntargets (%u):\n", result->target_count);
     for (u32 i = 0; i < result->target_count; i++)
     {
         struct sk_target *t = &result->targets[i];
 
-        vx_sv name = tok_to_sv(p, ctx, t->name_tok);
-        vx_printf("  [%u] name: %.*s\n", i, (i32) name.len, name.data);
+        vx_printf("  [%02u] %s (Type: %u)\n", i, t->name ? t->name : "UNNAMED", t->kind);
+        vx_printf("       out_name : %s\n", t->out_name ? t->out_name : "(none)");
+        vx_printf("       build_dir: %s\n", t->build_dir ? t->build_dir : "(none)");
 
-        vx_printf("      sources (%u):\n", t->source_count);
-        for (u32 j = 0; j < t->source_count; j++)
+        if (t->sources && t->sources->count > 0)
         {
-            vx_sv src = tok_to_sv(p, ctx, t->source_toks[j]);
-            vx_printf("        [%u] %.*s\n", j, (i32) src.len, src.data);
+            vx_printf("       sources  : %zu items\n", t->sources->count);
+
+            for (u32 j = 0; j < (u32) t->sources->count; j++)
+            {
+                vx_printf("         - %s\n", (char *) t->sources->items[j]);
+            }
+        }
+        else
+        {
+            vx_printf("       sources  : (none)\n");
         }
 
-        vx_printf("      depends (%u):\n", t->depend_count);
-        for (u32 j = 0; j < t->depend_count; j++)
+        if (t->depend_count > 0 && t->depends)
         {
-            vx_sv dep = tok_to_sv(p, ctx, t->depend_toks[j]);
-            vx_printf("        [%u] %.*s\n", j, (i32) dep.len, dep.data);
+            vx_printf("       depends  : ");
+
+            for (u32 j = 0; j < t->depend_count; j++)
+            {
+                vx_printf("%s%s", t->depends[j], (j == t->depend_count - 1) ? "" : ", ");
+            }
+
+            vx_printf("\n");
         }
 
-        vx_sv t_cc      = cfg_val_to_sv(p, ctx, t->cfg.cc);
-        vx_sv t_linker  = cfg_val_to_sv(p, ctx, t->cfg.linker);
-        vx_sv t_cflags  = cfg_val_to_sv(p, ctx, t->cfg.cflags);
-        vx_sv t_lflags  = cfg_val_to_sv(p, ctx, t->cfg.lflags);
-        vx_sv t_defines = cfg_val_to_sv(p, ctx, t->cfg.defines);
-
-        vx_printf("      cfg:\n");
-        vx_printf("        cc:      %.*s\n", (i32) t_cc.len, t_cc.data);
-        vx_printf("        linker:  %.*s\n", (i32) t_linker.len, t_linker.data);
-        vx_printf("        cflags:  %.*s\n", (i32) t_cflags.len, t_cflags.data);
-        vx_printf("        lflags:  %.*s\n", (i32) t_lflags.len, t_lflags.data);
-        vx_printf("        defines: %.*s\n", (i32) t_defines.len, t_defines.data);
+        vx_printf("       config   :\n");
+        cfg_dump(&t->cfg);
+        vx_printf("\n");
     }
-    vx_printf("=================\n");
+    vx_printf("--- END DUMP ---\n\n");
 }

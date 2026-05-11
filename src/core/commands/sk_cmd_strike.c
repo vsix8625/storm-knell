@@ -1,5 +1,5 @@
 #include "sk_cmd_strike.h"
-#include "mem_arena.h"
+#include "mem.h"
 #include "sk_cli.h"
 #include "sk_globals.h"
 #include "sk_lexer.h"
@@ -10,26 +10,29 @@
 
 #include "vx_io.h"
 #include "vx_fs.h"
+#include <string.h>
 
-vx_status sk_cmd_strike_fn(struct sk_ctx *ctx, const char *path)
+vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 {
     if (ctx == nullptr)
     {
         return VX_ERROR;
     }
 
-    const char *rpath = path ? path : vx_getcwd_fn();
-
-    if (!sk_is_initialized_at(rpath))
+    if (sk_resolve_project_root(ctx) != VX_OK)
     {
-        vx_errlog("Storm-knell is not initialized for: %s", rpath);
+        vx_errlog("Storm-knell is not initialized in this directory or any parent.");
         return VX_ERROR;
     }
 
-    char stormfile_path[VX_PATH_MAX] = {0};
-    snprintf(stormfile_path, sizeof(stormfile_path), "%s/" SK_PATH_STORMFILE, rpath);
+    if (vx_chdir(ctx->init_dir) != VX_OK)
+    {
+        vx_errlog("Failed to chdir to project root: %s", ctx->init_dir);
+        return VX_ERROR;
+    }
+    vx_dbglog("Working directory: %s", ctx->init_dir);
 
-    ctx->stormfile = vx_fs_read(stormfile_path, sk_arena_alloc, g_sk_global_arena);
+    ctx->stormfile = vx_fs_read(SK_PATH_STORMFILE, sk_arena_alloc, g_sk_global_arena);
 
     if (ctx->stormfile.data == nullptr)
     {
@@ -64,26 +67,41 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx, const char *path)
         return VX_ERROR;
     }
 
-    struct sk_eval_result result = {0};
+    struct sk_eval_result *eval_result =
+        mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_eval_result));
+    memset(eval_result, 0, sizeof(struct sk_eval_result));
 
-    if (sk_eval_init(ctx, &result) != VX_OK)
-    {
-        VX_ASSERT_LOG("Failed to initialize eval");
-        return VX_ERROR;
-    }
-
-    if (sk_eval(ctx, &p, &result) != VX_OK)
+    vx_status strike_status = VX_OK;
+    if (sk_eval(&p, eval_result) != VX_OK)
     {
         vx_errlog("Eval failed");
-        return VX_ERROR;
+        strike_status = VX_ERROR;
+    }
+
+    //----------------------------------------------------------------------------------------------------
+    if (ctx->active_opt & SK_OPT_TOK_DUMP)
+    {
+        sk_lx_dbg_dump_tokens(ctx);
+    }
+    if (ctx->active_opt & SK_OPT_NODE_DUMP)
+    {
+        sk_parser_dbg_dump_ast(&p);
+    }
+    if (ctx->active_opt & SK_OPT_EVAL_DUMP)
+    {
+        sk_dbg_dump_eval(&p, eval_result);
     }
 
     if (ctx->active_opt & SK_OPT_VERBOSE)
     {
-        sk_lx_dbg_dump_tokens(ctx);
-        sk_parser_dbg_dump_ast(&p);
-        sk_dbg_dump_eval(ctx, &p, &result);
-        mem_arena_log_all_stats();
+        vx_log("Tokens: %u | Nodes: %u | Ratio: %.2f%%",
+               p.tokens->count,
+               p.nodes->count,
+               ((f32) p.nodes->count / p.tokens->count) * 100);
+        vx_log("Targets: %u | Variables: %u", eval_result->target_count, eval_result->var_count);
+        vx_log("Errors: %u in tokens | %u in nodes", p.tokens->err_count, p.nodes->err_count);
     }
-    return VX_OK;
+    //----------------------------------------------------------------------------------------------------
+
+    return strike_status;
 }

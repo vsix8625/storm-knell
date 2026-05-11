@@ -36,8 +36,7 @@ static void create_storm_dir(const char *root, const char *subdir)
 
 void sk_cmd_init_fn(struct sk_ctx *ctx)
 {
-    const char *cwd   = vx_getcwd_fn();
-    const char *rpath = ctx->rpath ? ctx->rpath : cwd;
+    const char *rpath = ctx->rpath ? ctx->rpath : vx_getcwd_fn();
     const bool  force = (ctx->active_opt & SK_OPT_FORCE);
 
     char stormfile[VX_PATH_MAX];
@@ -76,24 +75,28 @@ void sk_cmd_init_fn(struct sk_ctx *ctx)
 
 void sk_cmd_purge_fn(struct sk_ctx *ctx)
 {
-    const char *cwd   = vx_getcwd_fn();
-    const char *rpath = ctx->rpath ? ctx->rpath : cwd;
-
-    if (!sk_is_initialized_at(rpath))
+    if (ctx == nullptr)
     {
-        vx_warn("Storm-Knell is not initialized in: %s", rpath);
         return;
     }
 
+    if (sk_resolve_project_root(ctx) != VX_OK)
+    {
+        vx_warn("Storm-Knell is not initialized here or in any parent directory.");
+        return;
+    }
+
+    const char *target = ctx->init_dir;
+
     char stormfile[VX_PATH_MAX];
-    snprintf(stormfile, sizeof(stormfile), "%s%s%s", rpath, VX_PATH_SEP_STR, SK_PATH_STORMFILE);
+    snprintf(stormfile, sizeof(stormfile), "%s%s%s", target, VX_PATH_SEP_STR, SK_PATH_STORMFILE);
     vx_fs_rmrf(stormfile);
 
     char meta_path[VX_PATH_MAX];
-    snprintf(meta_path, sizeof(meta_path), "%s/%s", rpath, SK_PATH_STORM_DIR);
+    snprintf(meta_path, sizeof(meta_path), "%s/%s", target, SK_PATH_STORM_DIR);
     vx_fs_rmrf(meta_path);
 
-    vx_log("Storm-Knell purged for: %s", rpath);
+    vx_log("Storm-Knell purged for: %s", target);
 }
 
 //----------------------------------------------------------------------------------------------------

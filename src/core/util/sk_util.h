@@ -2,6 +2,8 @@
 #define SK_UTIL_H_
 
 #include "vx_defs.h"
+#include "vx_string.h"
+#include "storm-knell.h"
 
 #define CHAR_LPAREN   '('
 #define CHAR_RPAREN   ')'
@@ -87,9 +89,28 @@ static inline bool sk_util_is_digit(char c)
     return SK_UTIL_LEX_MAP[(u8) c] == 2;
 }
 
-bool sk_is_initialized(void);
 bool sk_is_initialized_at(const char *dir);
+bool sk_discover_root(char *out_path, size_t size);
+
+vx_status sk_resolve_project_root(struct sk_ctx *ctx);
 
 void *sk_arena_alloc(void *user, size_t size);
+
+static inline bool sk_has_ext(const char *name, size_t name_len, const char *ext)
+{
+    if (name == nullptr || name_len == 0 || ext == nullptr)
+    {
+        return false;
+    }
+
+    size_t ext_len = strlen(ext);
+
+    if (name_len < ext_len)
+    {
+        return false;
+    }
+
+    return vx_strncmplit(name + (name_len - ext_len), ext_len, ext, ext_len);
+}
 
 #endif  // SK_UTIL_H_

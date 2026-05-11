@@ -9,8 +9,10 @@
 #include "sk_config.h"
 #include "sk_cli.h"
 #include "sk_util.h"
+#include "sk_cmd_strike.h"
 #include "storm-knell.h"
-#include "commands/sk_cmd_strike.h"
+
+#include "mem.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -67,6 +69,11 @@ static struct sk_opt_entry g_sk_opts[] = {
     {"--version", SK_CMD_NONE, SK_OPT_VERSION, opt_set_bit, "Show version information and exit"},
     {"--help", SK_CMD_NONE, SK_OPT_HELP, opt_help, "Show help information and exit"},
     {"--force", SK_CMD_NONE, SK_OPT_FORCE, opt_set_bit, "Force action"},
+    {"--profile", SK_CMD_NONE, SK_OPT_PROFILE, opt_set_bit, "Enable profiling"},
+    {"--memstat", SK_CMD_NONE, SK_OPT_MEMSTAT, opt_set_bit, "Show memory information"},
+    {"--token-dump", SK_CMD_NONE, SK_OPT_TOK_DUMP, opt_set_bit, "Show tokens"},
+    {"--node-dump", SK_CMD_NONE, SK_OPT_NODE_DUMP, opt_set_bit, "Show nodes"},
+    {"--eval-dump", SK_CMD_NONE, SK_OPT_EVAL_DUMP, opt_set_bit, "Show eval"},
     {"-h", SK_CMD_NONE, SK_OPT_HELP, opt_help, "Show help information and exit"},
     {"-C", SK_CMD_NONE, SK_OPT_RUN_FROM_PATH, opt_set_rpath, "Run from path"},
     {"-j", SK_CMD_NONE, SK_OPT_THREADS, opt_set_jobs, "Allow N jobs at once"},
@@ -119,7 +126,7 @@ static bool is_subcmd(const char *arg)
 static void strip_trailing_sep(char *path)
 {
     size_t len = strlen(path);
-    while (len > 1 && (path[len - 1] == CHAR_SLASH || path[len - 1] == '\\'))
+    while (len > 1 && (path[len - 1] == VX_PATH_SEP))
     {
         path[--len] = CHAR_NULTERM;
     }
@@ -342,7 +349,7 @@ static vx_status cli_execute(struct sk_ctx *ctx)
 
     if (ctx->active_cmd & SK_CMD_STRIKE)
     {
-        if (sk_cmd_strike_fn(ctx, ctx->rpath) != VX_OK)
+        if (sk_cmd_strike_fn(ctx) != VX_OK)
         {
             return VX_ERROR;
         }
@@ -374,6 +381,12 @@ vx_status sk_cli_driver(struct sk_ctx *ctx, i32 argc, char **argv)
     if (cli_execute(ctx) != VX_OK)
     {
         return VX_ERROR;
+    }
+
+    if (ctx->active_opt & SK_OPT_MEMSTAT)
+    {
+        mem_arena_log_all_stats();
+        mem_heap_print_stats(nullptr);
     }
 
     return VX_OK;

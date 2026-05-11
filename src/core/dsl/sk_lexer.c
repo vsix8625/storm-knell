@@ -176,6 +176,7 @@ static void sk_lx_next_token(struct sk_lexer *lx)
             record(lx, SK_TOKEN_COLON, token_start);
             return;
         }
+
         case CHAR_BANG:
         {
             if (peek(lx) == CHAR_EQUAL)
@@ -199,7 +200,7 @@ static void sk_lx_next_token(struct sk_lexer *lx)
             if (peek(lx) == CHAR_EQUAL)
             {
                 advance(lx);
-                record(lx, SK_TOKEN_EQUAL, token_start);
+                record(lx, SK_TOKEN_DOUBLE_EQUAL, token_start);
                 return;
             }
             record(lx, SK_TOKEN_EQUAL, token_start);
@@ -237,7 +238,14 @@ static void sk_lx_next_token(struct sk_lexer *lx)
             if (sk_util_is_ident(peek(lx)) || sk_util_is_digit(peek(lx)))
             {
                 while (!isatend(lx) && (sk_util_is_ident(lx->source.data[lx->current]) ||
-                                        sk_util_is_digit(lx->source.data[lx->current])))
+                                        sk_util_is_digit(lx->source.data[lx->current]) ||
+                                        lx->source.data[lx->current] == CHAR_EQUAL ||
+                                        lx->source.data[lx->current] == CHAR_COMMA ||
+                                        lx->source.data[lx->current] == CHAR_COLON ||
+                                        lx->source.data[lx->current] == CHAR_DOT ||
+                                        lx->source.data[lx->current] == CHAR_PLUS ||
+                                        lx->source.data[lx->current] == CHAR_SLASH ||
+                                        lx->source.data[lx->current] == CHAR_MINUS))
                 {
                     advance(lx);
                 }
@@ -316,6 +324,7 @@ static void sk_lx_next_token(struct sk_lexer *lx)
     }
 }
 
+// MAIN LEXER
 vx_status sk_lex(struct sk_ctx *ctx, struct sk_lexer *lx)
 {
     if (ctx == nullptr || lx == nullptr)
@@ -413,7 +422,7 @@ static inline char advance(struct sk_lexer *lx)
     if (c == CHAR_NEWLINE)
     {
         lx->line_n++;
-        lx->col_n++;
+        lx->col_n = 0;
     }
     else
     {
@@ -508,7 +517,7 @@ static void handle_path(struct sk_lexer *lx, u32 start_col)
     while (!isatend(lx))
     {
         char c = peek(lx);
-        if (c == CHAR_SLASH)
+        if (c == CHAR_SLASH || c == CHAR_DOT || c == CHAR_MINUS || c == CHAR_UNDERSCORE)
         {
             advance(lx);
         }
@@ -705,6 +714,26 @@ static sk_token_kind check_keywords(struct sk_lexer *lx)
             break;
         }
 
+        case 'k':
+        {
+            if (len == 4 && vx_strncmplit(s, len, "kind", 4))
+            {
+                return SK_TOKEN_KWORD_KIND;
+            }
+
+            break;
+        }
+
+        case 'm':
+        {
+            if (len == 4 && vx_strncmplit(s, len, "mode", 4))
+            {
+                return SK_TOKEN_KWORD_MODE;
+            }
+
+            break;
+        }
+
         case 's':
         {
             if (len == 7 && vx_strncmplit(s, len, "sources", 7))
@@ -760,6 +789,16 @@ static sk_token_kind check_keywords(struct sk_lexer *lx)
             {
                 return SK_TOKEN_KWORD_ELSE;
             }
+            break;
+        }
+
+        case 'o':
+        {
+            if (len == 3 && vx_strncmplit(s, len, "out", 3))
+            {
+                return SK_TOKEN_KWORD_OUT;
+            }
+
             break;
         }
 
