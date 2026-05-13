@@ -148,6 +148,17 @@ static void eval_cfg(struct sk_parser *p,
             break;
         }
 
+        case SK_TOKEN_KWORD_OUT_DIR:
+        {
+            if (target)
+            {
+                vx_sv sv = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
+
+                target->build_dir = sv_to_arena(g_sk_global_arena, sv);
+            }
+            break;
+        }
+
         case SK_TOKEN_KWORD_SOURCES:
         {
             if (target == nullptr)
@@ -583,10 +594,7 @@ static const char *sk_target_kind_to_str(sk_target_kind kind)
 {
     switch (kind)
     {
-        case SK_TARGET_KIND_EXEC:
-        {
-            return "executable";
-        }
+        case SK_TARGET_KIND_EXEC: return "executable";
         case SK_TARGET_KIND_STATIC: return "static_lib";
         case SK_TARGET_KIND_SHARED: return "shared_lib";
         default: return "none";
@@ -596,6 +604,7 @@ static const char *sk_target_kind_to_str(sk_target_kind kind)
 static void cfg_list_dump(const char *label, char **list, u32 count)
 {
     vx_printf("        %-9s: ", label);
+
     if (count == 0 || list == nullptr)
     {
         vx_printf("(none)\n");
@@ -638,6 +647,7 @@ void sk_dbg_dump_eval(struct sk_parser *p, struct sk_eval_result *result)
     vx_printf("\n--- SK EVALUATION RESULT DUMP ---\n");
 
     vx_printf("variables (%u):\n", result->var_count);
+
     for (u32 i = 0; i < result->var_count; i++)
     {
         vx_printf("    $%s = \"%s\"\n", result->var_keys[i], result->var_vals[i]);
@@ -647,41 +657,51 @@ void sk_dbg_dump_eval(struct sk_parser *p, struct sk_eval_result *result)
     cfg_dump(&result->global);
 
     vx_printf("\ntargets (%u):\n", result->target_count);
+
     for (u32 i = 0; i < result->target_count; i++)
     {
         struct sk_target *t = &result->targets[i];
 
-        vx_printf("  [%02u] %s (Type: %u)\n", i, t->name ? t->name : "UNNAMED", t->kind);
-        vx_printf("       out_name : %s\n", t->out_name ? t->out_name : "(none)");
-        vx_printf("       build_dir: %s\n", t->build_dir ? t->build_dir : "(none)");
+        vx_printf("  [%02u] %s\n", i, t->name ? t->name : "UNNAMED");
+        vx_printf("        kind     : %s (%u)\n", sk_target_kind_to_str(t->kind), t->kind);
+        vx_printf("        mode     : %s\n", t->build_mode ? t->build_mode : "debug");
+        vx_printf("        out_name : %s\n", t->out_name ? t->out_name : "(none)");
+        vx_printf("        build_dir: %s\n", t->build_dir ? t->build_dir : "(none)");
 
         if (t->sources && t->sources->count > 0)
         {
-            vx_printf("       sources  : %zu items\n", t->sources->count);
-
+            vx_printf("        sources  : %zu items\n", t->sources->count);
             for (u32 j = 0; j < (u32) t->sources->count; j++)
             {
-                vx_printf("         - %s\n", (char *) t->sources->items[j]);
+                vx_printf("          - %s\n", (char *) t->sources->items[j]);
             }
         }
         else
         {
-            vx_printf("       sources  : (none)\n");
+            vx_printf("        sources  : (none)\n");
+        }
+
+        if (t->exclude_count > 0 && t->excludes)
+        {
+            vx_printf("        excludes : ");
+            for (u32 j = 0; j < t->exclude_count; j++)
+            {
+                vx_printf("%s%s", t->excludes[j], (j == t->exclude_count - 1) ? "" : ", ");
+            }
+            vx_printf("\n");
         }
 
         if (t->depend_count > 0 && t->depends)
         {
-            vx_printf("       depends  : ");
-
+            vx_printf("        depends  : ");
             for (u32 j = 0; j < t->depend_count; j++)
             {
                 vx_printf("%s%s", t->depends[j], (j == t->depend_count - 1) ? "" : ", ");
             }
-
             vx_printf("\n");
         }
 
-        vx_printf("       config   :\n");
+        vx_printf("        config   :\n");
         cfg_dump(&t->cfg);
         vx_printf("\n");
     }

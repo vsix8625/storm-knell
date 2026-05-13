@@ -679,8 +679,7 @@ static sk_token_kind check_keywords(struct sk_lexer *lx)
                     break;
                 }
 
-                default:
-                    break;
+                default: break;
             }
             break;
         }
@@ -698,8 +697,7 @@ static sk_token_kind check_keywords(struct sk_lexer *lx)
                     break;
                 }
 
-                default:
-                    break;
+                default: break;
             }
             break;
         }
@@ -797,6 +795,11 @@ static sk_token_kind check_keywords(struct sk_lexer *lx)
             if (len == 3 && vx_strncmplit(s, len, "out", 3))
             {
                 return SK_TOKEN_KWORD_OUT;
+            }
+
+            if (len == 7 && vx_strncmplit(s, len, "out_dir", 7))
+            {
+                return SK_TOKEN_KWORD_OUT_DIR;
             }
 
             break;

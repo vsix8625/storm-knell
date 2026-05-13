@@ -126,7 +126,7 @@ vx_status sk_top_level_parse(struct sk_parser *p)
                 }
                 else
                 {
-                    p->nodes->err_count++;
+                    syntax_error(p, "expected assingment or append after identifier");
                     advance(p);
                 }
 
@@ -140,6 +140,7 @@ vx_status sk_top_level_parse(struct sk_parser *p)
             case SK_TOKEN_KWORD_LFLAGS:
             case SK_TOKEN_KWORD_DEFINES:
             case SK_TOKEN_KWORD_MODE:
+            case SK_TOKEN_KWORD_OUT_DIR:
             {
                 node = parse_global(p);
                 break;
@@ -147,10 +148,7 @@ vx_status sk_top_level_parse(struct sk_parser *p)
 
             default:
             {
-                // vx_dbglog("Unexpected token at top level: %s line %u",
-                //           sk_token_tostr(t1),
-                //           p->tokens->lines[p->current]);
-                p->nodes->err_count++;
+                syntax_error(p, "unexpected token at top level");
                 advance(p);
                 break;
             }
@@ -260,6 +258,7 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
             case SK_TOKEN_KWORD_SOURCES:
             case SK_TOKEN_KWORD_INCLUDES:
             case SK_TOKEN_KWORD_OUT:
+            case SK_TOKEN_KWORD_OUT_DIR:
             case SK_TOKEN_KWORD_KIND:
             case SK_TOKEN_KWORD_MODE:
             case SK_TOKEN_KWORD_DEPENDS:
@@ -287,7 +286,7 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
 
             default:
             {
-                p->nodes->err_count++;
+                syntax_error(p, "unexpected token at target block");
                 advance(p);
                 break;
             }

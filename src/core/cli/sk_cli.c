@@ -422,14 +422,9 @@ opt_set_jobs(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, cha
         }
         else
         {
-            threads = (nproc > 1) ? nproc - 1 : 1;
+            threads = 0;
 
             *i += 1;
-        }
-
-        if (threads < 1)
-        {
-            threads = 1;
         }
 
         ctx->cores   = nproc;

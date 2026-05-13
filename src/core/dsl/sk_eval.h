@@ -59,6 +59,8 @@ struct sk_target
     char *out_name;
     char *build_dir;
     char *build_mode;
+    char *finalized_bin_dirpath;
+    char *finalized_bin_rpath;
 
     struct sk_arena_array *sources;    // final resolved list
     struct sk_arena_array *scan_dirs;  // paths ending in /
