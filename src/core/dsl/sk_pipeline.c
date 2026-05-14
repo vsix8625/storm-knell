@@ -4,9 +4,49 @@
 #include "sk_eval.h"
 #include "sk_globals.h"
 #include "sk_paths.h"
+#include "sk_array.h"
 #include "vx_fs.h"
 #include "vx_io.h"
 #include <string.h>
+
+static vx_status finalize_evaluation(struct sk_eval_result *result)
+{
+    if (result == nullptr)
+    {
+        return VX_ERROR;
+    }
+
+    for (u32 i = 0; i < result->target_count; i++)
+    {
+        struct sk_target *t = &result->targets[i];
+
+        u32 saved_excl_count = t->exclude_count;
+        u32 extra_excl_count = 2;
+
+        char **final_excludes = mem_arena_alloc(
+            g_sk_global_arena, sizeof(char *) * (saved_excl_count + extra_excl_count));
+
+        for (u32 j = 0; j < saved_excl_count; j++)
+        {
+            final_excludes[j] = t->excludes[j];
+        }
+
+        final_excludes[saved_excl_count]     = t->build_dir;
+        final_excludes[saved_excl_count + 1] = SK_PATH_STORM_DIR;
+
+        t->excludes      = final_excludes;
+        t->exclude_count = saved_excl_count + extra_excl_count;
+
+        for (u32 j = 0; j < t->scan_dirs->count; j++)
+        {
+            char *dir_to_scan = (char *) t->scan_dirs->items[j];
+
+            sk_scan_dir_r(t->sources, t->excludes, t->exclude_count, dir_to_scan);
+        }
+    }
+
+    return VX_OK;
+}
 
 vx_status sk_pipeline_run(struct sk_ctx         *ctx,
                           struct sk_lexer       *lx,
@@ -56,6 +96,11 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
         pipeline_status = VX_ERROR;
     }
 
+    if (ctx->tokens->err_count > 0)
+    {
+        pipeline_status = VX_ERROR;
+    }
+
     //----------------------------------------------------------------------------------------------------
     // Parse
 
@@ -77,6 +122,17 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
     if (sk_eval(p, ev_result) != VX_OK)
     {
         vx_errlog("Eval failed");
+        pipeline_status = VX_ERROR;
+    }
+
+    if (finalize_evaluation(ev_result) != VX_OK)
+    {
+        vx_errlog("Finalize evaluation failed");
+        pipeline_status = VX_ERROR;
+    }
+
+    if (ctx->nodes->err_count > 0)
+    {
         pipeline_status = VX_ERROR;
     }
 

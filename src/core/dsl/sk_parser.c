@@ -38,8 +38,6 @@ static u32  parse_expr(struct sk_parser *p);
 static void parse_body(struct sk_parser *p, u32 *first_child);
 static u32  parse_fn_call(struct sk_parser *p);
 
-static void syntax_error(struct sk_parser *p, const char *msg);
-
 //----------------------------------------------------------------------------------------------------
 
 vx_status sk_parser_init(struct sk_ctx *ctx, struct sk_parser *p)
@@ -215,7 +213,6 @@ static sk_ast_node_kind literal_kind(sk_token_kind t)
         }
 
         case SK_TOKEN_LIT_INT:
-        case SK_TOKEN_LIT_FLOAT:
         {
             return SK_NODE_LIT_NUMBER;
         }
@@ -257,6 +254,7 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
             case SK_TOKEN_KWORD_LFLAGS:
             case SK_TOKEN_KWORD_SOURCES:
             case SK_TOKEN_KWORD_INCLUDES:
+            case SK_TOKEN_KWORD_EXCLUDE:
             case SK_TOKEN_KWORD_OUT:
             case SK_TOKEN_KWORD_OUT_DIR:
             case SK_TOKEN_KWORD_KIND:
@@ -661,7 +659,7 @@ static u32 emit(sk_ast_node_kind kind, u32 token_idx)
     return i;
 }
 
-static void syntax_error(struct sk_parser *p, const char *msg)
+void syntax_error(struct sk_parser *p, const char *msg)
 {
     u32 tok = p->current;
 
@@ -670,6 +668,17 @@ static void syntax_error(struct sk_parser *p, const char *msg)
               p->tokens->cols[tok],
               msg,
               sk_token_tostr(p->tokens->kinds[tok]));
+
+    p->nodes->err_count++;
+}
+
+void syntax_error_at(struct sk_parser *p, u32 tok_idx, const char *msg)
+{
+    vx_errlog("Syntax error at line %u col %u: %s (got %s)",
+              p->tokens->lines[tok_idx],
+              p->tokens->cols[tok_idx],
+              msg,
+              sk_token_tostr(p->tokens->kinds[tok_idx]));
 
     p->nodes->err_count++;
 }

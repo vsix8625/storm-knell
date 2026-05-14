@@ -14,11 +14,14 @@ static bool eval_expr(struct sk_parser *p,
                       char            **var_vals,
                       u32               var_count);
 
+static void eval_var(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_eval_result *result);
+
 //----------------------------------------------------------------------------------------------------
 
 static void cfg_push_flags(struct sk_parser *p,
                            vx_sv             stormfile,
                            u32               val_node,
+                           u32               key_tok_idx,
                            char            **flags,
                            u32              *count,
                            u32               max_limit,
@@ -29,14 +32,58 @@ static void cfg_push_flags(struct sk_parser *p,
         *count = 0;
     }
 
+    if (val_node == SK_NODE_INVALID)
+    {
+        syntax_error_at(p, key_tok_idx, "flag list cannot be empty");
+        return;
+    }
+
     u32 cur = val_node;
 
     while (cur != 0 && *count < max_limit)
     {
         vx_sv sv = tok_to_sv(p, stormfile, p->nodes->token_idxs[cur]);
 
-        flags[*count] = sv_to_arena(g_sk_global_arena, sv);
+        if (p->nodes->kinds[cur] != SK_NODE_FLAG)
+        {
+            syntax_error_at(p, p->nodes->token_idxs[cur], "expected SK_TOKEN_FLAG");
+            return;
+        }
 
+        flags[*count] = sv_to_arena(g_sk_global_arena, sv);
+        (*count)++;
+        cur = p->nodes->nexts[cur];
+    }
+}
+
+static void cfg_push_paths(struct sk_parser *p,
+                           vx_sv             stormfile,
+                           u32               val_node,
+                           u32               key_tok_idx,
+                           char            **paths,
+                           u32              *count,
+                           u32               max_limit)
+{
+    if (val_node == SK_NODE_INVALID)
+    {
+        syntax_error_at(p, key_tok_idx, "path list cannot be empty");
+        return;
+    }
+
+    u32 cur = val_node;
+
+    while (cur != 0 && *count < max_limit)
+    {
+        vx_sv sv = tok_to_sv(p, stormfile, p->nodes->token_idxs[cur]);
+
+        if (p->nodes->kinds[cur] != SK_NODE_PATH)
+        {
+            syntax_error_at(p, p->nodes->token_idxs[cur], "expected SK_TOKEN_PATH");
+            return;
+        }
+
+        paths[*count] = sv_to_arena(g_sk_global_arena, sv);
+        sk_path_strip_trailing_sep(paths[*count]);
         (*count)++;
         cur = p->nodes->nexts[cur];
     }
@@ -79,29 +126,58 @@ static void eval_cfg(struct sk_parser *p,
 
         case SK_TOKEN_KWORD_CFLAGS:
         {
-            cfg_push_flags(
-                p, stormfile, val_node, cfg->cflags, &cfg->cflags_count, SK_MAX_FLAGS, append);
+            u32 key_tok = p->nodes->token_idxs[node];
+            cfg_push_flags(p,
+                           stormfile,
+                           val_node,
+                           key_tok,
+                           cfg->cflags,
+                           &cfg->cflags_count,
+                           SK_MAX_FLAGS,
+                           append);
             break;
         }
 
         case SK_TOKEN_KWORD_LFLAGS:
         {
-            cfg_push_flags(
-                p, stormfile, val_node, cfg->lflags, &cfg->lflags_count, SK_MAX_FLAGS, append);
+            u32 key_tok = p->nodes->token_idxs[node];
+            cfg_push_flags(p,
+                           stormfile,
+                           val_node,
+                           key_tok,
+                           cfg->lflags,
+                           &cfg->lflags_count,
+                           SK_MAX_FLAGS,
+                           append);
             break;
         }
 
         case SK_TOKEN_KWORD_DEFINES:
         {
-            cfg_push_flags(
-                p, stormfile, val_node, cfg->defines, &cfg->defines_count, SK_MAX_DEFINES, append);
+            u32 key_tok = p->nodes->token_idxs[node];
+
+            cfg_push_flags(p,
+                           stormfile,
+                           val_node,
+                           key_tok,
+                           cfg->defines,
+                           &cfg->defines_count,
+                           SK_MAX_DEFINES,
+                           append);
             break;
         }
 
         case SK_TOKEN_KWORD_INCLUDES:
         {
-            cfg_push_flags(
-                p, stormfile, val_node, cfg->includes, &cfg->includes_count, SK_MAX_FLAGS, append);
+            u32 key_tok = p->nodes->token_idxs[node];
+            cfg_push_flags(p,
+                           stormfile,
+                           val_node,
+                           key_tok,
+                           cfg->includes,
+                           &cfg->includes_count,
+                           SK_MAX_FLAGS,
+                           append);
             break;
         }
 
@@ -159,6 +235,25 @@ static void eval_cfg(struct sk_parser *p,
             break;
         }
 
+        case SK_TOKEN_KWORD_EXCLUDE:
+        {
+            if (target == nullptr)
+            {
+                VX_ASSERT_LOG("Keyword 'exclude' is not allowed in global scope");
+                break;
+            }
+
+            u32 key_tok = p->nodes->token_idxs[node];
+            cfg_push_paths(p,
+                           stormfile,
+                           val_node,
+                           key_tok,
+                           target->excludes,
+                           &target->exclude_count,
+                           SK_MAX_EXCLUDES);
+            break;
+        }
+
         case SK_TOKEN_KWORD_SOURCES:
         {
             if (target == nullptr)
@@ -178,20 +273,13 @@ static void eval_cfg(struct sk_parser *p,
 
                 if (vx_isdir(path))
                 {
-                    sk_scan_dir_r(target->sources, path);
+                    sk_arena_array_push(target->scan_dirs, path);
                 }
-                else if (vx_isfile(path))
+                else
                 {
                     if (!sk_arena_array_contains(target->sources, path))
                     {
                         sk_arena_array_push(target->sources, path);
-                    }
-                }
-                else
-                {
-                    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
-                    {
-                        vx_warn("Source file not found: %s", path);
                     }
                 }
                 cur = p->nodes->nexts[cur];
@@ -290,13 +378,11 @@ static void eval_if(struct sk_parser *p,
     }
 }
 
-static void eval_target(struct sk_parser *p,
-                        vx_sv             stormfile,
-                        u32               node,
-                        struct sk_target *target,
-                        char            **var_keys,
-                        char            **var_vals,
-                        u32               var_count)
+static void eval_target(struct sk_parser      *p,
+                        vx_sv                  stormfile,
+                        u32                    node,
+                        struct sk_target      *target,
+                        struct sk_eval_result *result)
 {
     if (target->out_name == nullptr)
     {
@@ -314,7 +400,14 @@ static void eval_target(struct sk_parser *p,
             case SK_NODE_ASSIGN:
             case SK_NODE_APPEND:
             {
-                eval_cfg(p, stormfile, child, &target->cfg, target);
+                u32 tok_kind = p->tokens->kinds[p->nodes->token_idxs[child]];
+
+                if (tok_kind == SK_TOKEN_IDENT)
+                    eval_var(p, stormfile, child, result);
+                else
+                {
+                    eval_cfg(p, stormfile, child, &target->cfg, target);
+                }
                 break;
             }
 
@@ -326,7 +419,13 @@ static void eval_target(struct sk_parser *p,
 
             case SK_NODE_IF:
             {
-                eval_if(p, stormfile, child, target, var_keys, var_vals, var_count);
+                eval_if(p,
+                        stormfile,
+                        child,
+                        target,
+                        result->var_keys,
+                        result->var_vals,
+                        result->var_count);
                 break;
             }
 
@@ -378,6 +477,7 @@ static void eval_var(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_e
     }
 }
 
+// TODO: handle local vars
 static bool eval_expr(struct sk_parser *p,
                       vx_sv             stormfile,
                       u32               node,
@@ -526,6 +626,8 @@ vx_status sk_eval(struct sk_parser *p, struct sk_eval_result *result)
 
     u32 node = p->nodes->data_a[1];  // program first child
 
+    char **snapshot = mem_arena_alloc(g_sk_global_arena, sizeof(char *) * SK_MAX_VARS);
+
     while (node != 0)
     {
         sk_ast_node_kind kind = p->nodes->kinds[node];
@@ -572,8 +674,14 @@ vx_status sk_eval(struct sk_parser *p, struct sk_eval_result *result)
 
                 struct sk_target *t = target_init(ar, result, name_sv);
 
-                eval_target(
-                    p, stormfile, node, t, result->var_keys, result->var_vals, result->var_count);
+                u32 saved_var_count = result->var_count;
+                memcpy(snapshot, result->var_vals, sizeof(char *) * result->var_count);
+
+                eval_target(p, stormfile, node, t, result);
+
+                result->var_count = saved_var_count;
+                memcpy(result->var_vals, snapshot, sizeof(char *) * saved_var_count);
+
                 break;
             }
 

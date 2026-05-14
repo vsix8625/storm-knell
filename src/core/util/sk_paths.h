@@ -1,6 +1,8 @@
 #ifndef SK_PATHS_H_
 #define SK_PATHS_H_
 
+#include "vx_defs.h"
+
 struct sk_arena_array;
 
 #define SK_PATH_STORM_DIR       ".storm"
@@ -11,7 +13,10 @@ struct sk_arena_array;
 #define SK_PATH_STORMFILE       "Stormfile"
 #define SK_PATH_BUILD_DIR       "build"
 
-void sk_scan_dir_r(struct sk_arena_array *sources, const char *dirpath);
+void sk_scan_dir_r(struct sk_arena_array *sources,
+                   char                 **excludes,
+                   u32                    exclude_count,
+                   const char            *dirpath);
 
 void sk_path_strip_trailing_sep(char *path);
 

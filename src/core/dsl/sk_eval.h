@@ -11,19 +11,6 @@
 
 #include <string.h>
 
-#define SK_MAX_TARGETS 32
-#define SK_MAX_FLAGS   256
-#define SK_MAX_DEFINES 512
-#define SK_MAX_LIBS    128
-#define SK_MAX_VARS    16384
-
-#define SK_MAX_DEPENDS  32
-#define SK_MAX_EXCLUDES 32
-
-#define SK_FLAG_LEN 64
-#define SK_NAME_LEN 64
-#define SK_PATH_LEN 256  // mostly for relative paths
-
 struct sk_cfg
 {
     char *cc;
@@ -61,6 +48,7 @@ struct sk_target
     char *build_mode;
     char *finalized_bin_dirpath;
     char *finalized_bin_rpath;
+    char *finalized_obj_dirpath;
 
     struct sk_arena_array *sources;    // final resolved list
     struct sk_arena_array *scan_dirs;  // paths ending in /

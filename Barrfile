@@ -2,8 +2,8 @@
 # Latest update: 2026-02-26
 
 major         = "0";
-minor         = "0";
-patch         = "5";
+minor         = "1";
+patch         = "2";
 
 TARGET        = "sk";
 VERSION       = "${major}.${minor}.${patch}";    TARGET_TYPE   = "executable";
@@ -30,7 +30,7 @@ DEFINES       = "-DDEBUG -DVX_USE_THREADS";
 
 MAIN_ENTRY = "storm-knell.c";
 
-LFLAGS      = "-lpthread";        
+LFLAGS      = "-lpthread -lxxhash";        
 # LIB_PATHS   = "-L/usr/local/lib";
 
 GEN_COMPILE_COMMANDS = "on";

@@ -156,13 +156,12 @@ static vx_status parse_subcmds(struct sk_ctx *ctx, i32 argc, char **argv)
 {
     if (ctx == nullptr || argv == nullptr)
     {
-        VX_ASSERT_LOG("nullptr args");
         return VX_ERROR;
     }
 
-    if (argc == 0)
+    if (argc == 1)
     {
-        vx_log("Usage: bla bla");
+        vx_log("Usage: sk <subcmd> [opt] (sk --help for more information)");
     }
 
     for (i32 i = 1; i < argc;)
@@ -177,9 +176,20 @@ static vx_status parse_subcmds(struct sk_ctx *ctx, i32 argc, char **argv)
             continue;
         }
 
+        // aliases
+        const char *resolved_cmd = arg;
+        if (strcmp(arg, "build") == 0)
+        {
+            resolved_cmd = "strike";
+        }
+        else if (strcmp(arg, "run") == 0)
+        {
+            resolved_cmd = "surge";
+        }
+
         for (size_t j = 0; g_sk_subcmds[j].name; j++)
         {
-            if (strcmp(arg, g_sk_subcmds[j].name) == 0)
+            if (strcmp(resolved_cmd, g_sk_subcmds[j].name) == 0)
             {
                 if (g_sk_subcmds[j].fn == nullptr ||
                     g_sk_subcmds[j].fn(ctx, g_sk_subcmds[j].id, &i, argc, argv) != VX_OK)
@@ -287,6 +297,8 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         return VX_ERROR;
     }
 
+    // NOTE: order matters here
+
     if (ctx->active_opt & SK_OPT_SILENT)
     {
         FILE *nul_out = fopen(VX_DEVNUL, "w");
@@ -316,7 +328,6 @@ static vx_status cli_execute(struct sk_ctx *ctx)
     // version exits early
     if (ctx->active_opt & SK_OPT_VERSION)
     {
-        vx_clear_term();
         vx_log("Storm-Knell version: (%s-[%s])", SK_VERSION_STRING, SK_BUILD_TYPE);
 
         sk_shutdown();
@@ -336,7 +347,15 @@ static vx_status cli_execute(struct sk_ctx *ctx)
 
     if (ctx->active_cmd & SK_CMD_PURGE)
     {
-        sk_cmd_purge_fn(ctx);
+        if ((ctx->active_cmd & SK_CMD_STRIKE) || (ctx->active_cmd & SK_CMD_SURGE))
+        {
+            vx_warn("Aborted purge: cannot nuke a project while building or running");
+            ctx->active_cmd &= ~SK_CMD_PURGE;
+        }
+        else
+        {
+            sk_cmd_purge_fn(ctx);
+        }
     }
 
     if (ctx->active_cmd & SK_CMD_NEW)
@@ -355,6 +374,11 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         }
     }
 
+    if (ctx->active_cmd & SK_CMD_SURGE)
+    {
+        vx_warn("SURGING");
+    }
+
     return VX_OK;
 }
 
@@ -364,7 +388,6 @@ vx_status sk_cli_driver(struct sk_ctx *ctx, i32 argc, char **argv)
 {
     if (ctx == nullptr || argv == nullptr)
     {
-        VX_ASSERT_LOG("nullptr args");
         return VX_ERROR;
     }
 
@@ -546,9 +569,8 @@ opt_help(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **
         }
     }
 
-    vx_clear_term();
     vx_printf("==================================================\n");
-    vx_printf("Storm-Knell Help\n");
+    vx_printf("Storm-Knell Help: v.%s\n", SK_VERSION_STRING);
     vx_printf("==================================================\n");
 
     if (focus == SK_CMD_NONE)

@@ -25,6 +25,7 @@ static sk_token_kind check_keywords(struct sk_lexer *lx);
 static void handle_ident(struct sk_lexer *lx, u32 start_col);
 static void handle_number(struct sk_lexer *lx, u32 start_col);
 static void handle_string(struct sk_lexer *lx, char quote_type, u32 start_col);
+static void handle_path(struct sk_lexer *lx, u32 start_col);
 
 static void sk_lx_next_token(struct sk_lexer *lx);
 
@@ -190,8 +191,9 @@ static void sk_lx_next_token(struct sk_lexer *lx)
         }
 
         case CHAR_DOT:
+        case CHAR_SLASH:
         {
-            record(lx, SK_TOKEN_DOT, token_start);
+            handle_path(lx, token_start);
             return;
         }
 
@@ -290,12 +292,6 @@ static void sk_lx_next_token(struct sk_lexer *lx)
         case CHAR_PLUS:
         {
             record(lx, SK_TOKEN_PLUS, token_start);
-            return;
-        }
-
-        case CHAR_SLASH:
-        {
-            record(lx, SK_TOKEN_SLASH, token_start);
             return;
         }
 
@@ -517,11 +513,19 @@ static void handle_path(struct sk_lexer *lx, u32 start_col)
     while (!isatend(lx))
     {
         char c = peek(lx);
-        if (c == CHAR_SLASH || c == CHAR_DOT || c == CHAR_MINUS || c == CHAR_UNDERSCORE)
+
+        if (c == CHAR_SPACE || c == CHAR_TAB || c == CHAR_NEWLINE || c == CHAR_CARRIAGE)
         {
-            advance(lx);
+            break;
         }
-        else if (sk_util_is_ident(c) || sk_util_is_digit(c))
+
+        if (c == CHAR_LBRACE || c == CHAR_COLON)
+        {
+            break;
+        }
+
+        if (c == CHAR_SLASH || c == CHAR_DOT || c == CHAR_MINUS || c == CHAR_UNDERSCORE ||
+            sk_util_is_ident(c) || sk_util_is_digit(c))
         {
             advance(lx);
         }
@@ -547,7 +551,8 @@ static void handle_ident(struct sk_lexer *lx, u32 start_col)
     lx->current += len;
     lx->col_n   += len;
 
-    if (!isatend(lx) && peek(lx) == CHAR_SLASH)
+    char next = peek(lx);
+    if (!isatend(lx) && (next == CHAR_SLASH || next == CHAR_DOT))
     {
         handle_path(lx, start_col);
         return;
@@ -569,27 +574,6 @@ static void handle_number(struct sk_lexer *lx, u32 start_col)
             break;
         }
         advance(lx);
-    }
-
-    if (peek(lx) == CHAR_DOT)
-    {
-        char next = peek_next(lx);
-
-        if (sk_util_is_digit((u8) next))
-        {
-            kind = SK_TOKEN_LIT_FLOAT;
-            advance(lx); /* consume '.' */
-
-            while (true)
-            {
-                char c = peek(lx);
-                if (!sk_util_is_digit((u8) c))
-                {
-                    break;
-                }
-                advance(lx);
-            }
-        }
     }
 
     record(lx, kind, start_col);
@@ -787,6 +771,12 @@ static sk_token_kind check_keywords(struct sk_lexer *lx)
             {
                 return SK_TOKEN_KWORD_ELSE;
             }
+
+            if (len == 7 && vx_strncmplit(s, len, "exclude", 7))
+            {
+                return SK_TOKEN_KWORD_EXCLUDE;
+            }
+
             break;
         }
 

@@ -111,4 +111,7 @@ static inline const char *sk_node_tostr(sk_ast_node_kind kind)
 
 void sk_parser_dbg_dump_ast(struct sk_parser *p);
 
+void syntax_error(struct sk_parser *p, const char *msg);
+void syntax_error_at(struct sk_parser *p, u32 tok_idx, const char *msg);
+
 #endif  // SK_PARSER_H_

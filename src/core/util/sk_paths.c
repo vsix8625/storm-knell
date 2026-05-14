@@ -1,4 +1,3 @@
-#include "mem_heap.h"
 #include "sk_globals.h"
 #include "sk_util.h"
 #include "vx_platform.h"
@@ -17,7 +16,19 @@ void sk_path_strip_trailing_sep(char *path)
     }
 }
 
-void sk_scan_dir_r(struct sk_arena_array *sources, const char *dirpath)
+static const char *sk_path_normalize(const char *path)
+{
+    if (path[0] == CHAR_DOT && path[1] == CHAR_SLASH)
+    {
+        return path + 2;
+    }
+    return path;
+}
+
+void sk_scan_dir_r(struct sk_arena_array *sources,
+                   char                 **excludes,
+                   u32                    exclude_count,
+                   const char            *dirpath)
 {
     if (sources == nullptr || dirpath == nullptr)
     {
@@ -32,6 +43,27 @@ void sk_scan_dir_r(struct sk_arena_array *sources, const char *dirpath)
         return;
     }
 
+    const char *normalized_dir = sk_path_normalize(dirpath);
+
+    if (excludes)
+    {
+        for (u32 i = 0; i < exclude_count; i++)
+        {
+            const char *normalized_excl = sk_path_normalize(excludes[i]);
+            if (excludes[i])
+                vx_dbglog("COMPARING: [%s] vs [%s]", normalized_excl, normalized_dir);
+
+            if (excludes[i] && strcmp(normalized_dir, normalized_excl) == 0)
+            {
+                vx_dbglog("Excluding directory: %s", normalized_dir);
+                return;
+            }
+        }
+    }
+
+    vx_dbglog(
+        "SCAN START: dir=%s, excludes_ptr=%p, count=%u", dirpath, (void *) excludes, exclude_count);
+
     vx_dir_entry entry;
 
     while (vx_fs_dir_read(dir, &entry))
@@ -41,14 +73,37 @@ void sk_scan_dir_r(struct sk_arena_array *sources, const char *dirpath)
             continue;
         }
 
+        if (entry.name[0] == CHAR_DOT)
+        {
+            continue;
+        }
+
         u32   needed = (u32) strlen(dirpath) + (u32) strlen(VX_PATH_SEP_STR) + entry.name_len + 1;
         char *presisten_path = sk_arena_alloc(g_sk_global_arena, needed);
 
         snprintf(presisten_path, needed, "%s%s%s", dirpath, VX_PATH_SEP_STR, entry.name);
 
+        bool skip = false;
+        if (excludes)
+        {
+            for (u32 i = 0; i < exclude_count; i++)
+            {
+                if (excludes[i] && strcmp(presisten_path, excludes[i]) == 0)
+                {
+                    vx_dbglog("Excluding: %s", presisten_path);
+                    skip = true;
+                    break;
+                }
+            }
+        }
+
+        if (skip)
+        {
+            continue;
+        }
+
         bool is_dir = entry.is_dir;
 
-        // TODO: add project type on sk_ctx
         if (!is_dir && vx_isdir(presisten_path))
         {
             is_dir = true;
@@ -56,7 +111,7 @@ void sk_scan_dir_r(struct sk_arena_array *sources, const char *dirpath)
 
         if (is_dir)
         {
-            sk_scan_dir_r(sources, presisten_path);
+            sk_scan_dir_r(sources, excludes, exclude_count, presisten_path);
         }
         else if (entry.name_len >= 2 && sk_has_ext(entry.name, entry.name_len, ".c"))
         {
