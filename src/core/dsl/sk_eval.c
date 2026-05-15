@@ -5,6 +5,7 @@
 #include "sk_paths.h"
 #include "sk_array.h"
 
+#include "vx_fs.h"
 #include "vx_io.h"
 
 static bool eval_expr(struct sk_parser *p,

@@ -15,7 +15,6 @@ struct sk_ctx
     sk_cmd active_cmd;
     sk_opt active_opt;
 
-    const char *init_dir;
     const char *rpath;
 
     u32 cores;

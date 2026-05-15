@@ -5,8 +5,9 @@
 #include "sk_xxhash.h"
 
 struct sk_target;
+struct mem_arena;
 
 char  *sk_invoke_compile(struct sk_target *t, u32 source_idx);
-char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx);
+char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx, struct mem_arena *arena);
 
 #endif  // SK_INVOKE_H_

@@ -3,7 +3,7 @@
 #include "mem_heap.h"
 #include "sk_paths.h"
 
-#include "vx_util.h"
+#include "vx_fs.h"
 #include "vx_string.h"
 
 bool sk_is_initialized_at(const char *dir)
@@ -73,16 +73,17 @@ vx_status sk_resolve_project_root(struct sk_ctx *ctx)
     {
         if (sk_is_initialized_at(ctx->rpath))
         {
-            ctx->init_dir = ctx->rpath;
             return VX_OK;
         }
+
+        vx_errlog("Directory not initialized: %s", ctx->rpath);
         return VX_ERROR;
     }
 
     char discovered[VX_PATH_MAX];
     if (sk_discover_root(discovered, sizeof(discovered)))
     {
-        ctx->init_dir = mem_heap_strdup(discovered);
+        ctx->rpath = mem_heap_strdup(discovered);
         return VX_OK;
     }
 

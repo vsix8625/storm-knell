@@ -8,6 +8,8 @@
 #define SK_XXHASH_LEN 8
 
 struct sk_target;
+struct sk_meta;
+struct mem_arena;
 
 struct sk_hash_input
 {
@@ -19,19 +21,17 @@ struct sk_hash_input
     vx_sv sk_version;
 };
 
-vx_status sk_xxh3_hash(struct sk_hash_input *input, u8 out_hash[SK_XXHASH_LEN]);
-
-/*
- * Returns an arena allocated `sk_hash_input struct`.
- */
-struct sk_hash_input *sk_hash_input_create(void);
+vx_status
+sk_xxh3_hash(struct sk_hash_input *input, u8 out_hash[SK_XXHASH_LEN], struct mem_arena *arena);
 
 void sk_xxh3_hash_merge(u8 h1[SK_XXHASH_LEN], u8 h2[SK_XXHASH_LEN], u8 out[SK_XXHASH_LEN]);
 
 vx_status sk_hash_setup(struct sk_target     *t,
                         u32                   source_idx,
+                        struct sk_meta       *meta,
                         struct sk_hash_input *hsh_input,
-                        u8                    out_hash[SK_XXHASH_LEN]);
+                        u8                    out_hash[SK_XXHASH_LEN],
+                        struct mem_arena     *arena);
 
 static inline bool sk_hash_eq(const u8 h1[SK_XXHASH_LEN], u8 h2[SK_XXHASH_LEN])
 {

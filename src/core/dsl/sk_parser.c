@@ -704,13 +704,13 @@ static void dump_node(struct sk_parser *p, u32 idx, u32 depth)
     {
         vx_printf("  │");
     }
-    printf("  │   tok_idx: %u  tok: %s  a:%u  b:%u  c:%u  next:%u\n",
-           n->token_idxs[idx],
-           sk_token_tostr(p->tokens->kinds[n->token_idxs[idx]]),
-           n->data_a[idx],
-           n->data_b[idx],
-           n->data_c[idx],
-           n->nexts[idx]);
+    vx_printf("  │   tok_idx: %u  tok: %s  a:%u  b:%u  c:%u  next:%u\n",
+              n->token_idxs[idx],
+              sk_token_tostr(p->tokens->kinds[n->token_idxs[idx]]),
+              n->data_a[idx],
+              n->data_b[idx],
+              n->data_c[idx],
+              n->nexts[idx]);
 
     if (n->kinds[idx] == SK_NODE_TARGET)
     {

@@ -1,11 +1,12 @@
 #include "vx_platform.h"
+#include "vx_time.h"
 #include "vx_util.h"
 #include "vx_io.h"
 #include "vx_fs.h"
 #include "vx_cpu.h"
 
-#include "sk_cmd_new.h"
-
+#include "sk_commands.h"
+#include "sk_globals.h"
 #include "sk_config.h"
 #include "sk_cli.h"
 #include "sk_util.h"
@@ -18,7 +19,7 @@
 
 // ----------------------------------------------------------------------------------------------------
 
-static bool is_subcmd(const char *arg);
+// static bool is_subcmd(const char *arg);
 
 // ----------------------------------------------------------------------------------------------------
 
@@ -36,8 +37,6 @@ opt_set_bit(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char
 
 static vx_status
 opt_help(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **argv);
-
-static vx_status init_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i32 argc, char **argv);
 
 // ----------------------------------------------------------------------------------------------------
 
@@ -57,7 +56,7 @@ static struct sk_subcmd_entry g_sk_subcmds[] = {
     {"strike", SK_CMD_STRIKE, subcmd_handler, "Build"},
     {"surge", SK_CMD_SURGE, subcmd_handler, "Run binary"},
     {"clean", SK_CMD_CLEAN, subcmd_handler, "Clean artifacts"},
-    {"init", SK_CMD_INIT, init_handler, "Initialize Storm-Knell in working directory"},
+    {"init", SK_CMD_INIT, subcmd_handler, "Initialize Storm-Knell in working directory"},
     {"purge", SK_CMD_PURGE, subcmd_handler, "Nuke .storm and artifacts"},
     {nullptr, SK_CMD_NONE, nullptr, nullptr},
 };
@@ -110,18 +109,18 @@ static struct sk_opt_entry g_sk_opts[] = {
 
 //----------------------------------------------------------------------------------------------------
 
-static bool is_subcmd(const char *arg)
-{
-    for (size_t i = 0; g_sk_subcmds[i].name; i++)
-    {
-        if (strcmp(arg, g_sk_subcmds[i].name) == 0)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
+// static bool is_subcmd(const char *arg)
+// {
+//     for (size_t i = 0; g_sk_subcmds[i].name; i++)
+//     {
+//         if (strcmp(arg, g_sk_subcmds[i].name) == 0)
+//         {
+//             return true;
+//         }
+//     }
+//
+//     return false;
+// }
 
 static void strip_trailing_sep(char *path)
 {
@@ -130,24 +129,6 @@ static void strip_trailing_sep(char *path)
     {
         path[--len] = CHAR_NULTERM;
     }
-}
-
-static vx_status init_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i32 argc, char **argv)
-{
-    ctx->active_cmd |= id;
-
-    (*i)++;
-
-    if (*i < argc && argv[*i][0] != CHAR_MINUS && !is_subcmd(argv[*i]))
-    {
-        strip_trailing_sep(argv[*i]);
-        char resovled[VX_PATH_MAX];
-        vx_fs_realpath(argv[*i], resovled);
-        ctx->init_dir = resovled;
-        (*i)++;
-    }
-
-    return VX_OK;
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -313,17 +294,15 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         }
     }
 
-    if (ctx->active_opt & SK_OPT_VERBOSE)
+    vx_ticks total_time = {0};
+    if (ctx->active_opt & SK_OPT_PROFILE)
     {
-        vx_set_debug(true);
+        vx_sbuf_append(&g_sk_profile_sbuf, "====== Profiler ======\n");
+        vx_ticks_start(&total_time);
     }
 
     vx_dbglog("active_cmd: 0x%08lX", ctx->active_cmd);
     vx_dbglog("active_opt: 0x%08lX", ctx->active_opt);
-    const char *log_path = ctx->rpath;
-    vx_dbglog("rpath: %s |  fallback: %s",
-              log_path ? log_path : "(not set)",
-              log_path ? "" : vx_getcwd_fn());
 
     // version exits early
     if (ctx->active_opt & SK_OPT_VERSION)
@@ -379,6 +358,19 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         vx_warn("SURGING");
     }
 
+    if (ctx->active_opt & SK_OPT_PROFILE)
+    {
+        vx_ticks_end(&total_time);
+        char  elapsed[32];
+        char *elapsed_fmt = vx_ticks_format(&total_time, elapsed, sizeof(elapsed));
+        vx_sbuf_append(&g_sk_profile_sbuf,
+                       "======================\n"
+                       "Total: %s\n",
+                       elapsed_fmt);
+
+        vx_sbuf_append(&g_sk_profile_sbuf, "======================\n");
+        vx_printf("%s", g_sk_profile_buf);
+    }
     return VX_OK;
 }
 
@@ -504,7 +496,16 @@ opt_set_rpath(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, ch
     }
 
     strip_trailing_sep(tmp_path);
-    ctx->rpath = tmp_path;
+
+    char *abs_path = mem_arena_alloc(g_sk_global_arena, VX_PATH_MAX);
+
+    if (vx_fs_realpath(tmp_path, abs_path) != VX_OK)
+    {
+        const char *cwd = vx_getcwd_fn();
+        snprintf(abs_path, VX_PATH_MAX, "%s%s%s", cwd, VX_PATH_SEP_STR, tmp_path);
+    }
+
+    ctx->rpath = abs_path;
 
     return VX_OK;
 }

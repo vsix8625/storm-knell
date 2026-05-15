@@ -5,8 +5,11 @@
 #include "sk_globals.h"
 #include "sk_paths.h"
 #include "sk_array.h"
+#include "sk_globals.h"
+
 #include "vx_fs.h"
 #include "vx_io.h"
+#include "vx_time.h"
 #include <string.h>
 
 static vx_status finalize_evaluation(struct sk_eval_result *result)
@@ -58,20 +61,6 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
         return VX_ERROR;
     }
 
-    if (sk_resolve_project_root(ctx) != VX_OK)
-    {
-        vx_errlog("Storm-knell is not initialized in '%s'  directory or any parent",
-                  ctx->rpath ? ctx->rpath : vx_getcwd_fn());
-        return VX_ERROR;
-    }
-
-    if (vx_chdir(ctx->init_dir) != VX_OK)
-    {
-        vx_errlog("Failed to chdir to project root: %s", ctx->init_dir);
-        return VX_ERROR;
-    }
-    vx_dbglog("Working directory: %s", ctx->init_dir);
-
     ctx->stormfile = vx_fs_read(SK_PATH_STORMFILE, sk_arena_alloc, g_sk_global_arena);
 
     if (ctx->stormfile.data == nullptr)
@@ -83,6 +72,15 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
     // Lex
 
     vx_status pipeline_status = VX_OK;
+
+    vx_ticks lexer_time  = {0};
+    vx_ticks parser_time = {0};
+    vx_ticks eval_time   = {0};
+
+    if (ctx->active_opt & SK_OPT_PROFILE)
+    {
+        vx_ticks_start(&lexer_time);
+    }
 
     if (sk_lx_init(ctx, lx) != VX_OK)
     {
@@ -96,6 +94,14 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
         pipeline_status = VX_ERROR;
     }
 
+    if (ctx->active_opt & SK_OPT_PROFILE)
+    {
+        vx_ticks_end(&lexer_time);
+        char  elapsed[32];
+        char *elapsed_fmt = vx_ticks_format(&lexer_time, elapsed, sizeof(elapsed));
+        vx_sbuf_append(&g_sk_profile_sbuf, "%s: Lexer: %s\n", __func__, elapsed_fmt);
+    }
+
     if (ctx->tokens->err_count > 0)
     {
         pipeline_status = VX_ERROR;
@@ -104,6 +110,10 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
     //----------------------------------------------------------------------------------------------------
     // Parse
 
+    if (ctx->active_opt & SK_OPT_PROFILE)
+    {
+        vx_ticks_start(&parser_time);
+    }
     if (sk_parser_init(ctx, p) != VX_OK)
     {
         VX_ASSERT_LOG("Failed to initialize parser");
@@ -116,9 +126,21 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
         pipeline_status = VX_ERROR;
     }
 
+    if (ctx->active_opt & SK_OPT_PROFILE)
+    {
+        vx_ticks_end(&parser_time);
+        char  elapsed[32];
+        char *elapsed_fmt = vx_ticks_format(&parser_time, elapsed, sizeof(elapsed));
+        vx_sbuf_append(&g_sk_profile_sbuf, "%s: Parser: %s\n", __func__, elapsed_fmt);
+    }
+
     //----------------------------------------------------------------------------------------------------
     // Eval
 
+    if (ctx->active_opt & SK_OPT_PROFILE)
+    {
+        vx_ticks_start(&eval_time);
+    }
     if (sk_eval(p, ev_result) != VX_OK)
     {
         vx_errlog("Eval failed");
@@ -129,6 +151,13 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
     {
         vx_errlog("Finalize evaluation failed");
         pipeline_status = VX_ERROR;
+    }
+    if (ctx->active_opt & SK_OPT_PROFILE)
+    {
+        vx_ticks_end(&eval_time);
+        char  elapsed[32];
+        char *elapsed_fmt = vx_ticks_format(&eval_time, elapsed, sizeof(elapsed));
+        vx_sbuf_append(&g_sk_profile_sbuf, "%s: Eval: %s\n", __func__, elapsed_fmt);
     }
 
     if (ctx->nodes->err_count > 0)

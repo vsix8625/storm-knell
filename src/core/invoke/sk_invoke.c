@@ -59,9 +59,9 @@ char *sk_invoke_compile(struct sk_target *t, u32 source_idx)
     return buf;
 }
 
-char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx)
+char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx, struct mem_arena *arena)
 {
-    if (t == nullptr)
+    if (t == nullptr || arena == nullptr)
     {
         return nullptr;
     }
@@ -70,7 +70,7 @@ char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx)
     u32 total_args =
         1 + t->cfg.cflags_count + t->cfg.includes_count + t->cfg.defines_count + 2 + 2 + 1;
 
-    char **argv = mem_arena_alloc(g_sk_global_arena, sizeof(char *) * total_args);
+    char **argv = mem_arena_alloc(arena, sizeof(char *) * total_args);
 
     if (argv == nullptr)
     {
@@ -101,7 +101,7 @@ char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx)
 
     file_name = file_name ? file_name + 1 : src_path;
 
-    char *obj_path = mem_arena_alloc(g_sk_global_arena, VX_PATH_MAX);
+    char *obj_path = mem_arena_alloc(arena, VX_PATH_MAX);
     snprintf(
         obj_path, VX_PATH_MAX, "%s%s%s.o", t->finalized_obj_dirpath, VX_PATH_SEP_STR, file_name);
 

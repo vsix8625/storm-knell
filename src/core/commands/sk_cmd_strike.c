@@ -1,6 +1,7 @@
 #include "sk_cmd_strike.h"
 #include "mem.h"
 #include "sk_cli.h"
+#include "sk_cmd_init.h"
 #include "sk_globals.h"
 #include "sk_lexer.h"
 #include "sk_eval.h"
@@ -9,8 +10,10 @@
 #include "sk_invoke.h"
 #include "sk_array.h"
 
+#include "vx_fs.h"
 #include "vx_io.h"
 #include "vx_cpu.h"
+#include "vx_time.h"
 #include "vx_util.h"
 #include "vx_thread.h"
 #include "vx_process.h"
@@ -18,10 +21,17 @@
 
 //----------------------------------------------------------------------------------------------------
 
+static _Thread_local struct mem_arena *tls_worker_arena = nullptr;
+
 struct sk_work_unit
 {
-    const char *bin;
-    char      **argv;
+    struct sk_target *target;
+
+    u32 source_idx;
+    u32 pad;
+
+    struct sk_meta *meta;
+
     const char *tag;
 };
 
@@ -36,6 +46,24 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
     if (ctx == nullptr)
     {
         return VX_ERROR;
+    }
+    if (sk_resolve_project_root(ctx) != VX_OK)
+    {
+        vx_errlog("Storm-knell is not initialized in '%s'  directory or any parent",
+                  ctx->rpath ? ctx->rpath : vx_getcwd_fn());
+        return VX_ERROR;
+    }
+    if (vx_chdir(ctx->rpath) != VX_OK)
+    {
+        vx_errlog("Failed to change dir to project root: %s", ctx->rpath);
+        return VX_ERROR;
+    }
+    vx_log("Working directory: %s", ctx->rpath);
+
+    vx_ticks profile = {0};
+    if (ctx->active_opt & SK_OPT_PROFILE)
+    {
+        vx_ticks_start(&profile);
     }
 
     struct sk_lexer  lx = {0};
@@ -86,9 +114,27 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         u32 t_count = eval_result->target_count;
 
+        //----------------------------------------------------------------------------------------------------
+        // Main loop
         for (u32 i = 0; i < t_count; i++)
         {
-            struct sk_target *t = &eval_result->targets[i];
+            struct sk_target *t    = &eval_result->targets[i];
+            struct sk_meta    meta = {0};
+
+            char abs_cc[VX_PATH_MAX];
+            if (vx_fs_which(t->cfg.cc, abs_cc, sizeof(abs_cc)) != VX_OK)
+            {
+                vx_errlog("Compiler executable '%s' not found in PATH", t->cfg.cc);
+                continue;
+            }
+
+            if (!sk_meta_load(&meta, abs_cc))
+            {
+                vx_errlog("Compiler %s not initialized", abs_cc);
+                continue;
+            }
+
+            t->cfg.cc = mem_heap_strdup(abs_cc);
 
             if (sk_target_prepare_dirs(ctx, t) != VX_OK)
             {
@@ -97,27 +143,15 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             }
 
             //----------------------------------------------------------------------------------------------------
-            // Invoke
-
             for (u32 j = 0; j < t->sources->count; j++)
             {
-                u8 src_out_hash[SK_XXHASH_LEN];
-
-                struct sk_hash_input *src_hsh_input = sk_hash_input_create();
-
-                if (sk_hash_setup(t, j, src_hsh_input, src_out_hash) != VX_OK)
-                {
-                    VX_ASSERT_LOG("Failed to hash");
-                }
-
-                char **argv = sk_invoke_compile_nularr(t, j);
-
                 struct sk_work_unit *unit =
                     mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_work_unit));
 
-                unit->bin  = argv[0];
-                unit->argv = argv;
-                unit->tag  = (const char *) t->sources->items[j];
+                unit->target     = t;
+                unit->source_idx = j;
+                unit->meta       = &meta;
+                unit->tag        = (const char *) t->sources->items[j];
 
                 vx_thread_pool_push(&pool, sk_worker_compile_fn, unit);
 
@@ -126,14 +160,14 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                     const char *cmd = sk_invoke_compile(t, j);
                     vx_log("%s: %s", t->name, cmd);
                 }
-
-                if (ctx->active_opt & SK_OPT_VERBOSE)
-                {
-                    vx_log("Total tasks: %d", total_tasks);
-                }
             }
 
             //----------------------------------------------------------------------------------------------------
+        }
+
+        if (ctx->active_opt & SK_OPT_VERBOSE)
+        {
+            vx_log("Total tasks: %d", total_tasks);
         }
 
         vx_thread_pool_wait(&pool);
@@ -167,6 +201,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         vx_log("Errors: %u in tokens | %u in nodes", p.tokens->err_count, p.nodes->err_count);
         vx_log("Cores: %u | Threads: %u", ctx->cores, ctx->threads);
     }
+
     //----------------------------------------------------------------------------------------------------
 
     if (dry_run)
@@ -180,6 +215,14 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         {
             vx_log("DRY-RUN status: Strike is clean");
         }
+    }
+
+    if (ctx->active_opt & SK_OPT_PROFILE)
+    {
+        vx_ticks_end(&profile);
+        char  elapsed[32];
+        char *elapsed_fmt = vx_ticks_format(&profile, elapsed, sizeof(elapsed));
+        vx_sbuf_append(&g_sk_profile_sbuf, "%s: %s\n", __func__, elapsed_fmt);
     }
     return strike_status;
 }
@@ -274,21 +317,45 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
 
 static void *sk_worker_compile_fn(void *arg)
 {
+    if (tls_worker_arena == nullptr)
+    {
+        tls_worker_arena = mem_arena_create("worker-scratch", 4 * 1024 * 1024);
+    }
+
+    struct mem_arena *arena = tls_worker_arena;
+
     struct sk_work_unit *unit = (struct sk_work_unit *) arg;
     struct vx_process    proc = {0};
 
-    if (vx_process_spawn(&proc, unit->bin, unit->argv, nullptr) == VX_OK)
-    {
-        vx_process_wait(&proc);
+    struct sk_target *t = unit->target;
 
-        if (proc.exit_code != 0)
-        {
-            vx_errlog("Failed to compile: %s", unit->tag);
-        }
-    }
-    else
+    struct sk_hash_input h_in = {0};
+
+    u8 out_hash[SK_XXHASH_LEN];
+
+    if (sk_hash_setup(t, unit->source_idx, unit->meta, &h_in, out_hash, arena) == VX_OK)
     {
-        vx_errlog("Could not spawn compiler for: %s", unit->tag);
+        // TODO: Dirty-check and cache
+
+        vx_dbglog("HASH: %016llx", *(unsigned long long *) out_hash);
+
+        char **argv = sk_invoke_compile_nularr(t, unit->source_idx, arena);
+
+        if (vx_process_spawn(&proc, argv[0], argv, nullptr) == VX_OK)
+        {
+            vx_process_wait(&proc);
+
+            if (proc.exit_code != 0)
+            {
+                vx_errlog("Failed to compile: %s", unit->tag);
+            }
+        }
+        else
+        {
+            vx_errlog("Could not spawn compiler for: %s", unit->tag);
+        }
+
+        mem_arena_soft_reset(arena);
     }
 
     return nullptr;

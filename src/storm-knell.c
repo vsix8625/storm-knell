@@ -66,6 +66,8 @@ static vx_status sk_init(i32 argc, char **argv)
         return VX_FATAL;
     }
 
+    g_sk_global_ctx.rpath = mem_heap_strdup(vx_getcwd_fn());
+
     if (sk_cli_driver(&g_sk_global_ctx, argc, argv) != VX_OK)
     {
         return VX_FATAL;

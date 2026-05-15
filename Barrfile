@@ -3,7 +3,7 @@
 
 major         = "0";
 minor         = "1";
-patch         = "2";
+patch         = "3";
 
 TARGET        = "sk";
 VERSION       = "${major}.${minor}.${patch}";    TARGET_TYPE   = "executable";
@@ -26,7 +26,7 @@ extra_flags    = "-fvisibility=hidden";
 
 CFLAGS_RELEASE = "${std} -Wall -O3 ${opt_flags} ${safety} ${quality} ${extra_flags}";             
 
-DEFINES       = "-DDEBUG -DVX_USE_THREADS";           
+DEFINES       = "-DDEBUG";           
 
 MAIN_ENTRY = "storm-knell.c";
 

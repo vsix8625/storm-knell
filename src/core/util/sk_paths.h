@@ -12,6 +12,9 @@ struct sk_arena_array;
 #define SK_PATH_STORM_LOCKFILE  ".storm/storm.lock"
 #define SK_PATH_STORMFILE       "Stormfile"
 #define SK_PATH_BUILD_DIR       "build"
+#define SK_PATH_G_CACHE_DIR     "storm-knell"
+
+#define SK_PATH_STORM_META_FILE ".storm/data/meta"
 
 void sk_scan_dir_r(struct sk_arena_array *sources,
                    char                 **excludes,

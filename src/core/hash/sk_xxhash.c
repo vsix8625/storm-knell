@@ -5,6 +5,7 @@
 #include "sk_globals.h"
 #include "sk_config.h"
 #include "sk_array.h"
+#include "sk_cmd_init.h"
 
 #include "vx_io.h"
 #include "vx_fs.h"
@@ -22,11 +23,13 @@ static void sk_scan_inc(const char            *src_path,
                         vx_sv                  src,
                         struct sk_arena_array *seen,
                         struct sk_cfg         *cfg,
-                        XXH3_state_t          *state);
+                        XXH3_state_t          *state,
+                        struct mem_arena      *arena);
 
-vx_status sk_xxh3_hash(struct sk_hash_input *input, u8 out_hash[SK_XXHASH_LEN])
+vx_status
+sk_xxh3_hash(struct sk_hash_input *input, u8 out_hash[SK_XXHASH_LEN], struct mem_arena *arena)
 {
-    if (input == nullptr)
+    if (input == nullptr || arena == nullptr)
     {
         return VX_ERROR;
     }
@@ -53,8 +56,8 @@ vx_status sk_xxh3_hash(struct sk_hash_input *input, u8 out_hash[SK_XXHASH_LEN])
         return VX_ERROR;
     }
 
-    struct sk_arena_array *seen = sk_arena_array_create(g_sk_global_arena, SK_MAX_SEEN_INCLUDES);
-    sk_scan_inc(input->source_path, input->source, seen, input->cfg, &state);
+    struct sk_arena_array *seen = sk_arena_array_create(arena, SK_MAX_SEEN_INCLUDES);
+    sk_scan_inc(input->source_path, input->source, seen, input->cfg, &state, arena);
 
     XXH64_hash_t hash = XXH3_64bits_digest(&state);
     memcpy(out_hash, &hash, SK_XXHASH_LEN);
@@ -85,26 +88,6 @@ void sk_xxh3_hash_merge(u8 h1[SK_XXHASH_LEN], u8 h2[SK_XXHASH_LEN], u8 out[SK_XX
     memcpy(out, &hash, SK_XXHASH_LEN);
 }
 
-struct sk_hash_input *sk_hash_input_create(void)
-{
-    struct sk_hash_input *hash_input =
-        mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_hash_input));
-
-    if (hash_input == nullptr)
-    {
-        return nullptr;
-    }
-
-    hash_input->cfg = mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_cfg));
-
-    if (hash_input->cfg == nullptr)
-    {
-        return nullptr;
-    }
-
-    return hash_input;
-}
-
 //----------------------------------------------------------------------------------------------------
 // hash includes
 
@@ -112,7 +95,8 @@ static void sk_scan_inc(const char            *src_path,
                         vx_sv                  src,
                         struct sk_arena_array *seen,
                         struct sk_cfg         *cfg,
-                        XXH3_state_t          *state)
+                        XXH3_state_t          *state,
+                        struct mem_arena      *arena)
 {
     if (src_path == nullptr || seen == nullptr || cfg == nullptr || state == nullptr)
     {
@@ -204,9 +188,9 @@ static void sk_scan_inc(const char            *src_path,
         {
             continue;
         }
-        sk_arena_array_push(seen, sv_to_arena(g_sk_global_arena, vx_sv_from_cstr(resolved)));
+        sk_arena_array_push(seen, sv_to_arena(arena, vx_sv_from_cstr(resolved)));
 
-        vx_sv inc_sv = vx_fs_read(resolved, sk_arena_alloc, g_sk_global_arena);
+        vx_sv inc_sv = vx_fs_read(resolved, sk_arena_alloc, arena);
         if (inc_sv.data == nullptr)
         {
             continue;
@@ -214,7 +198,7 @@ static void sk_scan_inc(const char            *src_path,
 
         XXH3_64bits_update(state, inc_sv.data, inc_sv.len);
 
-        sk_scan_inc(resolved, inc_sv, seen, cfg, state);
+        sk_scan_inc(resolved, inc_sv, seen, cfg, state, arena);
     }
 }
 
@@ -222,20 +206,27 @@ static void sk_scan_inc(const char            *src_path,
 
 vx_status sk_hash_setup(struct sk_target     *t,
                         u32                   source_idx,
+                        struct sk_meta       *meta,
                         struct sk_hash_input *hsh_input,
-                        u8                    out_hash[SK_XXHASH_LEN])
+                        u8                    out_hash[SK_XXHASH_LEN],
+                        struct mem_arena     *arena)
 {
+    if (t == nullptr || arena == nullptr)
+    {
+        return VX_ERROR;
+    }
+
     const char *src_path = (const char *) t->sources->items[source_idx];
 
     hsh_input->source_path = src_path;
     hsh_input->cfg         = &t->cfg;
     hsh_input->sk_version  = vx_sv_from_cstr(SK_VERSION_STRING);
-    hsh_input->source      = vx_fs_read(src_path, sk_arena_alloc, g_sk_global_arena);
+    hsh_input->source      = vx_fs_read(src_path, sk_arena_alloc, arena);
 
-    size_t buf_stride = VX_PATH_MAX * 2;
-    char  *h_buf      = mem_arena_alloc(g_sk_global_arena, buf_stride);
+    size_t buf_stride = VX_PATH_MAX * 4;
+    char  *h_buf      = mem_arena_alloc(arena, buf_stride);
 
-    i32 written = snprintf(h_buf, buf_stride, "%s", t->cfg.cc);
+    i32 written = snprintf(h_buf, buf_stride, "[%s:%s]", meta->cc_path, meta->cc_ver);
 
     for (u32 i = 0; i < t->cfg.cflags_count; i++)
     {
@@ -254,5 +245,5 @@ vx_status sk_hash_setup(struct sk_target     *t,
 
     hsh_input->cmd = vx_sv_from_cstr(h_buf);
 
-    return sk_xxh3_hash(hsh_input, out_hash);
+    return sk_xxh3_hash(hsh_input, out_hash, arena);
 }

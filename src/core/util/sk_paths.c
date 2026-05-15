@@ -50,8 +50,6 @@ void sk_scan_dir_r(struct sk_arena_array *sources,
         for (u32 i = 0; i < exclude_count; i++)
         {
             const char *normalized_excl = sk_path_normalize(excludes[i]);
-            if (excludes[i])
-                vx_dbglog("COMPARING: [%s] vs [%s]", normalized_excl, normalized_dir);
 
             if (excludes[i] && strcmp(normalized_dir, normalized_excl) == 0)
             {
@@ -60,9 +58,6 @@ void sk_scan_dir_r(struct sk_arena_array *sources,
             }
         }
     }
-
-    vx_dbglog(
-        "SCAN START: dir=%s, excludes_ptr=%p, count=%u", dirpath, (void *) excludes, exclude_count);
 
     vx_dir_entry entry;
 
