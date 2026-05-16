@@ -1,6 +1,7 @@
 #include "sk_util.h"
 #include "mem_arena.h"
 #include "mem_heap.h"
+#include "sk_globals.h"
 #include "sk_paths.h"
 
 #include "vx_fs.h"
@@ -84,7 +85,7 @@ vx_status sk_resolve_project_root(struct sk_ctx *ctx)
     char discovered[VX_PATH_MAX];
     if (sk_discover_root(discovered, sizeof(discovered)))
     {
-        ctx->rpath = mem_heap_strdup(discovered);
+        ctx->rpath = mem_arena_strdup(g_sk_global_arena, discovered);
         return VX_OK;
     }
 

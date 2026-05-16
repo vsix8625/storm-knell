@@ -10,4 +10,7 @@ extern struct mem_arena *g_sk_global_arena;
 extern vx_sbuf g_sk_profile_sbuf;
 extern char    g_sk_profile_buf[VX_PATH_MAX];
 
+extern _Atomic u32            g_sk_ccmds_count;
+extern struct sk_ccmds_entry *g_sk_ccmds;
+
 #endif  // SK_GLOBALS_H_

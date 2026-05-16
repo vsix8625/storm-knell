@@ -37,7 +37,8 @@ struct sk_work_unit
 
     u32 source_idx;
     u8  dry_run;
-    u8  pad[3];
+    u8  gen_ccmds;
+    u8  pad[2];
 
     struct sk_meta *meta;
 
@@ -109,6 +110,9 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             total_tasks += 16;
         }
 
+        g_sk_ccmds =
+            mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_ccmds_entry) * total_tasks);
+
         if (vx_thread_pool_create(&pool, thread_count, total_tasks) != VX_OK)
         {
             // maybe fallback to single thread?
@@ -138,7 +142,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 continue;
             }
 
-            t->cfg.cc = mem_heap_strdup(abs_cc);
+            t->cfg.cc = mem_arena_strdup(g_sk_global_arena, abs_cc);
 
             if (sk_target_prepare_dirs(ctx, t) != VX_OK)
             {
@@ -157,6 +161,11 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 unit->meta       = &meta;
                 unit->tag        = (const char *) t->sources->items[j];
                 unit->dry_run    = dry_run;
+
+                if (ctx->active_opt & SK_OPT_GEN_CCMDS)
+                {
+                    unit->gen_ccmds = true;
+                }
 
                 vx_thread_pool_push(&pool, sk_worker_compile_fn, unit);
 
@@ -201,42 +210,50 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         //----------------------------------------------------------------------------------------------------
         // LINK
 
-        vx_ticks link_time = {0};
-        vx_ticks_start(&link_time);
-        for (u32 i = 0; i < t_count; i++)
+        if (!dry_run && g_compile_errors == 0)
         {
-            struct sk_target *t    = &eval_result->targets[i];
-            struct sk_meta    meta = {0};
-            sk_meta_load(&meta, t->cfg.cc);
-
-            struct vx_process proc = {0};
-
-            char **argv;
-
-            if (t->kind == SK_TARGET_KIND_STATIC)
+            vx_ticks link_time = {0};
+            vx_ticks_start(&link_time);
+            for (u32 i = 0; i < t_count; i++)
             {
-                argv = sk_invoke_ar_nularr(t, &meta, g_sk_global_arena);
-            }
-            else
-            {
-                argv = sk_invoke_link_nularr(t, g_sk_global_arena);
-            }
+                struct sk_target *t    = &eval_result->targets[i];
+                struct sk_meta    meta = {0};
+                sk_meta_load(&meta, t->cfg.cc);
 
-            if (vx_process_spawn(&proc, argv[0], argv, nullptr) == VX_OK)
-            {
-                vx_process_wait(&proc);
-                if (proc.exit_code != 0)
+                struct vx_process proc = {0};
+
+                char **argv;
+
+                if (t->kind == SK_TARGET_KIND_STATIC)
                 {
-                    vx_errlog("Failed to link target: %s", t->name);
+                    argv = sk_invoke_ar_nularr(t, &meta, g_sk_global_arena);
+                }
+                else
+                {
+                    argv = sk_invoke_link_nularr(t, g_sk_global_arena);
+                }
+
+                if (vx_process_spawn(&proc, argv[0], argv, nullptr) == VX_OK)
+                {
+                    vx_process_wait(&proc);
+                    if (proc.exit_code != 0)
+                    {
+                        vx_errlog("Failed to link target: %s", t->name);
+                    }
                 }
             }
-        }
-        if (ctx->active_opt & SK_OPT_PROFILE)
-        {
-            vx_ticks_end(&link_time);
-            char  elapsed[32];
-            char *elapsed_fmt = vx_ticks_format(&link_time, elapsed, sizeof(elapsed));
-            vx_sbuf_append(&g_sk_profile_sbuf, "%s: Link: %s\n", __func__, elapsed_fmt);
+            if (ctx->active_opt & SK_OPT_PROFILE)
+            {
+                vx_ticks_end(&link_time);
+                char  elapsed[32];
+                char *elapsed_fmt = vx_ticks_format(&link_time, elapsed, sizeof(elapsed));
+                vx_sbuf_append(&g_sk_profile_sbuf, "%s: Link: %s\n", __func__, elapsed_fmt);
+            }
+
+            if (ctx->active_opt & SK_OPT_GEN_CCMDS)
+            {
+                sk_ccmds_write(ctx->rpath);
+            }
         }
     }
 
@@ -326,11 +343,11 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
     char abs_dir_buf[VX_PATH_MAX];
     if (vx_fs_realpath(object_dir_buf, abs_dir_buf) == nullptr)
     {
-        t->finalized_obj_dirpath = mem_heap_strdup(object_dir_buf);
+        t->finalized_obj_dirpath = mem_arena_strdup(g_sk_global_arena, object_dir_buf);
     }
     else
     {
-        t->finalized_obj_dirpath = mem_heap_strdup(abs_dir_buf);
+        t->finalized_obj_dirpath = mem_arena_strdup(g_sk_global_arena, abs_dir_buf);
     }
 
     // TODO: maybe a so/ for shared
@@ -363,7 +380,7 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
     }
 
     // TODO: realpath
-    t->finalized_bin_dirpath = mem_heap_strdup(final_bin_dir_buf);
+    t->finalized_bin_dirpath = mem_arena_strdup(g_sk_global_arena, final_bin_dir_buf);
     t->finalized_bin_rpath   = nullptr;
 
     if (t->kind == SK_TARGET_KIND_EXEC)
@@ -377,8 +394,7 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
                  VX_PATH_SEP_STR,
                  t->out_name);
 
-        // TODO: realpath
-        t->finalized_bin_rpath = mem_heap_strdup(bin_rpath_buf);
+        t->finalized_bin_rpath = mem_arena_strdup(g_sk_global_arena, bin_rpath_buf);
     }
 
     if (ctx->active_opt & SK_OPT_VERBOSE)
@@ -430,6 +446,16 @@ static void *sk_worker_compile_fn(void *arg)
         char **argv = (unit->dry_run) ? sk_invoke_syntax_check_nularr(t, unit->source_idx, arena)
                                       : sk_invoke_compile_nularr(t, unit->source_idx, arena);
 
+        if (unit->gen_ccmds && !unit->dry_run)
+        {
+            u32 arg_count = 0;
+            for (size_t i = 0; argv[i] != nullptr; i++)
+            {
+                arg_count++;
+            }
+            sk_ccmds_push(src_path, g_sk_global_ctx.rpath, (const char **) argv, arg_count);
+        }
+
         struct sk_cache_entry cache_entry = {0};
         sk_cache_resolve(out_hash, &cache_entry);
 
@@ -438,14 +464,17 @@ static void *sk_worker_compile_fn(void *arg)
                   cache_entry.shard_dir,
                   cache_entry.hash_str);
 
-        if (sk_cache_exists(&cache_entry))
+        if (!unit->dry_run)
         {
-            atomic_fetch_add(&g_cache_hits, 1);
-            sk_cache_restore(&cache_entry, obj_path);
-            atomic_store(&g_compile_end_ns, vx_time_ns());
+            if (sk_cache_exists(&cache_entry))
+            {
+                atomic_fetch_add(&g_cache_hits, 1);
+                sk_cache_restore(&cache_entry, obj_path);
+                atomic_store(&g_compile_end_ns, vx_time_ns());
 
-            mem_arena_soft_reset(arena);
-            return nullptr;
+                mem_arena_soft_reset(arena);
+                return nullptr;
+            }
         }
 
         if (vx_process_spawn(&proc, argv[0], argv, nullptr) == VX_OK)
@@ -454,11 +483,14 @@ static void *sk_worker_compile_fn(void *arg)
 
             if (proc.exit_code == 0)
             {
-                if (sk_cache_store(&cache_entry, obj_path) != VX_OK)
+                if (!unit->dry_run)
                 {
-                    vx_errlog("Failed to store '%s' to cache", obj_path);
+                    if (sk_cache_store(&cache_entry, obj_path) != VX_OK)
+                    {
+                        vx_errlog("Failed to store '%s' to cache", obj_path);
+                    }
+                    atomic_fetch_add(&g_cache_misses, 1);
                 }
-                atomic_fetch_add(&g_cache_misses, 1);
             }
             else
             {

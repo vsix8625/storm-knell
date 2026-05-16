@@ -4,6 +4,7 @@
 #include "os_layer.h"
 #include <stdbool.h>
 #include <stddef.h>
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -87,5 +88,13 @@ extern "C"
 #ifdef __cplusplus
 }
 #endif
+
+static inline char *mem_arena_strdup(struct mem_arena *arena, const char *s)
+{
+    size_t len = strlen(s) + 1;
+    char  *dst = mem_arena_alloc(arena, len);
+    memcpy(dst, s, len);
+    return dst;
+}
 
 #endif /* MEM_ARENA_H_ */

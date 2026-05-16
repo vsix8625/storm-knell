@@ -8,6 +8,10 @@
 #include "vx_io.h"
 #include "vx_fs.h"
 
+_Atomic u32            g_sk_ccmds_count = 0;
+struct sk_ccmds_entry *g_sk_ccmds       = {0};
+
+#include <stdatomic.h>
 #include <stdio.h>
 
 char *sk_invoke_compile(struct sk_target *t, u32 source_idx)
@@ -277,4 +281,59 @@ char **sk_invoke_syntax_check_nularr(struct sk_target *t, u32 source_idx, struct
     argv[i]   = nullptr;
 
     return argv;
+}
+
+vx_status sk_ccmds_write(const char *rpath)
+{
+    u32 count = atomic_load(&g_sk_ccmds_count);
+    if (count == 0)
+    {
+        return VX_OK;
+    }
+
+    char path[VX_PATH_MAX];
+    snprintf(path, sizeof(path), "%s/compile_commands.json", rpath);
+
+    FILE *f = fopen(path, "w");
+    if (f == nullptr)
+    {
+        return VX_ERROR;
+    }
+
+    fprintf(f, "[\n");
+    for (u32 i = 0; i < count; i++)
+    {
+        struct sk_ccmds_entry *e = &g_sk_ccmds[i];
+
+        fprintf(f, "  {\n");
+        fprintf(f, "    \"directory\": \"%s\",\n", e->directory);
+        fprintf(f, "    \"file\": \"%s\",\n", e->file);
+        fprintf(f, "    \"arguments\": [\n");
+        for (u32 j = 0; j < e->arg_count; j++)
+        {
+            fprintf(f, "      \"%s\"%s\n", e->arguments[j], j + 1 < e->arg_count ? "," : "");
+        }
+        fprintf(f, "    ]\n");
+        fprintf(f, "  }%s\n", i + 1 < count ? "," : "");
+    }
+    fprintf(f, "]\n");
+
+    fclose(f);
+    return VX_OK;
+}
+
+void sk_ccmds_push(const char *file, const char *directory, const char **argv, u32 arg_count)
+{
+    u32 slot                   = atomic_fetch_add(&g_sk_ccmds_count, 1);
+    g_sk_ccmds[slot].file      = mem_arena_strdup(g_sk_global_arena, file);
+    g_sk_ccmds[slot].directory = directory;
+    g_sk_ccmds[slot].arg_count = arg_count;
+
+    const char **args = mem_arena_alloc(g_sk_global_arena, sizeof(char *) * arg_count);
+
+    for (u32 i = 0; i < arg_count; i++)
+    {
+        args[i] = mem_arena_strdup(g_sk_global_arena, argv[i]);
+    }
+    g_sk_ccmds[slot].arguments = args;
 }

@@ -73,6 +73,7 @@ static struct sk_opt_entry g_sk_opts[] = {
     {"--token-dump", SK_CMD_NONE, SK_OPT_TOK_DUMP, opt_set_bit, "Show tokens"},
     {"--node-dump", SK_CMD_NONE, SK_OPT_NODE_DUMP, opt_set_bit, "Show nodes"},
     {"--eval-dump", SK_CMD_NONE, SK_OPT_EVAL_DUMP, opt_set_bit, "Show eval"},
+    {"--gen-ccmds", SK_CMD_NONE, SK_OPT_GEN_CCMDS, opt_set_bit, "Generate compile_commands.json"},
     {"-h", SK_CMD_NONE, SK_OPT_HELP, opt_help, "Show help information and exit"},
     {"-C", SK_CMD_NONE, SK_OPT_RUN_FROM_PATH, opt_set_rpath, "Run from path"},
     {"-j", SK_CMD_NONE, SK_OPT_THREADS, opt_set_jobs, "Allow N jobs at once"},

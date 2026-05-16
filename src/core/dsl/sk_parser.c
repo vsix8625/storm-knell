@@ -1,4 +1,5 @@
 #include "mem_arena.h"
+#include "sk_eval.h"
 #include "sk_globals.h"
 #include "sk_lexer.h"
 #include "vx_limits.h"
@@ -232,6 +233,132 @@ static sk_ast_node_kind literal_kind(sk_token_kind t)
 
 //----------------------------------------------------------------------------------------------------
 
+static u32 parse_codegen_entry(struct sk_parser *p)
+{
+    vx_sv directive = tok_to_sv(p, g_sk_global_ctx.stormfile, p->current);
+    vx_dbglog("codegen path token: '%.*s'", (i32) directive.len, directive.data);
+
+    if (vx_sv_strcmp(directive, "define") == 0)
+    {
+        u32 tok_idx = advance(p);
+        u32 node    = emit(SK_NODE_CODEGEN_DEFINE, tok_idx);
+
+        if (!expect(p, SK_TOKEN_COLON))
+        {
+            return SK_NODE_INVALID;
+        }
+
+        if (!expect(p, SK_TOKEN_IDENT))
+        {
+            return SK_NODE_INVALID;
+        }
+        p->nodes->data_a[node] = p->current - 1;
+
+        sk_token_kind val = peek(p);
+        if (val == SK_TOKEN_LIT_INT || val == SK_TOKEN_LIT_STRING || val == SK_TOKEN_IDENT ||
+            val == SK_TOKEN_LIT_TRUE || val == SK_TOKEN_LIT_FALSE)
+        {
+            p->nodes->data_b[node] = p->current;
+            advance(p);
+        }
+        else
+        {
+            syntax_error(p, "expected value after define key");
+            return SK_NODE_INVALID;
+        }
+
+        return node;
+    }
+    else if (vx_sv_strcmp(directive, "literal") == 0)
+    {
+        u32 tok_idx = advance(p);
+        u32 node    = emit(SK_NODE_CODEGEN_LITERAL, tok_idx);
+
+        if (!expect(p, SK_TOKEN_COLON))
+        {
+            return SK_NODE_INVALID;
+        }
+
+        if (!expect(p, SK_TOKEN_LIT_STRING))
+        {
+            return SK_NODE_INVALID;
+        }
+        p->nodes->data_a[node] = p->current - 1;
+
+        return node;
+    }
+    else
+    {
+        syntax_error(p, "unknown codegen directive, expected 'define' or 'literal'");
+        advance(p);
+        return SK_NODE_INVALID;
+    }
+}
+
+static void parse_codegen_body(struct sk_parser *p, u32 *first_child)
+{
+    u32 last = SK_NODE_INVALID;
+    while (!is_at_end(p) && peek(p) != SK_TOKEN_RBRACE)
+    {
+        u32 pos_before = p->current;
+        u32 child      = SK_NODE_INVALID;
+
+        if (peek(p) == SK_TOKEN_IDENT)
+        {
+            child = parse_codegen_entry(p);
+        }
+        else
+        {
+            syntax_error(p, "expected define or literal in codegen block");
+            advance(p);
+        }
+
+        if (p->current == pos_before)
+        {
+            vx_errlog("STUCK in parse_codegen_body at token %u line %u",
+                      p->current,
+                      p->tokens->lines[p->current]);
+            return;
+        }
+
+        if (child != SK_NODE_INVALID)
+        {
+            if (last == SK_NODE_INVALID)
+                *first_child = child;
+            else
+                p->nodes->nexts[last] = child;
+            last = child;
+        }
+    }
+}
+
+static u32 parse_codegen(struct sk_parser *p)
+{
+    u32 tok_idx = advance(p);
+    u32 node    = emit(SK_NODE_CODEGEN, tok_idx);
+
+    if (!expect(p, SK_TOKEN_PATH))
+    {
+        return SK_NODE_INVALID;
+    }
+
+    p->nodes->data_a[node] = p->current - 1;  // path token
+
+    if (!expect(p, SK_TOKEN_LBRACE))
+    {
+        return SK_NODE_INVALID;
+    }
+
+    parse_codegen_body(p, &p->nodes->data_b[node]);
+
+    if (!expect(p, SK_TOKEN_RBRACE))
+    {
+        return SK_NODE_INVALID;
+    }
+
+    return node;
+}
+
 static void parse_body(struct sk_parser *p, u32 *fist_child)
 {
     u32 last = SK_NODE_INVALID;
@@ -279,6 +406,12 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
             case SK_TOKEN_KWORD_IF:
             {
                 child = parse_if(p);
+                break;
+            }
+
+            case SK_TOKEN_KWORD_CODEGEN:
+            {
+                child = parse_codegen(p);
                 break;
             }
 

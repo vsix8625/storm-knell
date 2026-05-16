@@ -152,6 +152,7 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
         vx_errlog("Finalize evaluation failed");
         pipeline_status = VX_ERROR;
     }
+
     if (ctx->active_opt & SK_OPT_PROFILE)
     {
         vx_ticks_end(&eval_time);
