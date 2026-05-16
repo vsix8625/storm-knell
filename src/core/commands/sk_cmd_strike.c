@@ -22,6 +22,13 @@
 
 //----------------------------------------------------------------------------------------------------
 
+_Atomic u32 g_cache_hits     = 0;
+_Atomic u32 g_cache_misses   = 0;
+_Atomic u32 g_compile_errors = 0;
+
+_Atomic u64 g_compile_start_ns = 0;
+_Atomic u64 g_compile_end_ns   = 0;
+
 static _Thread_local struct mem_arena *tls_worker_arena = nullptr;
 
 struct sk_work_unit
@@ -29,7 +36,8 @@ struct sk_work_unit
     struct sk_target *target;
 
     u32 source_idx;
-    u32 pad;
+    u8  dry_run;
+    u8  pad[3];
 
     struct sk_meta *meta;
 
@@ -81,18 +89,13 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         strike_status = VX_ERROR;
     }
 
-    bool dry_run = false;
-    if (ctx->active_opt &
-        (SK_OPT_EVAL_DUMP | SK_OPT_NODE_DUMP | SK_OPT_TOK_DUMP | SK_OPT_STRIKE_DRY))
-    {
-        dry_run = true;
-    }
+    bool dry_run    = ctx->active_opt & SK_OPT_STRIKE_DRY;
+    bool skip_build = ctx->active_opt & (SK_OPT_EVAL_DUMP | SK_OPT_NODE_DUMP | SK_OPT_TOK_DUMP);
 
     //----------------------------------------------------------------------------------------------------
-    // NOTE: Initial Build stage
 
     // skip build if pipeline fails
-    if (!dry_run && strike_status == VX_OK)
+    if (!skip_build && strike_status == VX_OK)
     {
         struct vx_thread_pool pool;
 
@@ -153,6 +156,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 unit->source_idx = j;
                 unit->meta       = &meta;
                 unit->tag        = (const char *) t->sources->items[j];
+                unit->dry_run    = dry_run;
 
                 vx_thread_pool_push(&pool, sk_worker_compile_fn, unit);
 
@@ -174,9 +178,31 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         vx_thread_pool_wait(&pool);
         vx_thread_pool_destroy(&pool);
 
+        if (ctx->active_opt & SK_OPT_PROFILE)
+        {
+            vx_ticks compile_time = {.start = atomic_load(&g_compile_start_ns),
+                                     .end   = atomic_load(&g_compile_end_ns)};
+            char     elapsed[32];
+            char    *elapsed_fmt = vx_ticks_format(&compile_time, elapsed, sizeof(elapsed));
+            vx_sbuf_append(&g_sk_profile_sbuf, "%s: Compile: %s\n", __func__, elapsed_fmt);
+        }
+
+        vx_log("[cache]: %u hits, %u, %u total",
+               g_cache_hits,
+               g_cache_misses,
+               g_cache_hits + g_cache_misses);
+
+        if (g_compile_errors > 0)
+        {
+            vx_errlog("Build failed: %u file(s) failed to compile", g_compile_errors);
+            strike_status = VX_ERROR;
+        }
+
         //----------------------------------------------------------------------------------------------------
         // LINK
 
+        vx_ticks link_time = {0};
+        vx_ticks_start(&link_time);
         for (u32 i = 0; i < t_count; i++)
         {
             struct sk_target *t    = &eval_result->targets[i];
@@ -205,8 +231,14 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 }
             }
         }
+        if (ctx->active_opt & SK_OPT_PROFILE)
+        {
+            vx_ticks_end(&link_time);
+            char  elapsed[32];
+            char *elapsed_fmt = vx_ticks_format(&link_time, elapsed, sizeof(elapsed));
+            vx_sbuf_append(&g_sk_profile_sbuf, "%s: Link: %s\n", __func__, elapsed_fmt);
+        }
     }
-    //----------------------------------------------------------------------------------------------------
 
     //----------------------------------------------------------------------------------------------------
     // Logs
@@ -241,8 +273,9 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
     {
         if (strike_status != VX_OK)
         {
-            vx_warn("DRY-RUN status: Build will fail (%u error(s))",
-                    ctx->tokens->err_count + ctx->nodes->err_count);
+            vx_warn("DRY-RUN status: Build will fail (%u Stormfile error(s), %u compile error(s))",
+                    ctx->tokens->err_count + ctx->nodes->err_count,
+                    g_compile_errors);
         }
         else
         {
@@ -376,6 +409,10 @@ static void *sk_worker_compile_fn(void *arg)
 
     u8 out_hash[SK_XXHASH_LEN];
 
+    u64 expected = 0;
+    u64 now      = vx_time_ns();
+    atomic_compare_exchange_strong(&g_compile_start_ns, &expected, now);
+
     if (sk_hash_setup(t, unit->source_idx, unit->meta, &h_in, out_hash, arena) == VX_OK)
     {
         const char *src_path  = (const char *) t->sources->items[unit->source_idx];
@@ -390,7 +427,8 @@ static void *sk_worker_compile_fn(void *arg)
                  VX_PATH_SEP_STR,
                  file_name);
 
-        char **argv = sk_invoke_compile_nularr(t, unit->source_idx, arena);
+        char **argv = (unit->dry_run) ? sk_invoke_syntax_check_nularr(t, unit->source_idx, arena)
+                                      : sk_invoke_compile_nularr(t, unit->source_idx, arena);
 
         struct sk_cache_entry cache_entry = {0};
         sk_cache_resolve(out_hash, &cache_entry);
@@ -402,8 +440,10 @@ static void *sk_worker_compile_fn(void *arg)
 
         if (sk_cache_exists(&cache_entry))
         {
-            vx_dbglog("Cache hit: '%s'", cache_entry.hash_str);
+            atomic_fetch_add(&g_cache_hits, 1);
             sk_cache_restore(&cache_entry, obj_path);
+            atomic_store(&g_compile_end_ns, vx_time_ns());
+
             mem_arena_soft_reset(arena);
             return nullptr;
         }
@@ -418,10 +458,12 @@ static void *sk_worker_compile_fn(void *arg)
                 {
                     vx_errlog("Failed to store '%s' to cache", obj_path);
                 }
+                atomic_fetch_add(&g_cache_misses, 1);
             }
             else
             {
                 vx_errlog("Failed to compile: %s", unit->tag);
+                atomic_fetch_add(&g_compile_errors, 1);
             }
         }
         else
@@ -429,6 +471,7 @@ static void *sk_worker_compile_fn(void *arg)
             vx_errlog("Could not spawn compiler for: %s", unit->tag);
         }
 
+        atomic_store(&g_compile_end_ns, vx_time_ns());
         mem_arena_soft_reset(arena);
     }
 

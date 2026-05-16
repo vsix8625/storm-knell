@@ -234,3 +234,47 @@ char **sk_invoke_ar_nularr(struct sk_target *t, struct sk_meta *meta, struct mem
     argv[i] = nullptr;
     return argv;
 }
+
+char **sk_invoke_syntax_check_nularr(struct sk_target *t, u32 source_idx, struct mem_arena *arena)
+{
+    if (t == nullptr || arena == nullptr)
+    {
+        return nullptr;
+    }
+
+    // cc + cflags + includes + defines + -fsyntax-only + src + NULL
+    u32 total_args = 1 + t->cfg.cflags_count + t->cfg.includes_count + t->cfg.defines_count +
+                     1     // -fsyntax-only
+                     + 1   // src
+                     + 1;  // NULL
+
+    char **argv = mem_arena_alloc(arena, sizeof(char *) * total_args);
+    if (argv == nullptr)
+    {
+        return nullptr;
+    }
+
+    u32 i     = 0;
+    argv[i++] = t->cfg.cc;
+
+    for (u32 j = 0; j < t->cfg.cflags_count; j++)
+    {
+        argv[i++] = t->cfg.cflags[j];
+    }
+
+    for (u32 j = 0; j < t->cfg.includes_count; j++)
+    {
+        argv[i++] = t->cfg.includes[j];
+    }
+
+    for (u32 j = 0; j < t->cfg.defines_count; j++)
+    {
+        argv[i++] = t->cfg.defines[j];
+    }
+
+    argv[i++] = "-fsyntax-only";
+    argv[i++] = (char *) t->sources->items[source_idx];
+    argv[i]   = nullptr;
+
+    return argv;
+}
