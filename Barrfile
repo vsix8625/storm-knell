@@ -2,8 +2,8 @@
 # Latest update: 2026-02-26
 
 major         = "0";
-minor         = "1";
-patch         = "3";
+minor         = "2";
+patch         = "1";
 
 TARGET        = "sk";
 VERSION       = "${major}.${minor}.${patch}";    TARGET_TYPE   = "executable";

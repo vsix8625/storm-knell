@@ -2,8 +2,8 @@
 #pragma once
  
 #define SK_VERSION_MAJOR 0
-#define SK_VERSION_MINOR 1
-#define SK_VERSION_PATCH 3
-#define SK_VERSION_STRING "0.1.3"
+#define SK_VERSION_MINOR 2
+#define SK_VERSION_PATCH 1
+#define SK_VERSION_STRING "0.2.1"
 #define SK_BUILD_TYPE "debug"
 #define SK_ROOT_PATH "/devenv/repos/storm-knell"

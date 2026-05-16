@@ -1,5 +1,6 @@
 #include "sk_invoke.h"
 #include "sk_array.h"
+#include "sk_cmd_init.h"
 #include "sk_eval.h"
 #include "sk_globals.h"
 #include "sk_config.h"
@@ -112,5 +113,124 @@ char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx, struct mem_
 
     argv[arg_idx] = nullptr;
 
+    return argv;
+}
+
+char **sk_invoke_link_nularr(struct sk_target *t, struct mem_arena *arena)
+{
+    if (t == nullptr || arena == nullptr)
+    {
+        return nullptr;
+    }
+
+    // cc + -fuse-ld + objs + lflags + lib_paths + libs + -o + out + NULL
+    u32 obj_count  = t->sources->count;
+    u32 total_args = 1            // cc
+                     + 1          // -fuse-ld=<linker>
+                     + obj_count  // all .o files
+                     + t->cfg.lflags_count + t->cfg.lib_paths_count + t->cfg.libs_count +
+                     2  // -o <output>
+                     + 1;
+
+    char **argv = mem_arena_alloc(arena, sizeof(char *) * total_args);
+    if (argv == nullptr)
+    {
+        return nullptr;
+    }
+
+    u32 i     = 0;
+    argv[i++] = t->cfg.cc;
+
+    // -fuse-ld=mold / lld / ld
+    if (t->cfg.linker != nullptr)
+    {
+        char *fuse = mem_arena_alloc(arena, VX_BUF_SIZE_32);
+        snprintf(fuse, VX_BUF_SIZE_32, "-fuse-ld=%s", t->cfg.linker);
+        argv[i++] = fuse;
+    }
+
+    if (t->kind == SK_TARGET_KIND_SHARED)
+    {
+        argv[i++] = "-shared";
+        total_args++;
+    }
+
+    // object files
+    for (u32 j = 0; j < obj_count; j++)
+    {
+        const char *src      = (const char *) t->sources->items[j];
+        const char *filename = strrchr(src, VX_PATH_SEP);
+        filename             = filename ? filename + 1 : src;
+        char *obj            = mem_arena_alloc(arena, VX_PATH_MAX);
+
+        snprintf(obj, VX_PATH_MAX, "%s%s%s.o", t->finalized_obj_dirpath, VX_PATH_SEP_STR, filename);
+        argv[i++] = obj;
+    }
+
+    for (u32 j = 0; j < t->cfg.lflags_count; j++)
+    {
+        argv[i++] = t->cfg.lflags[j];
+    }
+
+    for (u32 j = 0; j < t->cfg.lib_paths_count; j++)
+    {
+        argv[i++] = t->cfg.lib_paths[j];
+    }
+
+    for (u32 j = 0; j < t->cfg.libs_count; j++)
+    {
+        argv[i++] = t->cfg.libs[j];
+    }
+
+    // output path
+    char *out = mem_arena_alloc(arena, VX_PATH_MAX);
+    snprintf(out, VX_PATH_MAX, "%s%s%s", t->finalized_bin_dirpath, VX_PATH_SEP_STR, t->out_name);
+
+    argv[i++] = "-o";
+    argv[i++] = out;
+    argv[i]   = nullptr;
+
+    return argv;
+}
+
+char **sk_invoke_ar_nularr(struct sk_target *t, struct sk_meta *meta, struct mem_arena *arena)
+{
+    if (t == nullptr || meta == nullptr || arena == nullptr)
+    {
+        return nullptr;
+    }
+
+    // ar + rcs + output.a + objs + NULL
+    u32 total_args = 1 + 1 + 1 + t->sources->count + 1;
+
+    char **argv = mem_arena_alloc(arena, sizeof(char *) * total_args);
+
+    if (argv == nullptr)
+    {
+        return nullptr;
+    }
+
+    u32 i     = 0;
+    argv[i++] = meta->ar_path;
+    argv[i++] = "rcs";
+
+    char *out = mem_arena_alloc(arena, VX_PATH_MAX);
+    snprintf(
+        out, VX_PATH_MAX, "%s%slib%s.a", t->finalized_bin_dirpath, VX_PATH_SEP_STR, t->out_name);
+
+    argv[i++] = out;
+
+    for (u32 j = 0; j < t->sources->count; j++)
+    {
+        const char *src      = (const char *) t->sources->items[j];
+        const char *filename = strrchr(src, VX_PATH_SEP);
+        filename             = filename ? filename + 1 : src;
+        char *obj            = mem_arena_alloc(arena, VX_PATH_MAX);
+
+        snprintf(obj, VX_PATH_MAX, "%s%s%s.o", t->finalized_obj_dirpath, VX_PATH_SEP_STR, filename);
+        argv[i++] = obj;
+    }
+
+    argv[i] = nullptr;
     return argv;
 }

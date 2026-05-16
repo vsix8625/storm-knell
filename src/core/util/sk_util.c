@@ -32,6 +32,7 @@ bool sk_discover_root(char *out_path, size_t size)
     {
         return false;
     }
+
     strncpy(current, cwd, VX_PATH_MAX);
     current[VX_PATH_MAX - 1] = '\0';
 

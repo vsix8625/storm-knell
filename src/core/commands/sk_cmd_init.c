@@ -97,6 +97,9 @@ bool sk_meta_load(struct sk_meta *meta, const char *target_cc)
                 if (strncmp("cc_path", cursor, key_len) == 0)
                 {
                     snprintf(meta->cc_path, sizeof(meta->cc_path), "%.*s", (i32) val_len, val);
+
+                    const char *ar_name = strstr(meta->cc_path, "clang") ? "llvm-ar" : "ar";
+                    vx_fs_which(ar_name, meta->ar_path, sizeof(meta->ar_path));
                 }
                 else if (strncmp("cc_ver", cursor, key_len) == 0)
                 {
@@ -203,7 +206,7 @@ static void create_storm_dir(const char *root, const char *subdir)
 
 void sk_cmd_init_fn(struct sk_ctx *ctx)
 {
-    const char *rpath = ctx->rpath;
+    const char *rpath = ctx->rpath ? ctx->rpath : vx_getcwd_fn();
     const bool  force = (ctx->active_opt & SK_OPT_FORCE);
 
     char stormfile[VX_PATH_MAX];
