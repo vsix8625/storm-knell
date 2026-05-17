@@ -7,5 +7,6 @@
     #include "sk_cmd_new.h"
     #include "sk_cmd_purge.h"
     #include "sk_cmd_strike.h"
+    #include "sk_cmd_cache.h"
 
 #endif

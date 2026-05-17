@@ -2,8 +2,6 @@
 
 #include "vx.h"
 
-#define SK_CACHE_DIRNAME "storm-knell"
-
 struct sk_cache_entry
 {
     char cache_path[VX_PATH_MAX];

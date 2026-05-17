@@ -14,11 +14,11 @@ void sk_cmd_purge_fn(struct sk_ctx *ctx)
 
     if (sk_resolve_project_root(ctx) != VX_OK)
     {
-        vx_warn("Storm-Knell is not initialized here or in any parent directory.");
-        return;
+        vx_warn("Storm-Knell not initialized here or in any parent directory.");
     }
 
-    const char *target = ctx->rpath;
+    const char *target = ctx->rpath ? ctx->rpath : vx_getcwd_fn();
+    vx_log("Cleaning up lefovers in: %s", target);
 
     char stormfile[VX_PATH_MAX];
     snprintf(stormfile, sizeof(stormfile), "%s%s%s", target, VX_PATH_SEP_STR, SK_PATH_STORMFILE);

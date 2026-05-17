@@ -17,6 +17,7 @@ typedef enum sk_cmd : u64
     SK_CMD_CLEAN  = 1 << 3,
     SK_CMD_INIT   = 1 << 4,
     SK_CMD_PURGE  = 1 << 5,
+    SK_CMD_CACHE  = 1 << 6,
 } sk_cmd;
 
 typedef enum sk_opt : u64
@@ -48,6 +49,9 @@ typedef enum sk_opt : u64
     SK_OPT_NODE_DUMP = 1 << 16,
     SK_OPT_EVAL_DUMP = 1 << 17,
     SK_OPT_GEN_CCMDS = 1 << 18,
+
+    SK_OPT_CACHE_SIZE = 1 << 19,
+    SK_OPT_CACHE_NUKE = 1 << 20,
 } sk_opt;
 
 typedef vx_status (*sk_cmd_fn)(struct sk_ctx *ctx, sk_cmd cmd_id, i32 *i, i32 argc, char **argv);

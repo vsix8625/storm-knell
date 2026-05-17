@@ -2,6 +2,7 @@
 #define STORM_KNELL_H_
 
 #include "sk_cli.h"
+#include "sk_cmd_cache.h"
 
 struct sk_ctx
 {
@@ -19,6 +20,9 @@ struct sk_ctx
 
     u32 cores;
     u32 threads;
+
+    struct sk_cache_config ccfg;
+    const char            *sk_global_config_dir;
 };
 
 void sk_shutdown(void);

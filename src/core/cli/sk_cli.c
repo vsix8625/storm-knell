@@ -58,6 +58,7 @@ static struct sk_subcmd_entry g_sk_subcmds[] = {
     {"clean", SK_CMD_CLEAN, subcmd_handler, "Clean artifacts"},
     {"init", SK_CMD_INIT, subcmd_handler, "Initialize Storm-Knell in working directory"},
     {"purge", SK_CMD_PURGE, subcmd_handler, "Nuke .storm and artifacts"},
+    {"cache", SK_CMD_CACHE, subcmd_handler, "Cache features"},
     {nullptr, SK_CMD_NONE, nullptr, nullptr},
 };
 
@@ -89,6 +90,12 @@ static struct sk_opt_entry g_sk_opts[] = {
     // ----------------------------------------------------------------------------------------------------
     // owner = SK_CMD_SURGE
     {"--with", SK_CMD_SURGE, SK_OPT_SURGE_WITH, opt_set_bit, "Run under tool"},
+    // ----------------------------------------------------------------------------------------------------
+
+    // ----------------------------------------------------------------------------------------------------
+    // owner = SK_CMD_CACHE
+    {"--size", SK_CMD_CACHE, SK_OPT_CACHE_SIZE, opt_set_bit, "Show cache size MB"},
+    {"--nuke", SK_CMD_CACHE, SK_OPT_CACHE_NUKE, opt_set_bit, "Clean cache"},
     // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
@@ -279,6 +286,12 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         return VX_ERROR;
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // global config
+
+    sk_cache_config_init_global(&ctx->ccfg);
+
+    // ----------------------------------------------------------------------------------------------------
     // NOTE: order matters here
 
     if (ctx->active_opt & SK_OPT_SILENT)
@@ -357,6 +370,11 @@ static vx_status cli_execute(struct sk_ctx *ctx)
     if (ctx->active_cmd & SK_CMD_SURGE)
     {
         vx_warn("SURGING");
+    }
+
+    if (ctx->active_cmd & SK_CMD_CACHE)
+    {
+        return sk_cmd_cache_fn(ctx);
     }
 
     if (ctx->active_opt & SK_OPT_PROFILE)
@@ -500,13 +518,25 @@ opt_set_rpath(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, ch
 
     char *abs_path = mem_arena_alloc(g_sk_global_arena, VX_PATH_MAX);
 
-    if (vx_fs_realpath(tmp_path, abs_path) != VX_OK)
+    if (vx_fs_is_abspath(tmp_path))
+    {
+        snprintf(abs_path, VX_PATH_MAX, "%s", tmp_path);
+    }
+    else
     {
         const char *cwd = vx_getcwd_fn();
-        snprintf(abs_path, VX_PATH_MAX, "%s%s%s", cwd, VX_PATH_SEP_STR, tmp_path);
+
+        i32 len = snprintf(abs_path, VX_PATH_MAX, "%s%s%s", cwd, VX_PATH_SEP_STR, tmp_path);
+
+        if (len < 0 || (size_t) len >= VX_PATH_MAX)
+        {
+            vx_errlog("Path resolution exceeded maximum path length!");
+            return VX_ERROR;
+        }
     }
 
     ctx->rpath = abs_path;
+    vx_dbglog("rpath set to: %s", abs_path);
 
     return VX_OK;
 }

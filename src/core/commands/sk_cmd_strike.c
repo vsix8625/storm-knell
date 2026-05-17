@@ -103,19 +103,20 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         ctx->cores       = ctx->cores == 0 ? vx_cpu_get_nproc() : ctx->cores;
         u32 thread_count = (ctx->threads == 0) ? ctx->cores - 1 : ctx->threads;
 
-        u32 total_tasks = 0;
+        u32 total_sources = 0;
+
         for (u32 i = 0; i < eval_result->target_count; i++)
         {
-            total_tasks += eval_result->targets[i].sources->count;
-            total_tasks += 16;
+            total_sources += eval_result->targets[i].sources->count;
         }
+
+        u32 total_tasks = total_sources + (eval_result->target_count * 16);
 
         g_sk_ccmds =
             mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_ccmds_entry) * total_tasks);
 
         if (vx_thread_pool_create(&pool, thread_count, total_tasks) != VX_OK)
         {
-            // maybe fallback to single thread?
             VX_ASSERT_LOG("Failed to create thread pool");
             return VX_ERROR;
         }
@@ -168,12 +169,6 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 }
 
                 vx_thread_pool_push(&pool, sk_worker_compile_fn, unit);
-
-                if (ctx->active_opt & SK_OPT_VERBOSE)
-                {
-                    const char *cmd = sk_invoke_compile(t, j);
-                    vx_log("%s: %s", t->name, cmd);
-                }
             }
 
             //----------------------------------------------------------------------------------------------------
@@ -255,6 +250,25 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 sk_ccmds_write(ctx->rpath);
             }
         }
+
+        // cache check and prune if needed
+        u64 current_cache_bytes = sk_cache_calculate_size();
+
+        u64 max_allowed_b  = (u64) ctx->ccfg.max_size_mb * 1024 * 1024;
+        u64 prune_target_b = (u64) ctx->ccfg.prune_threshold_mb * 1024 * 1024;
+
+        if (current_cache_bytes >= max_allowed_b)
+        {
+            vx_log("Cache size (%.2f MB) exceeds limit (%.2f MB). Initiating prune",
+                   current_cache_bytes / 1048576.0f,
+                   max_allowed_b / 1048576.0f);
+
+            sk_cache_prune_to_size(ctx->ccfg.prune_threshold_mb);
+
+            u64 new_cache_bytes = sk_cache_calculate_size();
+            vx_log("Prune complete. New cache size: %.2f MB", new_cache_bytes / 1048576.0f);
+            VX_CAST(void, prune_target_b);
+        }
     }
 
     //----------------------------------------------------------------------------------------------------
@@ -312,6 +326,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
 //----------------------------------------------------------------------------------------------------
 
+// NOTE: keep an eye
 static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
 {
     if (ctx == nullptr || t == nullptr)
@@ -321,6 +336,8 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
 
     if (ctx->active_opt & SK_OPT_STRIKE_REL)
     {
+        // NOTE: as of 0.2.1 this does not force release cflags but modifies the output to
+        // build_dir/release/...
         t->build_mode = "release";
         vx_log("Mode: %s", t->build_mode);
     }
@@ -340,17 +357,27 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
              VX_PATH_SEP_STR,
              "obj");
 
+    vx_mkdir_p(object_dir_buf);
+
+    // NOTE: fixed a bug with falling to relative paths, remainder
     char abs_dir_buf[VX_PATH_MAX];
     if (vx_fs_realpath(object_dir_buf, abs_dir_buf) == nullptr)
     {
-        t->finalized_obj_dirpath = mem_arena_strdup(g_sk_global_arena, object_dir_buf);
+        char fallback_abs[VX_PATH_MAX];
+        snprintf(fallback_abs,
+                 sizeof(fallback_abs),
+                 "%s%s%s",
+                 g_sk_global_ctx.rpath,
+                 VX_PATH_SEP_STR,
+                 object_dir_buf);
+
+        t->finalized_obj_dirpath = mem_arena_strdup(g_sk_global_arena, fallback_abs);
     }
     else
     {
         t->finalized_obj_dirpath = mem_arena_strdup(g_sk_global_arena, abs_dir_buf);
     }
 
-    // TODO: maybe a so/ for shared
     if (t->kind == SK_TARGET_KIND_EXEC)
     {
         bin_container = "bin";
@@ -426,7 +453,8 @@ static void *sk_worker_compile_fn(void *arg)
     u8 out_hash[SK_XXHASH_LEN];
 
     u64 expected = 0;
-    u64 now      = vx_time_ns();
+
+    u64 now = vx_time_ns();
     atomic_compare_exchange_strong(&g_compile_start_ns, &expected, now);
 
     if (sk_hash_setup(t, unit->source_idx, unit->meta, &h_in, out_hash, arena) == VX_OK)
@@ -458,11 +486,6 @@ static void *sk_worker_compile_fn(void *arg)
 
         struct sk_cache_entry cache_entry = {0};
         sk_cache_resolve(out_hash, &cache_entry);
-
-        vx_dbglog("Cache path: %s\nShard: %s\nHash: %s",
-                  cache_entry.cache_path,
-                  cache_entry.shard_dir,
-                  cache_entry.hash_str);
 
         if (!unit->dry_run)
         {

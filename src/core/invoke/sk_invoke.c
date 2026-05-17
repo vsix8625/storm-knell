@@ -82,23 +82,23 @@ char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx, struct mem_
         return nullptr;
     }
 
-    u32 arg_idx = 0;
+    u32 idx = 0;
 
-    argv[arg_idx++] = t->cfg.cc;
+    argv[idx++] = t->cfg.cc;
 
     for (u32 i = 0; i < t->cfg.cflags_count; i++)
     {
-        argv[arg_idx++] = t->cfg.cflags[i];
+        argv[idx++] = t->cfg.cflags[i];
     }
 
     for (u32 i = 0; i < t->cfg.includes_count; i++)
     {
-        argv[arg_idx++] = t->cfg.includes[i];
+        argv[idx++] = t->cfg.includes[i];
     }
 
     for (u32 i = 0; i < t->cfg.defines_count; i++)
     {
-        argv[arg_idx++] = t->cfg.defines[i];
+        argv[idx++] = t->cfg.defines[i];
     }
 
     const char *src_path  = (const char *) t->sources->items[source_idx];
@@ -110,13 +110,21 @@ char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx, struct mem_
     snprintf(
         obj_path, VX_PATH_MAX, "%s%s%s.o", t->finalized_obj_dirpath, VX_PATH_SEP_STR, file_name);
 
-    argv[arg_idx++] = "-c";
-    argv[arg_idx++] = (char *) src_path;
-    argv[arg_idx++] = "-o";
-    argv[arg_idx++] = obj_path;
+    argv[idx++] = "-c";
+    argv[idx++] = (char *) src_path;
+    argv[idx++] = "-o";
+    argv[idx++] = obj_path;
 
-    argv[arg_idx] = nullptr;
+    argv[idx] = nullptr;
 
+    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
+    {
+        for (size_t i = 0; i < idx; i++)
+        {
+            vx_printf("%s ", argv[i]);
+        }
+        vx_printf("\n");
+    }
     return argv;
 }
 
@@ -214,15 +222,16 @@ char **sk_invoke_ar_nularr(struct sk_target *t, struct sk_meta *meta, struct mem
         return nullptr;
     }
 
-    u32 i     = 0;
-    argv[i++] = meta->ar_path;
-    argv[i++] = "rcs";
+    u32 idx = 0;
+
+    argv[idx++] = meta->ar_path;
+    argv[idx++] = "rcs";
 
     char *out = mem_arena_alloc(arena, VX_PATH_MAX);
     snprintf(
         out, VX_PATH_MAX, "%s%slib%s.a", t->finalized_bin_dirpath, VX_PATH_SEP_STR, t->out_name);
 
-    argv[i++] = out;
+    argv[idx++] = out;
 
     for (u32 j = 0; j < t->sources->count; j++)
     {
@@ -232,10 +241,19 @@ char **sk_invoke_ar_nularr(struct sk_target *t, struct sk_meta *meta, struct mem
         char *obj            = mem_arena_alloc(arena, VX_PATH_MAX);
 
         snprintf(obj, VX_PATH_MAX, "%s%s%s.o", t->finalized_obj_dirpath, VX_PATH_SEP_STR, filename);
-        argv[i++] = obj;
+        argv[idx++] = obj;
     }
 
-    argv[i] = nullptr;
+    argv[idx] = nullptr;
+
+    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
+    {
+        for (size_t i = 0; i < idx; i++)
+        {
+            vx_printf("%s ", argv[i]);
+        }
+        vx_printf("\n");
+    }
     return argv;
 }
 
@@ -258,28 +276,36 @@ char **sk_invoke_syntax_check_nularr(struct sk_target *t, u32 source_idx, struct
         return nullptr;
     }
 
-    u32 i     = 0;
-    argv[i++] = t->cfg.cc;
+    u32 idx     = 0;
+    argv[idx++] = t->cfg.cc;
 
     for (u32 j = 0; j < t->cfg.cflags_count; j++)
     {
-        argv[i++] = t->cfg.cflags[j];
+        argv[idx++] = t->cfg.cflags[j];
     }
 
     for (u32 j = 0; j < t->cfg.includes_count; j++)
     {
-        argv[i++] = t->cfg.includes[j];
+        argv[idx++] = t->cfg.includes[j];
     }
 
     for (u32 j = 0; j < t->cfg.defines_count; j++)
     {
-        argv[i++] = t->cfg.defines[j];
+        argv[idx++] = t->cfg.defines[j];
     }
 
-    argv[i++] = "-fsyntax-only";
-    argv[i++] = (char *) t->sources->items[source_idx];
-    argv[i]   = nullptr;
+    argv[idx++] = "-fsyntax-only";
+    argv[idx++] = (char *) t->sources->items[source_idx];
+    argv[idx]   = nullptr;
 
+    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
+    {
+        for (size_t i = 0; i < idx; i++)
+        {
+            vx_printf("%s ", argv[i]);
+        }
+        vx_printf("\n");
+    }
     return argv;
 }
 

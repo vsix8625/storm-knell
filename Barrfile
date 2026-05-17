@@ -8,6 +8,8 @@ patch         = "1";
 TARGET        = "sk";
 VERSION       = "${major}.${minor}.${patch}";    TARGET_TYPE   = "executable";
 
+TARGET_TYPE   = "executable";
+
 print("Building ${TARGET}-v${VERSION} | Type: ${TARGET_TYPE}");
 
 COMPILER      = "/usr/bin/clang";

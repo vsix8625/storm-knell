@@ -236,7 +236,6 @@ static sk_ast_node_kind literal_kind(sk_token_kind t)
 static u32 parse_codegen_entry(struct sk_parser *p)
 {
     vx_sv directive = tok_to_sv(p, g_sk_global_ctx.stormfile, p->current);
-    vx_dbglog("codegen path token: '%.*s'", (i32) directive.len, directive.data);
 
     if (vx_sv_strcmp(directive, "define") == 0)
     {

@@ -14,6 +14,8 @@ struct sk_arena_array;
 #define SK_PATH_BUILD_DIR       "build"
 #define SK_PATH_STORM_META_FILE ".storm/data/meta"
 
+#define SK_PATH_STORM_KNELL "storm_knell"
+
 void sk_scan_dir_r(struct sk_arena_array *sources,
                    char                 **excludes,
                    u32                    exclude_count,

@@ -1,5 +1,5 @@
-#include "sk_globals.h"
 #include "sk_cache.h"
+#include "sk_paths.h"
 #include <errno.h>
 
 vx_status sk_cache_resolve(const u8 *out_hash, struct sk_cache_entry *entry)
@@ -22,12 +22,12 @@ vx_status sk_cache_resolve(const u8 *out_hash, struct sk_cache_entry *entry)
 
     snprintf(entry->shard_dir,
              sizeof(entry->shard_dir),
-             "%s%s%s%s%02llx",
+             "%s%s%s%s%02x",
              cache_dir,
              VX_PATH_SEP_STR,
-             SK_CACHE_DIRNAME,
+             SK_PATH_STORM_KNELL,
              VX_PATH_SEP_STR,
-             (unsigned long long) (h >> 56) & 0xff);
+             out_hash[7]);
 
     snprintf(entry->cache_path,
              sizeof(entry->cache_path),
