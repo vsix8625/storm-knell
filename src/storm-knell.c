@@ -90,4 +90,5 @@ static bool sk_is_debug(void)
 #elif defined(NDEBUG) || defined(_NDEBUG) || defined(RELEASE)
     return false;
 #endif
+    return false;
 }

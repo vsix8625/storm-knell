@@ -6,6 +6,7 @@
 
 #include "vx_fs.h"
 #include "vx_string.h"
+#include "vx_time.h"
 
 bool sk_is_initialized_at(const char *dir)
 {
@@ -95,4 +96,40 @@ vx_status sk_resolve_project_root(struct sk_ctx *ctx)
 void *sk_arena_alloc(void *user, size_t size)
 {
     return mem_arena_alloc((struct mem_arena *) user, size);
+}
+
+void sk_fmt_relative_time(u64 target_epoch, char *out_buf, size_t buf_size)
+{
+    u64 current_epoch = vx_time_epoch_s();
+
+    if (target_epoch == 0)
+    {
+        snprintf(out_buf, buf_size, "Never");
+        return;
+    }
+
+    if (current_epoch < target_epoch)
+    {
+        snprintf(out_buf, buf_size, "Just now");
+        return;
+    }
+
+    u64 delta = current_epoch - target_epoch;
+
+    if (delta < 60)
+    {
+        snprintf(out_buf, buf_size, "%lus ago", delta);
+    }
+    else if (delta < 3600)
+    {
+        snprintf(out_buf, buf_size, "%lu min ago", delta / 60);
+    }
+    else if (delta < 86400)
+    {
+        snprintf(out_buf, buf_size, "%lu hours ago", delta / 3600);
+    }
+    else
+    {
+        snprintf(out_buf, buf_size, "%lu days ago", delta / 86400);
+    }
 }

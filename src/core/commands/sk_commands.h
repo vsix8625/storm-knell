@@ -1,11 +1,9 @@
 #pragma GCC system_header
-#ifndef SK_COMMANDS_H_
+#pragma once
 
-    #define SK_COMMANDS_H_
-
-    #include "sk_cmd_init.h"
-    #include "sk_cmd_purge.h"
-    #include "sk_cmd_strike.h"
-    #include "sk_cmd_cache.h"
-
-#endif
+#include "sk_cmd_init.h"
+#include "sk_cmd_purge.h"
+#include "sk_cmd_strike.h"
+#include "sk_cmd_cache.h"
+#include "sk_cmd_clean.h"
+#include "sk_cmd_status.h"

@@ -218,6 +218,8 @@ static void eval_cfg(struct sk_parser *p,
             break;
         }
 
+        // NOTE: out names do not handle '-' eg: sk-rel
+        // NOTE: probably a parser solution
         case SK_TOKEN_KWORD_OUT:
         {
             if (target)

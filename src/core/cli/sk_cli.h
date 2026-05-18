@@ -17,6 +17,7 @@ typedef enum sk_cmd : u64
     SK_CMD_INIT   = 1 << 3,
     SK_CMD_PURGE  = 1 << 4,
     SK_CMD_CACHE  = 1 << 5,
+    SK_CMD_STATUS = 1 << 6,
 } sk_cmd;
 
 typedef enum sk_opt : u64

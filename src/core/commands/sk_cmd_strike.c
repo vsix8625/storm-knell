@@ -4,12 +4,12 @@
 #include "sk_cmd_init.h"
 #include "sk_globals.h"
 #include "sk_lexer.h"
-#include "sk_eval.h"
 #include "sk_parser.h"
 #include "sk_pipeline.h"
 #include "sk_invoke.h"
 #include "sk_array.h"
 #include "sk_cache.h"
+#include "sk_paths.h"
 
 #include "vx_fs.h"
 #include "vx_io.h"
@@ -95,7 +95,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
     //----------------------------------------------------------------------------------------------------
 
-    // skip build if pipeline fails
+    // skip build if parser pipeline fails
     if (!skip_build && strike_status == VX_OK)
     {
         struct vx_thread_pool pool;
@@ -181,6 +181,73 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         vx_thread_pool_wait(&pool);
         vx_thread_pool_destroy(&pool);
+
+        //----------------------------------------------------------------------------------------------------
+        // SERIALIZE
+
+        FILE *manifest_f = fopen(SK_PATH_STORM_MANIFEST_BIN, "wb");
+        if (manifest_f != nullptr)
+        {
+            struct sk_manifest_header header = {.target_count        = t_count,
+                                                .global_cache_hits   = atomic_load(&g_cache_hits),
+                                                .global_cache_misses = atomic_load(&g_cache_misses),
+                                                .global_compile_errors =
+                                                    atomic_load(&g_compile_errors)};
+
+            fwrite(&header, sizeof(struct sk_manifest_header), 1, manifest_f);
+
+            for (u32 i = 0; i < t_count; i++)
+            {
+                struct sk_target *t = &eval_result->targets[i];
+
+                struct sk_target_persist out_meta = {0};
+
+                sk_strncpy_safe(out_meta.name, t->name, sizeof(out_meta.name));
+                sk_strncpy_safe(out_meta.out_dir, t->out_dir, sizeof(out_meta.out_dir));
+
+                if (t->finalized_bin_dirpath && t->out_name)
+                {
+                    sk_strncpy_safe(out_meta.bin_dirpath,
+                                    t->finalized_bin_dirpath,
+                                    sizeof(out_meta.bin_dirpath));
+                }
+
+                if (t->kind == SK_TARGET_KIND_EXEC)
+                {
+                    if (t->finalized_bin_rpath)
+                    {
+                        sk_strncpy_safe(
+                            out_meta.bin_path, t->finalized_bin_rpath, sizeof(out_meta.bin_path));
+                    }
+                }
+                else
+                {
+                    if (t->finalized_bin_dirpath && t->out_name)
+                    {
+                        sk_strncpy_safe(out_meta.bin_dirpath,
+                                        t->finalized_bin_dirpath,
+                                        sizeof(out_meta.bin_dirpath));
+
+                        snprintf(out_meta.bin_path,
+                                 sizeof(out_meta.bin_path),
+                                 "%s%s%s",
+                                 t->finalized_bin_dirpath,
+                                 VX_PATH_SEP_STR,
+                                 t->out_name);
+                    }
+                }
+
+                out_meta.kind           = t->kind;
+                out_meta.total_files    = t->sources->count;
+                out_meta.last_strike_ts = vx_time_epoch_s();
+
+                fwrite(&out_meta, sizeof(struct sk_target_persist), 1, manifest_f);
+            }
+
+            fclose(manifest_f);
+        }
+
+        //----------------------------------------------------------------------------------------------------
 
         if (ctx->active_opt & SK_OPT_PROFILE)
         {
@@ -417,8 +484,10 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
         return VX_ERROR;
     }
 
+    // the final ../../bin
     t->finalized_bin_dirpath = mem_arena_strdup(g_sk_global_arena, final_bin_dir_buf);
-    t->finalized_bin_rpath   = nullptr;
+
+    t->finalized_bin_rpath = nullptr;
 
     if (t->kind == SK_TARGET_KIND_EXEC)
     {
@@ -431,6 +500,7 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
                  VX_PATH_SEP_STR,
                  t->out_name);
 
+        // the final ../../bin/out_name
         t->finalized_bin_rpath = mem_arena_strdup(g_sk_global_arena, bin_rpath_buf);
     }
 

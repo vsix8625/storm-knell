@@ -2,6 +2,5 @@
 #pragma once
 #define SK_VERSION_MAJOR 0
 #define SK_VERSION_MINOR 3
-#define SK_VERSION_PATCH 0
-#define SK_VERSION_STRING "0.3.0"
-#define SK_BUILD_TYPE "build_type"
+#define SK_VERSION_PATCH 1
+#define SK_VERSION_STRING "0.3.1"

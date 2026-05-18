@@ -58,6 +58,7 @@ static struct sk_subcmd_entry g_sk_subcmds[] = {
     {"init", SK_CMD_INIT, subcmd_handler, "Initialize Storm-Knell in working directory"},
     {"purge", SK_CMD_PURGE, subcmd_handler, "Nuke working dir .storm and artifacts"},
     {"cache", SK_CMD_CACHE, subcmd_handler, "View global cache size, or nuke"},
+    {"status", SK_CMD_STATUS, subcmd_handler, "View status"},
     {nullptr, SK_CMD_NONE, nullptr, nullptr},
 };
 
@@ -306,11 +307,18 @@ static vx_status cli_execute(struct sk_ctx *ctx)
     vx_dbglog("active_cmd: 0x%08lX", ctx->active_cmd);
     vx_dbglog("active_opt: 0x%08lX", ctx->active_opt);
 
-    // version exits early
+    // version and status exits early
     if (ctx->active_opt & SK_OPT_VERSION)
     {
-        vx_log("Storm-Knell version: (%s-[%s])", SK_VERSION_STRING, SK_BUILD_TYPE);
+        vx_log("Storm-Knell version: (%s)", SK_VERSION_STRING);
 
+        sk_shutdown();
+        exit(VX_EXIT_SUCCESS);
+    }
+
+    if (ctx->active_cmd & SK_CMD_STATUS)
+    {
+        sk_cmd_status_fn(ctx);
         sk_shutdown();
         exit(VX_EXIT_SUCCESS);
     }
@@ -336,6 +344,14 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         else
         {
             sk_cmd_purge_fn(ctx);
+        }
+    }
+
+    if (ctx->active_cmd & SK_CMD_CLEAN)
+    {
+        if (sk_cmd_clean_fn(ctx) != VX_OK)
+        {
+            return VX_ERROR;
         }
     }
 

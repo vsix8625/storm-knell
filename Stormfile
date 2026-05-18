@@ -4,9 +4,9 @@ lflags: -lpthread -lxxhash
 
 major: 0
 minor: 3
-patch: 0
+patch: 1
 
-build_type: debug
+build_type: release
 
 target sk
 {
@@ -56,7 +56,6 @@ target sk
         define: SK_VERSION_PATCH patch
         
         define: SK_VERSION_STRING "major.minor.patch"
-        define: SK_BUILD_TYPE "build_type"
     }
 }
 

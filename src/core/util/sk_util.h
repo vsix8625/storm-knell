@@ -113,6 +113,26 @@ static inline bool sk_has_ext(const char *name, size_t name_len, const char *ext
     return vx_strncmplit(name + (name_len - ext_len), ext_len, ext, ext_len);
 }
 
+static inline void sk_strncpy_safe(char *dest, const char *src, size_t dest_size)
+{
+    if (dest == nullptr || dest_size == 0)
+    {
+        return;
+    }
+
+    size_t i = 0;
+
+    while (src[i] != CHAR_NULTERM && i < (dest_size - 1))
+    {
+        dest[i] = src[i];
+        i++;
+    }
+
+    dest[i] = CHAR_NULTERM;
+}
+
+void sk_fmt_relative_time(u64 target_epoch, char *out_buf, size_t buf_size);
+
 #define SK_MAX_TARGETS 32
 #define SK_MAX_FLAGS   256
 #define SK_MAX_DEFINES 512
