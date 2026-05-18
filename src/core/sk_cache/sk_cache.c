@@ -16,7 +16,8 @@ vx_status sk_cache_resolve(const u8 *out_hash, struct sk_cache_entry *entry)
         return VX_ERROR;
     }
 
-    u64 h = *(u64 *) out_hash;
+    u64 h;
+    memcpy(&h, out_hash, sizeof(h));
 
     snprintf(entry->hash_str, sizeof(entry->hash_str), "%016llx", (unsigned long long) h);
 

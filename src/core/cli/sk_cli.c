@@ -384,8 +384,10 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         char *elapsed_fmt = vx_ticks_format(&total_time, elapsed, sizeof(elapsed));
         vx_sbuf_append(&g_sk_profile_sbuf,
                        "======================\n"
-                       "Total: %s\n",
-                       elapsed_fmt);
+                       "Total: %s%s%s\n",
+                       "\033[34m",
+                       elapsed_fmt,
+                       "\033[0m");
 
         vx_sbuf_append(&g_sk_profile_sbuf, "======================\n");
         vx_printf("%s", g_sk_profile_buf);

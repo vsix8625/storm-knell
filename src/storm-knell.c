@@ -72,7 +72,6 @@ static vx_status sk_init(i32 argc, char **argv)
     }
 
     vx_dbglog("Using VX library version: (%s)", VX_VERSION_STRING);
-    vx_dbglog("Global arena: %zu KB", mem_arena_get_capacity(g_sk_global_arena) / 1024);
     return VX_OK;
 }
 

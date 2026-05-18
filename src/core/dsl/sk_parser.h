@@ -59,7 +59,9 @@ struct sk_ast_nodes
     u32 count;
     u32 err_count;
 
-    u8 pad[8];
+    u32 codegen_nodes;
+
+    u8 pad[4];
 };
 
 struct sk_parser

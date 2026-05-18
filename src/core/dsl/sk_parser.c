@@ -355,6 +355,8 @@ static u32 parse_codegen(struct sk_parser *p)
         return SK_NODE_INVALID;
     }
 
+    p->nodes->codegen_nodes++;
+
     return node;
 }
 

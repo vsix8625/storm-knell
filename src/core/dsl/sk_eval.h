@@ -44,7 +44,7 @@ struct sk_target
 {
     char *name;
     char *out_name;
-    char *build_dir;
+    char *out_dir;
     char *build_mode;
     char *finalized_bin_dirpath;
     char *finalized_bin_rpath;
@@ -72,6 +72,9 @@ struct sk_eval_result
     struct sk_target targets[SK_MAX_TARGETS];
 
     u32 target_count;
+
+    u32 *codegen_node_idxs;
+    u32  codegen_count;
 
     char **var_keys;
     char **var_vals;

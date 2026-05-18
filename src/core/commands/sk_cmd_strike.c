@@ -336,8 +336,6 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
 
     if (ctx->active_opt & SK_OPT_STRIKE_REL)
     {
-        // NOTE: as of 0.2.1 this does not force release cflags but modifies the output to
-        // build_dir/release/...
         t->build_mode = "release";
         vx_log("Mode: %s", t->build_mode);
     }
@@ -346,20 +344,39 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
     char *bin_container = "lib";
 
     char object_dir_buf[VX_PATH_MAX];
-    snprintf(object_dir_buf,
-             sizeof(object_dir_buf),
-             "%s%s%s%s%s%s%s",
-             t->build_dir,
-             VX_PATH_SEP_STR,
-             t->name,
-             VX_PATH_SEP_STR,
-             t->build_mode,
-             VX_PATH_SEP_STR,
-             "obj");
 
+    if (t->out_dir && t->out_dir[0] != CHAR_NULTERM)
+    {
+        snprintf(object_dir_buf,
+                 sizeof(object_dir_buf),
+                 "%s%s%s%s%s%s%s",
+                 t->out_dir,
+                 VX_PATH_SEP_STR,
+                 t->name,
+                 VX_PATH_SEP_STR,
+                 t->build_mode,
+                 VX_PATH_SEP_STR,
+                 "obj");
+    }
+    else
+    {
+        snprintf(object_dir_buf,
+                 sizeof(object_dir_buf),
+                 "%s%s%s%s%s%s%s%s%s",
+                 ctx->rpath,
+                 VX_PATH_SEP_STR,
+                 "crater",
+                 VX_PATH_SEP_STR,
+                 t->name,
+                 VX_PATH_SEP_STR,
+                 t->build_mode,
+                 VX_PATH_SEP_STR,
+                 "obj");
+    }
+
+    // NOTE: at this point object_dir_buf should be resolved
     vx_mkdir_p(object_dir_buf);
 
-    // NOTE: fixed a bug with falling to relative paths, remainder
     char abs_dir_buf[VX_PATH_MAX];
     if (vx_fs_realpath(object_dir_buf, abs_dir_buf) == nullptr)
     {
@@ -386,7 +403,7 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
     snprintf(final_bin_dir_buf,
              sizeof(final_bin_dir_buf),
              "%s%s%s%s%s%s%s",
-             t->build_dir,
+             t->out_dir,
              VX_PATH_SEP_STR,
              t->name,
              VX_PATH_SEP_STR,
@@ -400,13 +417,6 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
         return VX_ERROR;
     }
 
-    if (vx_mkdir_p(object_dir_buf) != VX_OK)
-    {
-        VX_ASSERT_LOG("Failed to create target '%s' object directory", t->name);
-        return VX_ERROR;
-    }
-
-    // TODO: realpath
     t->finalized_bin_dirpath = mem_arena_strdup(g_sk_global_arena, final_bin_dir_buf);
     t->finalized_bin_rpath   = nullptr;
 
