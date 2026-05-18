@@ -52,13 +52,12 @@ static inline vx_status subcmd_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i3
 }
 
 static struct sk_subcmd_entry g_sk_subcmds[] = {
-    {"new", SK_CMD_NEW, subcmd_handler, "Scaffold a new porject or file"},
-    {"strike", SK_CMD_STRIKE, subcmd_handler, "Build"},
-    {"surge", SK_CMD_SURGE, subcmd_handler, "Run binary"},
-    {"clean", SK_CMD_CLEAN, subcmd_handler, "Clean artifacts"},
+    {"strike", SK_CMD_STRIKE, subcmd_handler, "Parse Stormfile and build project"},
+    {"surge", SK_CMD_SURGE, subcmd_handler, "Run target (NYI)"},
+    {"clean", SK_CMD_CLEAN, subcmd_handler, "Clean artifacts (NYI)"},
     {"init", SK_CMD_INIT, subcmd_handler, "Initialize Storm-Knell in working directory"},
-    {"purge", SK_CMD_PURGE, subcmd_handler, "Nuke .storm and artifacts"},
-    {"cache", SK_CMD_CACHE, subcmd_handler, "Cache features"},
+    {"purge", SK_CMD_PURGE, subcmd_handler, "Nuke working dir .storm and artifacts"},
+    {"cache", SK_CMD_CACHE, subcmd_handler, "View global cache size, or nuke"},
     {nullptr, SK_CMD_NONE, nullptr, nullptr},
 };
 
@@ -97,17 +96,6 @@ static struct sk_opt_entry g_sk_opts[] = {
     {"--size", SK_CMD_CACHE, SK_OPT_CACHE_SIZE, opt_set_bit, "Show cache size MB"},
     {"--nuke", SK_CMD_CACHE, SK_OPT_CACHE_NUKE, opt_set_bit, "Clean cache"},
     // ----------------------------------------------------------------------------------------------------
-
-    // ----------------------------------------------------------------------------------------------------
-    // owner = SK_CMD_NEW
-    {"--file", SK_CMD_NEW, SK_OPT_NEW_FILE, opt_set_bit, "Creates a new file"},
-    {"-f", SK_CMD_NEW, SK_OPT_NEW_FILE, opt_set_bit, "Creates a new file"},
-
-    {"--dir", SK_CMD_NEW, SK_OPT_NEW_DIR, opt_set_bit, "Creates a new directory"},
-    {"-d", SK_CMD_NEW, SK_OPT_NEW_DIR, opt_set_bit, "Creates a new directory"},
-
-    {"--pair", SK_CMD_NEW, SK_OPT_NEW_PAIR, opt_set_bit, "Creates pair of source and header"},
-    {"-p", SK_CMD_NEW, SK_OPT_NEW_PAIR, opt_set_bit, "Creates pair of source and header"},
 
     // ----------------------------------------------------------------------------------------------------
     {"(init)", SK_CMD_INIT, SK_OPT_NONE, nullptr, "sk init [path]"},
@@ -349,14 +337,6 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         {
             sk_cmd_purge_fn(ctx);
         }
-    }
-
-    if (ctx->active_cmd & SK_CMD_NEW)
-    {
-        // if (sk_cmd_new_file(ctx) != VX_OK)
-        // {
-        //     return VX_ERROR;
-        // }
     }
 
     if (ctx->active_cmd & SK_CMD_STRIKE)

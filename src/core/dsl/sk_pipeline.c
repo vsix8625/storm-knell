@@ -172,7 +172,6 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
 
     if (p->nodes->codegen_nodes > 0)
     {
-        vx_dbglog("CODEGEN_NODES EXECUTE: %u", p->nodes->codegen_nodes);
         for (u32 i = 0; i < ev_result->codegen_count; i++)
         {
             u32 codegen_node_idx = ev_result->codegen_node_idxs[i];

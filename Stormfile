@@ -1,0 +1,63 @@
+// Stormfile for Storm-Knell (sk)
+cc: /usr/bin/clang
+lflags: -lpthread -lxxhash
+
+major: 0
+minor: 3
+patch: 0
+
+build_type: debug
+
+target sk
+{
+    out: sk
+    mode: build_type
+
+    if (build_type == debug)
+    {
+        cflags: -std=c23 -Wall -Werror -Wextra -g -pthread -DDEBUG
+    }
+    else
+    {
+        cflags: 
+          -std=c23 -Wall -O3 -march=native 
+          -mbmi -mlzcnt -pthread -Wloop-analysis
+          -Wthread-safety-pointer -Wvla -Wcast-align
+          -Wdocumentation -Wunicode-whitespace -Wredundant-decls
+          -Wmissing-noreturn -fvisibility=hidden
+    }
+
+    exclude:
+        build/
+        test/
+        docs/
+    sources:
+        src/
+        external/vx/src/
+    includes:
+       -Isrc
+       -Isrc/core
+       -Isrc/core/cli
+       -Isrc/core/commands
+       -Isrc/core/dsl
+       -Isrc/core/hash
+       -Isrc/core/invoke
+       -Isrc/core/memory
+       -Isrc/core/sk_cache
+       -Isrc/core/util
+       -Iexternal/vx/include
+
+
+    codegen src/core/sk_config.h {
+        literal: "#pragma once"
+        
+        define: SK_VERSION_MAJOR major
+        define: SK_VERSION_MINOR minor
+        define: SK_VERSION_PATCH patch
+        
+        define: SK_VERSION_STRING "major.minor.patch"
+        define: SK_BUILD_TYPE "build_type"
+    }
+}
+
+

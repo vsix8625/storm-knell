@@ -11,13 +11,12 @@ typedef enum sk_cmd : u64
 {
     SK_CMD_NONE = 0,
 
-    SK_CMD_NEW    = 1 << 0,
-    SK_CMD_STRIKE = 1 << 1,
-    SK_CMD_SURGE  = 1 << 2,
-    SK_CMD_CLEAN  = 1 << 3,
-    SK_CMD_INIT   = 1 << 4,
-    SK_CMD_PURGE  = 1 << 5,
-    SK_CMD_CACHE  = 1 << 6,
+    SK_CMD_STRIKE = 1 << 0,
+    SK_CMD_SURGE  = 1 << 1,
+    SK_CMD_CLEAN  = 1 << 2,
+    SK_CMD_INIT   = 1 << 3,
+    SK_CMD_PURGE  = 1 << 4,
+    SK_CMD_CACHE  = 1 << 5,
 } sk_cmd;
 
 typedef enum sk_opt : u64
@@ -36,22 +35,18 @@ typedef enum sk_opt : u64
 
     SK_OPT_SURGE_WITH = 1 << 7,
 
-    SK_OPT_NEW_FILE = 1 << 8,
-    SK_OPT_NEW_DIR  = 1 << 9,
-    SK_OPT_NEW_PAIR = 1 << 10,
+    SK_OPT_FORCE   = 1 << 8,
+    SK_OPT_THREADS = 1 << 9,
 
-    SK_OPT_FORCE   = 1 << 11,
-    SK_OPT_THREADS = 1 << 12,
+    SK_OPT_PROFILE   = 1 << 10,
+    SK_OPT_MEMSTAT   = 1 << 11,
+    SK_OPT_TOK_DUMP  = 1 << 12,
+    SK_OPT_NODE_DUMP = 1 << 13,
+    SK_OPT_EVAL_DUMP = 1 << 14,
+    SK_OPT_GEN_CCMDS = 1 << 15,
 
-    SK_OPT_PROFILE   = 1 << 13,
-    SK_OPT_MEMSTAT   = 1 << 14,
-    SK_OPT_TOK_DUMP  = 1 << 15,
-    SK_OPT_NODE_DUMP = 1 << 16,
-    SK_OPT_EVAL_DUMP = 1 << 17,
-    SK_OPT_GEN_CCMDS = 1 << 18,
-
-    SK_OPT_CACHE_SIZE = 1 << 19,
-    SK_OPT_CACHE_NUKE = 1 << 20,
+    SK_OPT_CACHE_SIZE = 1 << 16,
+    SK_OPT_CACHE_NUKE = 1 << 17,
 } sk_opt;
 
 typedef vx_status (*sk_cmd_fn)(struct sk_ctx *ctx, sk_cmd cmd_id, i32 *i, i32 argc, char **argv);

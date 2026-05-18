@@ -3,8 +3,11 @@
 
 .*
 build/
+crater/
 test/
 docs/
+Barrfile
+compile_commands.json
 
 
 # Object files
