@@ -4,6 +4,7 @@
 #include "sk_util.h"
 #include "sk_paths.h"
 #include "sk_array.h"
+#include "sk_config.h"
 
 #include "vx_fs.h"
 #include "vx_io.h"
@@ -16,6 +17,13 @@ static bool eval_expr(struct sk_parser *p,
                       u32               var_count);
 
 static void eval_var(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_eval_result *result);
+
+static void
+eval_print(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_eval_result *result);
+
+static void sk_eval_set_builtin(struct sk_eval_result *result, char *key, char *val);
+
+static const char *eval_lookup_var(struct sk_eval_result *result, const char *key, size_t len);
 
 // TODO: DEPENDS handler
 
@@ -219,12 +227,13 @@ static void eval_cfg(struct sk_parser *p,
         }
 
         // NOTE: out names do not handle '-' eg: sk-rel
-        // NOTE: probably a parser solution
+        // NOTE: maybe a parser solution
         case SK_TOKEN_KWORD_OUT:
         {
             if (target)
             {
-                vx_sv sv         = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
+                vx_sv sv = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
+
                 target->out_name = sv_to_arena(g_sk_global_arena, sv);
             }
             break;
@@ -334,10 +343,9 @@ static void eval_if(struct sk_parser      *p,
                     break;
                 }
 
-                case SK_NODE_CODEGEN:
+                case SK_NODE_PRINT:
                 {
-                    result->codegen_node_idxs[result->codegen_count] = child;
-                    result->codegen_count++;
+                    eval_print(p, stormfile, child, result);
                     break;
                 }
 
@@ -379,10 +387,9 @@ static void eval_if(struct sk_parser      *p,
                         break;
                     }
 
-                    case SK_NODE_CODEGEN:
+                    case SK_NODE_PRINT:
                     {
-                        result->codegen_node_idxs[result->codegen_count] = child;
-                        result->codegen_count++;
+                        eval_print(p, stormfile, child, result);
                         break;
                     }
 
@@ -430,22 +437,26 @@ static void eval_target(struct sk_parser      *p,
                 break;
             }
 
-            case SK_NODE_FN_CALL:
-            {
-                // eval_fn(p, stormfile, child, target);
-                break;
-            }
-
             case SK_NODE_IF:
             {
                 eval_if(p, stormfile, child, target, result);
                 break;
             }
 
-            case SK_NODE_CODEGEN:
+            case SK_NODE_PRINT:
             {
-                result->codegen_node_idxs[result->codegen_count] = child;
-                result->codegen_count++;
+                eval_print(p, stormfile, child, result);
+                break;
+            }
+
+            case SK_NODE_INSTALL:
+            {
+                u32 val_node    = p->nodes->data_a[child];
+                u32 path_to_idx = p->nodes->token_idxs[val_node];
+
+                vx_sv sv = tok_to_sv(p, stormfile, path_to_idx);
+
+                target->install_dir = sv_to_arena(g_sk_global_arena, sv);
                 break;
             }
 
@@ -456,6 +467,27 @@ static void eval_target(struct sk_parser      *p,
         }
 
         child = p->nodes->nexts[child];
+    }
+}
+
+static void
+eval_print(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_eval_result *result)
+{
+    u32 val_node = p->nodes->data_a[node];
+    u32 val_tok  = p->nodes->token_idxs[val_node];
+
+    sk_token_kind kind = p->tokens->kinds[val_tok];
+
+    vx_sv key = tok_to_sv(p, stormfile, val_tok);
+
+    if (kind == SK_TOKEN_LIT_STRING)
+    {
+        vx_printf("[print]: %.*s\n", (i32) key.len - 2, key.data + 1);
+    }
+    else
+    {
+        const char *val = eval_lookup_var(result, key.data, key.len);
+        vx_printf("[print]: %.*s = %s\n", (i32) key.len, key.data, val ? val : "(unset)");
     }
 }
 
@@ -479,6 +511,12 @@ static void eval_var(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_e
     vx_sv key = tok_to_sv(p, stormfile, key_tok);
     vx_sv val = tok_to_sv(p, stormfile, val_tok);
 
+    if (key.len >= 2 && key.data[0] == CHAR_UNDERSCORE && key.data[1] == CHAR_UNDERSCORE)
+    {
+        vx_errlog("Cannot assign to built-in variable '%.*s'", (i32) key.len, key.data);
+        return;
+    }
+
     for (u32 i = 0; i < result->var_count; i++)
     {
         if (strncmp(result->var_keys[i], key.data, key.len) == 0 &&
@@ -497,7 +535,6 @@ static void eval_var(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_e
     }
 }
 
-// TODO: handle local vars
 static bool eval_expr(struct sk_parser *p,
                       vx_sv             stormfile,
                       u32               node,
@@ -511,6 +548,21 @@ static bool eval_expr(struct sk_parser *p,
     }
 
     sk_ast_node_kind kind = p->nodes->kinds[node];
+
+    if (kind == SK_NODE_IDENT)
+    {
+        vx_sv key = tok_to_sv(p, stormfile, p->nodes->token_idxs[node]);
+
+        for (u32 i = 0; i < var_count; i++)
+        {
+            if (strncmp(var_keys[i], key.data, key.len) == 0 &&
+                var_keys[i][key.len] == CHAR_NULTERM)
+            {
+                return strcmp(var_vals[i], "1") == 0;
+            }
+        }
+        return false;
+    }
 
     if (kind == SK_NODE_EXPR)
     {
@@ -540,6 +592,13 @@ static bool eval_expr(struct sk_parser *p,
 
         // resolve right — literal ident value
         vx_sv rhs = tok_to_sv(p, stormfile, p->nodes->token_idxs[right]);
+
+        sk_token_kind rhs_tok_kind = p->tokens->kinds[p->nodes->token_idxs[right]];
+        if (rhs_tok_kind == SK_TOKEN_LIT_STRING && rhs.len >= 2)
+        {
+            rhs.data++;
+            rhs.len -= 2;
+        }
 
         switch (op_kind)
         {
@@ -614,6 +673,23 @@ target_init(struct mem_arena *ar, struct sk_eval_result *result, vx_sv name_sv)
     t->cfg.cc     = result->global.cc;
     t->cfg.linker = result->global.linker;
 
+    if (result->global.cc != nullptr)
+    {
+        char abs_cc[VX_PATH_MAX];
+        if (vx_fs_which(result->global.cc, abs_cc, sizeof(abs_cc)) == VX_OK)
+        {
+            const char *base = strrchr(abs_cc, VX_PATH_SEP);
+
+            base          = base ? base + 1 : abs_cc;
+            bool is_clang = strncmp(base, "clang", 5) == 0;
+            bool is_gcc   = strncmp(base, "gcc", 3) == 0;
+
+            sk_eval_set_builtin(result, "__clang__", is_clang ? "1" : "0");
+            sk_eval_set_builtin(result, "__gcc__", is_gcc ? "1" : "0");
+            sk_eval_set_builtin(result, "__os__", VX_OS_NAME);
+        }
+    }
+
     return t;
 }
 
@@ -657,6 +733,8 @@ vx_status sk_eval(struct sk_parser *p, struct sk_eval_result *result)
     u32 node = p->nodes->data_a[1];  // program first child
 
     char **snapshot = mem_arena_alloc(g_sk_global_arena, sizeof(char *) * SK_MAX_VARS);
+
+    sk_eval_set_builtin(result, "__sk_version__", SK_VERSION_STRING);
 
     while (node != 0)
     {
@@ -712,6 +790,13 @@ vx_status sk_eval(struct sk_parser *p, struct sk_eval_result *result)
                 result->var_count = saved_var_count;
                 memcpy(result->var_vals, snapshot, sizeof(char *) * saved_var_count);
 
+                break;
+            }
+
+            case SK_NODE_CODEGEN:
+            {
+                result->codegen_node_idxs[result->codegen_count] = node;
+                result->codegen_count++;
                 break;
             }
 
@@ -844,4 +929,35 @@ void sk_dbg_dump_eval(struct sk_parser *p, struct sk_eval_result *result)
         vx_printf("\n");
     }
     vx_printf("--- END DUMP ---\n\n");
+}
+
+static void sk_eval_set_builtin(struct sk_eval_result *result, char *key, char *val)
+{
+    for (u32 i = 0; i < result->var_count; i++)
+    {
+        if (strcmp(result->var_keys[i], key) == 0)
+        {
+            result->var_vals[i] = val;
+            return;
+        }
+    }
+
+    if (result->var_count < SK_MAX_VARS)
+    {
+        result->var_keys[result->var_count] = key;
+        result->var_vals[result->var_count] = val;
+        result->var_count++;
+    }
+}
+
+static const char *eval_lookup_var(struct sk_eval_result *result, const char *key, size_t len)
+{
+    for (u32 i = 0; i < result->var_count; i++)
+    {
+        if (strncmp(result->var_keys[i], key, len) == 0 && result->var_keys[i][len] == CHAR_NULTERM)
+        {
+            return result->var_vals[i];
+        }
+    }
+    return nullptr;
 }

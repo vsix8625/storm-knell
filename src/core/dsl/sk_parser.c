@@ -16,6 +16,8 @@ static inline sk_token_kind peek_at(struct sk_parser *p, u32 dist);
 
 static inline bool is_at_end(struct sk_parser *p);
 
+static u32 parse_codegen(struct sk_parser *p);
+
 /*
  * Consumes token on success , increments `nodes->err_count` if fail.
  * */
@@ -37,7 +39,6 @@ static u32  parse_target(struct sk_parser *p);
 static u32  parse_if(struct sk_parser *p);
 static u32  parse_expr(struct sk_parser *p);
 static void parse_body(struct sk_parser *p, u32 *first_child);
-static u32  parse_fn_call(struct sk_parser *p);
 
 //----------------------------------------------------------------------------------------------------
 
@@ -111,12 +112,6 @@ vx_status sk_top_level_parse(struct sk_parser *p)
                 break;
             }
 
-            case SK_TOKEN_BUILTIN:
-            {
-                node = parse_fn_call(p);
-                break;
-            }
-
             case SK_TOKEN_IDENT:
             {
                 if (t2 == SK_TOKEN_COLON || t2 == SK_TOKEN_DOUBLE_COLON)
@@ -142,6 +137,12 @@ vx_status sk_top_level_parse(struct sk_parser *p)
             case SK_TOKEN_KWORD_OUT_DIR:
             {
                 node = parse_global(p);
+                break;
+            }
+
+            case SK_TOKEN_KWORD_CODEGEN:
+            {
+                node = parse_codegen(p);
                 break;
             }
 
@@ -398,9 +399,17 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
                 break;
             }
 
-            case SK_TOKEN_BUILTIN:
+            case SK_TOKEN_KWORD_PRINT:
             {
-                child = parse_fn_call(p);
+                u32 tok_idx = advance(p);
+                expect(p, SK_TOKEN_COLON);
+
+                u32 node = emit(SK_NODE_PRINT, tok_idx);
+                u32 val  = emit(SK_NODE_IDENT, advance(p));
+
+                p->nodes->data_a[node] = val;
+
+                child = node;
                 break;
             }
 
@@ -410,9 +419,24 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
                 break;
             }
 
+            case SK_TOKEN_KWORD_INSTALL:
+            {
+                u32 tok_idx = advance(p);
+                expect(p, SK_TOKEN_COLON);
+
+                u32 node = emit(SK_NODE_INSTALL, tok_idx);
+                u32 val  = emit(SK_NODE_PATH, advance(p));
+
+                p->nodes->data_a[node] = val;
+
+                child = node;
+                break;
+            }
+
             case SK_TOKEN_KWORD_CODEGEN:
             {
-                child = parse_codegen(p);
+                syntax_error(p, "Codegen block can only be used in top-level");
+                advance(p);
                 break;
             }
 
@@ -448,74 +472,6 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
     }
 }
 
-static u32 parse_fn_call(struct sk_parser *p)
-{
-    u32 tok_idx = advance(p);  // consume fn name
-    u32 node    = emit(SK_NODE_FN_CALL, tok_idx);
-
-    if (!expect(p, SK_TOKEN_LPAREN))
-    {
-        return SK_NODE_INVALID;
-    }
-
-    u32 first = SK_NODE_INVALID;
-    u32 last  = SK_NODE_INVALID;
-
-    while (!is_at_end(p) && peek(p) != SK_TOKEN_RPAREN)
-    {
-        sk_ast_node_kind nkind = literal_kind(peek(p));
-
-        u32 arg = SK_NODE_INVALID;
-
-        if (nkind != SK_NODE_INVALID)
-        {
-            u32 tok               = advance(p);
-            u32 val               = emit(nkind, tok);
-            arg                   = emit(SK_NODE_FN_ARG, tok);
-            p->nodes->data_a[arg] = val;
-        }
-        else if (peek(p) == SK_TOKEN_IDENT)
-        {
-            // path like tool/src
-            u32 val = emit(SK_NODE_IDENT, advance(p));
-
-            arg = emit(SK_NODE_FN_ARG, val);
-        }
-        else
-        {
-            syntax_error(p, "expected argument");
-            advance(p);
-            break;
-        }
-
-        if (arg != SK_NODE_INVALID)
-        {
-            if (first == SK_NODE_INVALID)
-            {
-                first                  = arg;
-                p->nodes->data_a[node] = first;
-            }
-            else
-            {
-                p->nodes->nexts[last] = arg;
-            }
-            last = arg;
-        }
-
-        if (peek(p) == SK_TOKEN_COMMA)
-        {
-            advance(p);
-        }
-    }
-
-    if (!expect(p, SK_TOKEN_RPAREN))
-    {
-        return SK_NODE_INVALID;
-    }
-
-    return node;
-}
-
 static u32 parse_expr(struct sk_parser *p)
 {
     if (peek(p) != SK_TOKEN_IDENT)
@@ -527,6 +483,12 @@ static u32 parse_expr(struct sk_parser *p)
     u32 left = emit(SK_NODE_IDENT, advance(p));
 
     sk_token_kind op = peek(p);
+
+    if (op == SK_TOKEN_RPAREN)
+    {
+        return left;
+    }
+
     if (op != SK_TOKEN_DOUBLE_EQUAL && op != SK_TOKEN_NOT_EQUAL && op != SK_TOKEN_LT &&
         op != SK_TOKEN_GT && op != SK_TOKEN_LE && op != SK_TOKEN_GE)
     {

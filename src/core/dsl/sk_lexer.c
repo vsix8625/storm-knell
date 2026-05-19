@@ -274,6 +274,7 @@ static void sk_lx_next_token(struct sk_lexer *lx)
                 record(lx, SK_TOKEN_AND, token_start);  // &&
                 return;
             }
+            return;
         }
 
         case CHAR_PIPE:
@@ -541,7 +542,7 @@ static void handle_ident(struct sk_lexer *lx, u32 start_col)
 {
     const char *p = lx->source.data + lx->current;
 
-    while (SK_UTIL_LEX_MAP[(u8) *p] != 0)
+    while (sk_util_is_ident(*p) || sk_util_is_digit(*p))
     {
         p++;
     }
@@ -654,6 +655,15 @@ static sk_token_kind check_keywords(struct sk_lexer *lx)
                     break;
                 }
 
+                case 7:
+                {
+                    if (vx_strncmplit(s, len, "install", 7))
+                    {
+                        return SK_TOKEN_KWORD_INSTALL;
+                    }
+                    break;
+                }
+
                 case 8:
                 {
                     if (vx_strncmplit(s, len, "includes", 8))
@@ -723,11 +733,6 @@ static sk_token_kind check_keywords(struct sk_lexer *lx)
                 return SK_TOKEN_KWORD_SOURCES;
             }
 
-            if (len == 11 && vx_strncmplit(s, len, "sources_get", 11))
-            {
-                return SK_TOKEN_BUILTIN;
-            }
-
             break;
         }
 
@@ -751,6 +756,16 @@ static sk_token_kind check_keywords(struct sk_lexer *lx)
             if (len == 8 && vx_strncmplit(s, len, "compiler", 8))
             {
                 return SK_TOKEN_KWORD_COMPILER;
+            }
+
+            break;
+        }
+
+        case 'p':
+        {
+            if (len == 5 && vx_strncmplit(s, len, "print", 5))
+            {
+                return SK_TOKEN_KWORD_PRINT;
             }
 
             break;

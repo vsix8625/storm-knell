@@ -13,6 +13,7 @@
 #include <string.h>
 
 static char *resolve_val_or_var(struct sk_eval_result *r, char *cfg_str);
+
 static char *
 resolve_token_or_var(struct sk_parser *p, vx_sv stormfile, struct sk_eval_result *r, u32 token_idx);
 
@@ -53,6 +54,7 @@ static vx_status finalize_evaluation(struct sk_eval_result *result)
 
             sk_scan_dir_r(t->sources, t->excludes, t->exclude_count, dir_to_scan);
         }
+        vx_log("DEBUG target install dir: %s", t->install_dir);
     }
 
     return VX_OK;
@@ -223,6 +225,15 @@ resolve_token_or_var(struct sk_parser *p, vx_sv stormfile, struct sk_eval_result
         raw_sv.len -= 2;
     }
 
+    char *flat_str = sv_to_arena(g_sk_global_arena, raw_sv);
+    for (u32 i = 0; i < r->var_count; i++)
+    {
+        if (strcmp(r->var_keys[i], flat_str) == 0)
+        {
+            return r->var_vals[i];
+        }
+    }
+
     bool has_delim = false;
     for (u32 i = 0; i < raw_sv.len; i++)
     {
@@ -266,7 +277,7 @@ resolve_token_or_var(struct sk_parser *p, vx_sv stormfile, struct sk_eval_result
             {
                 token_buf[tok_len] = CHAR_NULTERM;
 
-                char *resolved_sub = nullptr;
+                const char *resolved_sub = nullptr;
                 for (u32 v = 0; v < r->var_count; v++)
                 {
                     if (strcmp(r->var_keys[v], token_buf) == 0)
@@ -276,8 +287,9 @@ resolve_token_or_var(struct sk_parser *p, vx_sv stormfile, struct sk_eval_result
                     }
                 }
 
-                char *to_append = (resolved_sub != nullptr) ? resolved_sub : token_buf;
-                u32   app_len   = (u32) strlen(to_append);
+                const char *to_append = (resolved_sub != nullptr) ? resolved_sub : token_buf;
+
+                u32 app_len = (u32) strlen(to_append);
 
                 // clean out quotes
                 if (app_len >= 2 && ((to_append[0] == CHAR_DOUBLE_QUOTE &&

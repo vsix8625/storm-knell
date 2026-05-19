@@ -4,6 +4,7 @@
 #include "vx_defs.h"
 
 struct sk_arena_array;
+struct mem_arena;
 
 #define SK_PATH_STORM_DIR          ".storm"
 #define SK_PATH_STORM_DATA_DIR     ".storm/data"
@@ -22,5 +23,8 @@ void sk_scan_dir_r(struct sk_arena_array *sources,
                    const char            *dirpath);
 
 void sk_path_strip_trailing_sep(char *path);
+
+char *sk_path_join(struct mem_arena *ar, const char *a, const char *b);
+char *sk_path_join_hex(struct mem_arena *ar, const char *a, u32 hex);
 
 #endif  // SK_PATHS_H_

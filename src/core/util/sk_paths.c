@@ -1,3 +1,4 @@
+#include "mem_arena.h"
 #include "sk_globals.h"
 #include "sk_util.h"
 #include "vx_platform.h"
@@ -118,4 +119,25 @@ void sk_scan_dir_r(struct sk_arena_array *sources,
     }
 
     vx_fs_dir_close(dir);
+}
+
+char *sk_path_join(struct mem_arena *ar, const char *a, const char *b)
+{
+    if (ar == nullptr || a == nullptr || b == nullptr)
+    {
+        return nullptr;
+    }
+
+    size_t len = strlen(a) + strlen(b) + 2;
+    char  *buf = mem_arena_alloc(ar, len);
+    snprintf(buf, len, "%s%s%s", a, VX_PATH_SEP_STR, b);
+    return buf;
+}
+
+char *sk_path_join_hex(struct mem_arena *ar, const char *a, u32 hex)
+{
+    size_t len = strlen(a) + 1 + 3 + 1;
+    char  *buf = mem_arena_alloc(ar, len);
+    snprintf(buf, len, "%s%s%02x", a, VX_PATH_SEP_STR, hex);
+    return buf;
 }

@@ -72,21 +72,13 @@
 #define CHAR_SEMICOLON  ';'
 #define CHAR_BACKTICK   '`'
 
-static const u8 SK_UTIL_LEX_MAP[256] = {
-    ['a' ... 'z'] = 1,
-    ['A' ... 'Z'] = 1,
-    ['_']         = 1,
-    ['0' ... '9'] = 2,
-};
-
 static inline bool sk_util_is_ident(char c)
 {
-    return SK_UTIL_LEX_MAP[(u8) c] == 1;
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
-
 static inline bool sk_util_is_digit(char c)
 {
-    return SK_UTIL_LEX_MAP[(u8) c] == 2;
+    return c >= '0' && c <= '9';
 }
 
 bool sk_is_initialized_at(const char *dir);

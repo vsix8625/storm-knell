@@ -4,7 +4,7 @@
 
 struct sk_cache_entry
 {
-    char cache_path[VX_PATH_MAX];
+    char cache_path[VX_PATH_MAX * 2];
     char shard_dir[VX_PATH_MAX];
     char hash_str[17];
 };

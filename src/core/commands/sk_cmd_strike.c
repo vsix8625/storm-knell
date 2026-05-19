@@ -31,6 +31,8 @@ _Atomic u64 g_compile_end_ns   = 0;
 
 static _Thread_local struct mem_arena *tls_worker_arena = nullptr;
 
+vx_mutex g_proc_spawn_mutex;
+
 struct sk_work_unit
 {
     struct sk_target *target;
@@ -43,6 +45,8 @@ struct sk_work_unit
     struct sk_meta *meta;
 
     const char *tag;
+
+    vx_sbuf diagnostic_log;
 };
 
 static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t);
@@ -69,6 +73,8 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         return VX_ERROR;
     }
     vx_log("Working directory: %s", ctx->rpath);
+
+    bool is_tty = vx_isatty(STDOUT_FILENO);
 
     vx_ticks profile = {0};
     if (ctx->active_opt & SK_OPT_PROFILE)
@@ -100,6 +106,8 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
     {
         struct vx_thread_pool pool;
 
+        vx_mutex_init(&g_proc_spawn_mutex);
+
         ctx->cores       = ctx->cores == 0 ? vx_cpu_get_nproc() : ctx->cores;
         u32 thread_count = (ctx->threads == 0) ? ctx->cores - 1 : ctx->threads;
 
@@ -125,6 +133,12 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         //----------------------------------------------------------------------------------------------------
         // Main loop
+
+        struct sk_work_unit **work_units =
+            mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_work_unit *) * total_sources);
+
+        u32 unit_idx = 0;
+
         for (u32 i = 0; i < t_count; i++)
         {
             struct sk_target *t    = &eval_result->targets[i];
@@ -152,16 +166,28 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             }
 
             //----------------------------------------------------------------------------------------------------
+
             for (u32 j = 0; j < t->sources->count; j++)
             {
                 struct sk_work_unit *unit =
                     mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_work_unit));
+
+                work_units[unit_idx++] = unit;
 
                 unit->target     = t;
                 unit->source_idx = j;
                 unit->meta       = &meta;
                 unit->tag        = (const char *) t->sources->items[j];
                 unit->dry_run    = dry_run;
+
+                u32 log_size = VX_BUF_SIZE_4096;
+
+                char *log_mem = mem_arena_alloc(g_sk_global_arena, log_size);
+                log_mem[0]    = CHAR_NULTERM;
+
+                unit->diagnostic_log.data   = log_mem;
+                unit->diagnostic_log.size   = log_size;
+                unit->diagnostic_log.offset = 0;
 
                 if (ctx->active_opt & SK_OPT_GEN_CCMDS)
                 {
@@ -181,6 +207,37 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         vx_thread_pool_wait(&pool);
         vx_thread_pool_destroy(&pool);
+
+        // Diagnostic logs
+        if (atomic_load(&g_compile_errors) > 0)
+        {
+            for (u32 j = 0; j < total_sources; j++)
+            {
+                struct sk_work_unit *unit = work_units[j];
+
+                if (unit->diagnostic_log.offset > 0)
+                {
+                    char *tty_color = "";
+                    char *tty_bold  = "";
+                    char *tty_reset = "";
+                    if (is_tty)
+                    {
+                        tty_color = "\033[38;5;160m";
+                        tty_bold  = "\033[0;1m";
+                        tty_reset = "\033[0m";
+                    }
+
+                    vx_printf("\n[%sERROR LOG FOR %s %s%s]:\n%s\n",
+                              tty_color,
+                              tty_bold,
+                              unit->tag,
+                              tty_reset,
+                              unit->diagnostic_log.data);
+                    vx_printf(
+                        "------------------------------------------------------------------\n");
+                }
+            }
+        }
 
         //----------------------------------------------------------------------------------------------------
         // SERIALIZE
@@ -302,8 +359,39 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                     {
                         vx_errlog("Failed to link target: %s", t->name);
                     }
+                    else
+                    {
+                        // NOTE: because install will remove the path if it exists
+                        // NOTE: using the cp sk to rebuild sk will fail,
+                        // NOTE: for install we need sk surge to run localized bin to build itself
+                        if (t->kind == SK_TARGET_KIND_EXEC && t->install_dir != nullptr)
+                        {
+                            char *dest_path =
+                                sk_path_join(g_sk_global_arena, t->install_dir, t->out_name);
+
+                            if (vx_isfile(dest_path))
+                            {
+                                vx_fs_rmrf(dest_path);
+                            }
+
+                            if (vx_mkdir_p(t->install_dir) != VX_OK)
+                            {
+                                vx_errlog("Failed to create installation directory: %s",
+                                          t->install_dir);
+                            }
+
+                            vx_log("[install]: Copying '%s' to '%s'", t->out_name, dest_path);
+
+                            if (!vx_fs_cp(t->finalized_bin_rpath, dest_path))
+                            {
+                                vx_errlog("Failed to copy binary to install location: %s",
+                                          dest_path);
+                            }
+                        }
+                    }
                 }
             }
+
             if (ctx->active_opt & SK_OPT_PROFILE)
             {
                 vx_ticks_end(&link_time);
@@ -388,6 +476,8 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         char *elapsed_fmt = vx_ticks_format(&profile, elapsed, sizeof(elapsed));
         vx_sbuf_append(&g_sk_profile_sbuf, "%s: %s\n", __func__, elapsed_fmt);
     }
+
+    vx_mutex_destroy(&g_proc_spawn_mutex);
     return strike_status;
 }
 
@@ -442,25 +532,20 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
     }
 
     // NOTE: at this point object_dir_buf should be resolved
-    vx_mkdir_p(object_dir_buf);
+    if (vx_mkdir_p(object_dir_buf) != VX_OK)
+    {
+        VX_ASSERT_LOG("Failed to create: %s", object_dir_buf);
+        return VX_ERROR;
+    }
 
     char abs_dir_buf[VX_PATH_MAX];
+
     if (vx_fs_realpath(object_dir_buf, abs_dir_buf) == nullptr)
     {
-        char fallback_abs[VX_PATH_MAX];
-        snprintf(fallback_abs,
-                 sizeof(fallback_abs),
-                 "%s%s%s",
-                 g_sk_global_ctx.rpath,
-                 VX_PATH_SEP_STR,
-                 object_dir_buf);
-
-        t->finalized_obj_dirpath = mem_arena_strdup(g_sk_global_arena, fallback_abs);
+        VX_ASSERT_LOG("realpath failed for: %s", object_dir_buf);
+        return VX_ERROR;
     }
-    else
-    {
-        t->finalized_obj_dirpath = mem_arena_strdup(g_sk_global_arena, abs_dir_buf);
-    }
+    t->finalized_obj_dirpath = mem_arena_strdup(g_sk_global_arena, abs_dir_buf);
 
     if (t->kind == SK_TARGET_KIND_EXEC)
     {
@@ -492,13 +577,10 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
     if (t->kind == SK_TARGET_KIND_EXEC)
     {
         // executable
-        char bin_rpath_buf[VX_PATH_MAX];
-        snprintf(bin_rpath_buf,
-                 sizeof(bin_rpath_buf),
-                 "%s%s%s",
-                 final_bin_dir_buf,
-                 VX_PATH_SEP_STR,
-                 t->out_name);
+        size_t needed =
+            strlen(final_bin_dir_buf) + strlen(VX_PATH_SEP_STR) + strlen(t->out_name) + 1;
+        char *bin_rpath_buf = mem_arena_alloc(g_sk_global_arena, needed);
+        snprintf(bin_rpath_buf, needed, "%s%s%s", final_bin_dir_buf, VX_PATH_SEP_STR, t->out_name);
 
         // the final ../../bin/out_name
         t->finalized_bin_rpath = mem_arena_strdup(g_sk_global_arena, bin_rpath_buf);
@@ -580,9 +662,16 @@ static void *sk_worker_compile_fn(void *arg)
             }
         }
 
-        if (vx_process_spawn(&proc, argv[0], argv, nullptr) == VX_OK)
+        struct vx_proc_cfg cfg = {.flags = VX_PROCESS_FLAGS_CAPTURE};
+
+        vx_mutex_lock(&g_proc_spawn_mutex);
+        vx_status status = vx_process_spawn(&proc, argv[0], argv, &cfg);
+        vx_mutex_unlock(&g_proc_spawn_mutex);
+
+        if (status == VX_OK)
         {
             vx_process_wait(&proc);
+            vx_process_consume_output(&proc, &unit->diagnostic_log);
 
             if (proc.exit_code == 0)
             {
@@ -598,6 +687,7 @@ static void *sk_worker_compile_fn(void *arg)
             else
             {
                 vx_errlog("Failed to compile: %s", unit->tag);
+
                 atomic_fetch_add(&g_compile_errors, 1);
             }
         }

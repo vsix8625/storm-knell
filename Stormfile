@@ -1,62 +1,91 @@
 // Stormfile for Storm-Knell (sk)
-cc: /usr/bin/clang
+cc: /usr/bin/gcc
+cflags: -std=c23 -Wall -Werror -Wextra -pedantic
 lflags: -lpthread -lxxhash
 
 major: 0
 minor: 3
-patch: 1
+patch: 5
 
-build_type: release
+codegen src/core/sk_config.h {
+    literal: "#pragma once"
+
+    define: SK_VERSION_MAJOR major
+    define: SK_VERSION_MINOR minor
+    define: SK_VERSION_PATCH patch
+
+    define: SK_VERSION_STRING "major.minor.patch"
+    define: SK_COMPILED_GCC __gcc__
+    define: SK_COMPILED_CLANG __clang__
+}
+
+target skdbg
+{
+    out: skdbg
+    mode: debug
+
+    cflags:: -g -pthread -DDEBUG
+
+    exclude:
+    build/
+    test/
+    docs/
+    sources:
+    src/
+    external/vx/src/
+    includes:
+    -Isrc
+    -Isrc/core
+    -Isrc/core/cli
+    -Isrc/core/commands
+    -Isrc/core/dsl
+    -Isrc/core/hash
+    -Isrc/core/invoke
+    -Isrc/core/memory
+    -Isrc/core/sk_cache
+    -Isrc/core/util
+    -Iexternal/vx/include
+}
 
 target sk
 {
     out: sk
-    mode: build_type
+    mode: release
 
-    if (build_type == debug)
+    print: __sk_version__
+
+    if (__clang__)
     {
-        cflags: -std=c23 -Wall -Werror -Wextra -g -pthread -DDEBUG
+        cflags:: -Wloop-analysis -Wthread-safety-pointer -Wdocumentation -Wunicode-whitespace
     }
-    else
-    {
-        cflags: 
-          -std=c23 -Wall -O3 -march=native 
-          -mbmi -mlzcnt -pthread -Wloop-analysis
-          -Wthread-safety-pointer -Wvla -Wcast-align
-          -Wdocumentation -Wunicode-whitespace -Wredundant-decls
-          -Wmissing-noreturn -fvisibility=hidden
-    }
+
+    cflags::
+    -O3 -march=native
+    -mbmi -mlzcnt -pthread
+    -Wvla -Wcast-align
+    -Wredundant-decls
+    -Wmissing-noreturn
+    -fvisibility=hidden
 
     exclude:
-        build/
-        test/
-        docs/
+    build/
+    test/
+    docs/
     sources:
-        src/
-        external/vx/src/
+    src/
+    external/vx/src/
     includes:
-       -Isrc
-       -Isrc/core
-       -Isrc/core/cli
-       -Isrc/core/commands
-       -Isrc/core/dsl
-       -Isrc/core/hash
-       -Isrc/core/invoke
-       -Isrc/core/memory
-       -Isrc/core/sk_cache
-       -Isrc/core/util
-       -Iexternal/vx/include
+    -Isrc
+    -Isrc/core
+    -Isrc/core/cli
+    -Isrc/core/commands
+    -Isrc/core/dsl
+    -Isrc/core/hash
+    -Isrc/core/invoke
+    -Isrc/core/memory
+    -Isrc/core/sk_cache
+    -Isrc/core/util
+    -Iexternal/vx/include
 
-
-    codegen src/core/sk_config.h {
-        literal: "#pragma once"
-        
-        define: SK_VERSION_MAJOR major
-        define: SK_VERSION_MINOR minor
-        define: SK_VERSION_PATCH patch
-        
-        define: SK_VERSION_STRING "major.minor.patch"
-    }
+    install: /home/vsix/.local/bin
 }
-
-

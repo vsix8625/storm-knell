@@ -8,8 +8,9 @@
 #include "vx_io.h"
 #include "vx_fs.h"
 
-_Atomic u32            g_sk_ccmds_count = 0;
-struct sk_ccmds_entry *g_sk_ccmds       = {0};
+_Atomic u32 g_sk_ccmds_count = 0;
+
+struct sk_ccmds_entry *g_sk_ccmds = {0};
 
 #include <stdatomic.h>
 #include <stdio.h>
@@ -73,7 +74,7 @@ char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx, struct mem_
 
     // cc + cflags + includes + defines + "-c" + src + "-o" + obj + NULL
     u32 total_args =
-        1 + t->cfg.cflags_count + t->cfg.includes_count + t->cfg.defines_count + 2 + 2 + 1;
+        2 + t->cfg.cflags_count + t->cfg.includes_count + t->cfg.defines_count + 2 + 2 + 1;
 
     char **argv = mem_arena_alloc(arena, sizeof(char *) * total_args);
 
@@ -85,6 +86,11 @@ char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx, struct mem_
     u32 idx = 0;
 
     argv[idx++] = t->cfg.cc;
+
+    if (vx_isatty(STDOUT_FILENO))
+    {
+        argv[idx++] = "-fdiagnostics-color=always";
+    }
 
     for (u32 i = 0; i < t->cfg.cflags_count; i++)
     {
@@ -276,8 +282,14 @@ char **sk_invoke_syntax_check_nularr(struct sk_target *t, u32 source_idx, struct
         return nullptr;
     }
 
-    u32 idx     = 0;
+    u32 idx = 0;
+
     argv[idx++] = t->cfg.cc;
+
+    if (vx_isatty(STDOUT_FILENO))
+    {
+        argv[idx++] = "-fdiagnostics-color=always";
+    }
 
     for (u32 j = 0; j < t->cfg.cflags_count; j++)
     {

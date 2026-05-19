@@ -7,3 +7,4 @@
 #include "sk_cmd_cache.h"
 #include "sk_cmd_clean.h"
 #include "sk_cmd_status.h"
+#include "sk_cmd_surge.h"

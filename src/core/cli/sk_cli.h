@@ -46,8 +46,7 @@ typedef enum sk_opt : u64
     SK_OPT_EVAL_DUMP = 1 << 14,
     SK_OPT_GEN_CCMDS = 1 << 15,
 
-    SK_OPT_CACHE_SIZE = 1 << 16,
-    SK_OPT_CACHE_NUKE = 1 << 17,
+    SK_OPT_CACHE_NUKE = 1 << 16,
 } sk_opt;
 
 typedef vx_status (*sk_cmd_fn)(struct sk_ctx *ctx, sk_cmd cmd_id, i32 *i, i32 argc, char **argv);

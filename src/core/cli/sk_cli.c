@@ -53,10 +53,10 @@ static inline vx_status subcmd_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i3
 
 static struct sk_subcmd_entry g_sk_subcmds[] = {
     {"strike", SK_CMD_STRIKE, subcmd_handler, "Parse Stormfile and build project"},
-    {"surge", SK_CMD_SURGE, subcmd_handler, "Run target (NYI)"},
-    {"clean", SK_CMD_CLEAN, subcmd_handler, "Clean artifacts (NYI)"},
+    {"surge", SK_CMD_SURGE, subcmd_handler, "Run target (manifest-aware)"},
+    {"clean", SK_CMD_CLEAN, subcmd_handler, "Clean artifacts (manifest-aware)"},
     {"init", SK_CMD_INIT, subcmd_handler, "Initialize Storm-Knell in working directory"},
-    {"purge", SK_CMD_PURGE, subcmd_handler, "Nuke working dir .storm and artifacts"},
+    {"purge", SK_CMD_PURGE, subcmd_handler, "De-initialize Storm-Knell from working directory"},
     {"cache", SK_CMD_CACHE, subcmd_handler, "View global cache size, or nuke"},
     {"status", SK_CMD_STATUS, subcmd_handler, "View status"},
     {nullptr, SK_CMD_NONE, nullptr, nullptr},
@@ -94,7 +94,6 @@ static struct sk_opt_entry g_sk_opts[] = {
 
     // ----------------------------------------------------------------------------------------------------
     // owner = SK_CMD_CACHE
-    {"--size", SK_CMD_CACHE, SK_OPT_CACHE_SIZE, opt_set_bit, "Show cache size MB"},
     {"--nuke", SK_CMD_CACHE, SK_OPT_CACHE_NUKE, opt_set_bit, "Clean cache"},
     // ----------------------------------------------------------------------------------------------------
 
@@ -365,7 +364,10 @@ static vx_status cli_execute(struct sk_ctx *ctx)
 
     if (ctx->active_cmd & SK_CMD_SURGE)
     {
-        vx_warn("SURGING");
+        if (sk_cmd_surge_fn(ctx) != VX_OK)
+        {
+            return VX_ERROR;
+        }
     }
 
     if (ctx->active_cmd & SK_CMD_CACHE)

@@ -1,4 +1,4 @@
-#include "sk_cmd_clean.h"
+#include "sk_cmd_surge.h"
 #include "sk_cmd_strike.h"
 
 #include "sk_globals.h"
@@ -8,7 +8,7 @@
 #include "storm-knell.h"
 #include "vx.h"
 
-vx_status sk_cmd_clean_fn(struct sk_ctx *ctx)
+vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
 {
     if (ctx == nullptr)
     {
@@ -33,7 +33,7 @@ vx_status sk_cmd_clean_fn(struct sk_ctx *ctx)
 
     if (f == nullptr)
     {
-        vx_log("Nothing to clean (no active workspace manifest found).");
+        vx_log("No active workspace manifest found).");
         return VX_OK;
     }
 
@@ -61,37 +61,7 @@ vx_status sk_cmd_clean_fn(struct sk_ctx *ctx)
         return VX_ERROR;
     }
 
-    vx_log("Cleaning workspace targets...");
-    u32 wiped_count = 0;
+    VX_ASSERT_LOG("SURGING BABY WOHOO WIP");
 
-    for (u32 i = 0; i < header.target_count; i++)
-    {
-        struct sk_target_persist *t = &saved_targets[i];
-
-        if (t->out_dir[0] != '\0')
-        {
-            if (!vx_isdir(t->out_dir))
-            {
-                wiped_count++;
-                continue;
-            }
-
-            vx_log("  Wiping target [%s] outputs -> %s/", t->name, t->out_dir);
-            if (vx_fs_rmrf(t->out_dir))
-            {
-                wiped_count++;
-            }
-            else
-            {
-                vx_warn("  Could not fully remove directory: %s", t->out_dir);
-            }
-        }
-    }
-
-    vx_fs_rmrf(manifest_path);
-
-    vx_log("[summary]: Successfully cleared %u/%u target artifacts.",
-           wiped_count,
-           header.target_count);
     return VX_OK;
 }

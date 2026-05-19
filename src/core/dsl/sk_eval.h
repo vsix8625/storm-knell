@@ -49,6 +49,7 @@ struct sk_target
     char *finalized_bin_dirpath;
     char *finalized_bin_rpath;
     char *finalized_obj_dirpath;
+    char *install_dir;
 
     struct sk_arena_array *sources;    // final resolved list
     struct sk_arena_array *scan_dirs;  // paths ending in /

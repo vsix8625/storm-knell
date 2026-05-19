@@ -46,13 +46,8 @@ bool sk_meta_load(struct sk_meta *meta, const char *target_cc)
         return false;
     }
 
-    char full_meta_path[VX_PATH_MAX];
-    snprintf(full_meta_path,
-             sizeof(full_meta_path),
-             "%s%s%s",
-             g_sk_global_ctx.rpath,
-             VX_PATH_SEP_STR,
-             SK_PATH_STORM_META_FILE);
+    char *full_meta_path =
+        sk_path_join(g_sk_global_arena, g_sk_global_ctx.rpath, SK_PATH_STORM_META_FILE);
 
     vx_sv file = vx_fs_read(full_meta_path, sk_arena_alloc, g_sk_global_arena);
     if (file.data == nullptr)
@@ -135,19 +130,18 @@ void sk_meta_init_cc(const char *cc_name, const char *rpath)
         return;
     }
 
-    char meta_path[VX_PATH_MAX];
-    snprintf(
-        meta_path, sizeof(meta_path), "%s%s%s", rpath, VX_PATH_SEP_STR, SK_PATH_STORM_META_FILE);
+    char *meta_path = sk_path_join(g_sk_global_arena, rpath, SK_PATH_STORM_META_FILE);
 
     char tmp_buf[VX_PATH_MAX];
     snprintf(tmp_buf,
              sizeof(tmp_buf),
-             "%s%s%s%s%s",
+             "%s%s%s%s%s_%s",
              rpath,
              VX_PATH_SEP_STR,
              SK_PATH_STORM_DIR,
              VX_PATH_SEP_STR,
-             "tmp_ver");
+             "tmp_ver",
+             cc_name);
     const char *tmp_ver_file = tmp_buf;
 
     char *argv[] = {resolved_path, "--version", nullptr};
@@ -162,6 +156,8 @@ void sk_meta_init_cc(const char *cc_name, const char *rpath)
     if (vx_process_spawn(&proc, resolved_path, argv, &cfg) == VX_OK)
     {
         vx_process_wait(&proc);
+        vx_dbglog("exit_code: %d", proc.exit_code);
+        vx_dbglog("tmp file exists: %d", vx_isfile(tmp_ver_file));
 
         if (proc.exit_code == 0)
         {
@@ -179,10 +175,10 @@ void sk_meta_init_cc(const char *cc_name, const char *rpath)
                            "cc_name=%s\ncc_ver=%s\n\n",
                            resolved_path,
                            VX_CAST(char *, ver_data.data));
-
-                vx_fs_rmrf(tmp_ver_file);
             }
         }
+
+        vx_fs_rmrf(tmp_ver_file);
     }
 }
 
@@ -193,15 +189,15 @@ static void create_storm_dir(const char *root, const char *subdir)
         return;
     }
 
-    char path[VX_PATH_MAX];
-    snprintf(path, sizeof(path), "%s%s%s", root, VX_PATH_SEP_STR, subdir);
+    char *path = sk_path_join(g_sk_global_arena, root, subdir);
 
     if (vx_mkdir_p(path) != VX_OK)
     {
         VX_ASSERT_LOG("Failed to create: %s", path);
         return;
     }
-    vx_dbglog("Created: %s", path);
+
+    vx_log("Created: %s", path);
 }
 
 void sk_cmd_init_fn(struct sk_ctx *ctx)
@@ -215,13 +211,11 @@ void sk_cmd_init_fn(struct sk_ctx *ctx)
         return;
     }
 
-    char stormfile[VX_PATH_MAX];
-    snprintf(stormfile, sizeof(stormfile), "%s%s%s", rpath, VX_PATH_SEP_STR, SK_PATH_STORMFILE);
+    char *stormfile = sk_path_join(g_sk_global_arena, rpath, SK_PATH_STORMFILE);
 
     if (force)
     {
-        char meta_path[VX_PATH_MAX];
-        snprintf(meta_path, sizeof(meta_path), "%s/%s", rpath, SK_PATH_STORM_DIR);
+        char *meta_path = sk_path_join(g_sk_global_arena, rpath, SK_PATH_STORM_DIR);
         vx_fs_rmrf(meta_path);
         vx_fs_rmrf(stormfile);
     }
@@ -238,16 +232,17 @@ void sk_cmd_init_fn(struct sk_ctx *ctx)
     }
     vx_dbglog("rpath: %s", rpath);
 
-    if (vx_fwrite(stormfile, "%s", SK_DEF_STORMFILE) != VX_OK)
+    if (!vx_isfile(stormfile))
     {
-        VX_ASSERT_LOG("Failed writing to file: %s", stormfile);
-        return;
+        if (vx_fwrite(stormfile, "%s", SK_DEF_STORMFILE) != VX_OK)
+        {
+            VX_ASSERT_LOG("Failed writing to file: %s", stormfile);
+            return;
+        }
+        vx_dbglog("Created: %s", stormfile);
     }
-    vx_dbglog("Created: %s", stormfile);
 
-    char meta_path[VX_PATH_MAX];
-    snprintf(
-        meta_path, sizeof(meta_path), "%s%s%s", rpath, VX_PATH_SEP_STR, SK_PATH_STORM_META_FILE);
+    char *meta_path = sk_path_join(g_sk_global_arena, rpath, SK_PATH_STORM_META_FILE);
 
     vx_fwrite(meta_path, "# Storm-Knell Compiler Metadata\n\n");
 
