@@ -681,7 +681,7 @@ subcmd_surge_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i32 argc, char **arg
     ctx->active_cmd |= id;
     (*i)++;
 
-    if (*i < argc && argv[*i][0] != CHAR_MINUS)
+    if (*i < argc && argv[*i][0] != CHAR_MINUS && strcmp(argv[*i], ":::") != 0)
     {
         ctx->surge_target = argv[*i];
         (*i)++;

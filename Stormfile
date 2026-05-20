@@ -87,5 +87,5 @@ target sk
     -Isrc/core/util
     -Iexternal/vx/include
 
-    install: /home/vsix/.local/bin
+    install: ~/.local/bin
 }

@@ -8,6 +8,7 @@
 #include "storm-knell.h"
 #include "vx.h"
 #include "vx_process.h"
+#include <stdlib.h>
 
 vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
 {
@@ -125,6 +126,13 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
         argv[i + 1] = ctx->surge_passthrough_argv[i];
     }
     argv[extra_argc + 1] = nullptr;
+
+    if (getenv("SK_SURGE") != nullptr)
+    {
+        vx_errlog("Cannot nest surge calls.");
+        return VX_ERROR;
+    }
+    vx_platform_setenv("SK_SURGE", "1");
 
     vx_log("Working directory: %s", ctx->rpath);
     vx_log("Surging target [%s] -> %s", run_target->name, run_target->bin_path);

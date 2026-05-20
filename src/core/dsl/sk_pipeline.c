@@ -54,7 +54,7 @@ static vx_status finalize_evaluation(struct sk_eval_result *result)
 
             sk_scan_dir_r(t->sources, t->excludes, t->exclude_count, dir_to_scan);
         }
-        vx_log("DEBUG target install dir: %s", t->install_dir);
+        vx_log("Installing: %s", t->install_dir);
     }
 
     return VX_OK;
@@ -406,6 +406,6 @@ sk_pipeline_codegen(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_ev
     }
 
     fclose(f);
-    vx_log("codegen: wrote '%s'", path);
+    vx_log("Generated: %s", path);
     return VX_OK;
 }
