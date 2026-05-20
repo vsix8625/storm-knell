@@ -27,4 +27,6 @@ void sk_path_strip_trailing_sep(char *path);
 char *sk_path_join(struct mem_arena *ar, const char *a, const char *b);
 char *sk_path_join_hex(struct mem_arena *ar, const char *a, u32 hex);
 
+const char *sk_expand_path(struct mem_arena *ar, const char *path);
+
 #endif  // SK_PATHS_H_

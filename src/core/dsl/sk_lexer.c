@@ -309,7 +309,7 @@ static void sk_lx_next_token(struct sk_lexer *lx)
         }
         case CHAR_TILDE:
         {
-            record(lx, SK_TOKEN_TILDE, token_start);
+            handle_path(lx, token_start);
             return;
         }
 
@@ -526,7 +526,7 @@ static void handle_path(struct sk_lexer *lx, u32 start_col)
         }
 
         if (c == CHAR_SLASH || c == CHAR_DOT || c == CHAR_MINUS || c == CHAR_UNDERSCORE ||
-            sk_util_is_ident(c) || sk_util_is_digit(c))
+            c == CHAR_TILDE || sk_util_is_ident(c) || sk_util_is_digit(c))
         {
             advance(lx);
         }

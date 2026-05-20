@@ -141,3 +141,31 @@ char *sk_path_join_hex(struct mem_arena *ar, const char *a, u32 hex)
     snprintf(buf, len, "%s%s%02x", a, VX_PATH_SEP_STR, hex);
     return buf;
 }
+
+const char *sk_expand_path(struct mem_arena *ar, const char *path)
+{
+    if (ar == nullptr)
+    {
+        return nullptr;
+    }
+
+    if (path[0] == CHAR_TILDE)
+    {
+        const char *home = vx_platform_get_home_dir();
+        if (home == nullptr)
+        {
+            return path;
+        }
+
+        const char *rest = path + 1;
+
+        if (*rest == VX_PATH_SEP)
+        {
+            rest++;
+        }
+
+        return sk_path_join(ar, home, rest);
+    }
+
+    return path;
+}

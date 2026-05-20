@@ -456,7 +456,8 @@ static void eval_target(struct sk_parser      *p,
 
                 vx_sv sv = tok_to_sv(p, stormfile, path_to_idx);
 
-                target->install_dir = sv_to_arena(g_sk_global_arena, sv);
+                const char *raw     = sv_to_arena(g_sk_global_arena, sv);
+                target->install_dir = (char *) sk_expand_path(g_sk_global_arena, raw);
                 break;
             }
 

@@ -361,9 +361,6 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                     }
                     else
                     {
-                        // NOTE: because install will remove the path if it exists
-                        // NOTE: using the cp sk to rebuild sk will fail,
-                        // NOTE: for install we need sk surge to run localized bin to build itself
                         if (t->kind == SK_TARGET_KIND_EXEC && t->install_dir != nullptr)
                         {
                             char *dest_path =
