@@ -22,7 +22,13 @@ struct sk_ctx
     u32 threads;
 
     struct sk_cache_config ccfg;
-    const char            *sk_global_config_dir;
+
+    const char *sk_global_config_dir;
+
+    const char *surge_target;
+
+    char **surge_passthrough_argv;
+    i32    surge_passthrough_argc;
 };
 
 void sk_shutdown(void);

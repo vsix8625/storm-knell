@@ -38,6 +38,9 @@ opt_set_bit(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char
 static vx_status
 opt_help(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **argv);
 
+static inline vx_status
+subcmd_surge_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i32 argc, char **argv);
+
 // ----------------------------------------------------------------------------------------------------
 
 static inline vx_status subcmd_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i32 argc, char **argv)
@@ -53,7 +56,7 @@ static inline vx_status subcmd_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i3
 
 static struct sk_subcmd_entry g_sk_subcmds[] = {
     {"strike", SK_CMD_STRIKE, subcmd_handler, "Parse Stormfile and build project"},
-    {"surge", SK_CMD_SURGE, subcmd_handler, "Run target (manifest-aware)"},
+    {"surge", SK_CMD_SURGE, subcmd_surge_handler, "Run target (manifest-aware)"},
     {"clean", SK_CMD_CLEAN, subcmd_handler, "Clean artifacts (manifest-aware)"},
     {"init", SK_CMD_INIT, subcmd_handler, "Initialize Storm-Knell in working directory"},
     {"purge", SK_CMD_PURGE, subcmd_handler, "De-initialize Storm-Knell from working directory"},
@@ -200,6 +203,11 @@ static vx_status parse_opts(struct sk_ctx *ctx, i32 argc, char **argv)
 
     for (i32 i = 1; i < argc;)
     {
+        if (ctx->surge_passthrough_argv != nullptr && &argv[i] >= ctx->surge_passthrough_argv)
+        {
+            break;
+        }
+
         const char *arg = argv[i];
 
         if (arg[0] == CHAR_MINUS)
@@ -665,6 +673,30 @@ opt_help(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **
 
     sk_shutdown();
     exit(0);
+}
+
+static inline vx_status
+subcmd_surge_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i32 argc, char **argv)
+{
+    ctx->active_cmd |= id;
+    (*i)++;
+
+    if (*i < argc && argv[*i][0] != CHAR_MINUS)
+    {
+        ctx->surge_target = argv[*i];
+        (*i)++;
+    }
+
+    if (*i < argc && strcmp(argv[*i], ":::") == 0)
+    {
+        (*i)++;
+        ctx->surge_passthrough_argv = &argv[*i];
+        ctx->surge_passthrough_argc = argc - *i;
+
+        *i = argc;
+    }
+
+    return VX_OK;
 }
 
 //----------------------------------------------------------------------------------------------------
