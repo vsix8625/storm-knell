@@ -27,7 +27,6 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
         return;
     }
 
-    // Read the static size layout header block first
     struct sk_manifest_header header = {0};
     if (fread(&header, sizeof(struct sk_manifest_header), 1, f) != 1 || header.target_count == 0)
     {
@@ -41,10 +40,21 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
     fread(saved_targets, sizeof(struct sk_target_persist), header.target_count, f);
     fclose(f);
 
-    vx_printf(ANSI_BOLD ANSI_CYAN
-              "======================== STORM-KNELL STATUS ========================\n" ANSI_RESET);
-    vx_printf(ANSI_BOLD
-              "  Target Name     Kind      Status Check         Total Files    Age\n" ANSI_RESET);
+    vx_printf("Version: %s\n", SK_VERSION_STRING);
+    vx_printf("Working directory: %s\n", ctx->rpath ? ctx->rpath : vx_getcwd_fn());
+
+    u64 cache_size = sk_cache_calculate_size();
+    vx_printf("Cache size: %.2f MB\n", (f32) cache_size / 1048576.0f);
+
+    vx_printf(
+        ANSI_BOLD ANSI_CYAN
+        "========================== STORM-KNELL STATUS ==========================\n" ANSI_RESET);
+    vx_printf(ANSI_BOLD "  %-18s%-10s%-20s%-15s%s\n",
+              "Target Name",
+              "Kind",
+              "Status Check",
+              "Total Files",
+              "Age" ANSI_RESET);
     vx_printf("  ------------------------------------------------------------------\n");
 
     u32 total_missing_artifacts = 0;
@@ -64,33 +74,32 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
             total_missing_artifacts++;
         }
 
+        const char *status_str;
+        const char *status_color;
         if (header.global_compile_errors > 0)
         {
-            vx_printf("  " ANSI_RED "✘ %-13s" ANSI_RESET " %s  " ANSI_RED
-                      "![COMPILE ERROR]" ANSI_RESET "   %-14u %s\n",
-                      m->name,
-                      kind_str,
-                      m->total_files,
-                      time_buf);
+            status_str   = "[COMPILE ERROR] ";
+            status_color = ANSI_RED;
         }
         else if (!artifact_ok)
         {
-            vx_printf("  " ANSI_YELLOW "⚠ %-13s" ANSI_RESET " %s  " ANSI_YELLOW
-                      "[MISSING BINARY]" ANSI_RESET "  %-14u %s\n",
-                      m->name,
-                      kind_str,
-                      m->total_files,
-                      time_buf);
+            status_str   = "[MISSING BINARY]";
+            status_color = ANSI_YELLOW;
         }
         else
         {
-            vx_printf("  " ANSI_GREEN "✔ %-13s" ANSI_RESET " %s  " ANSI_GREEN
-                      "[OPERATIONAL]" ANSI_RESET "     %-14u %s\n",
-                      m->name,
-                      kind_str,
-                      m->total_files,
-                      time_buf);
+            status_str   = "[OPERATIONAL]   ";
+            status_color = ANSI_GREEN;
         }
+
+        vx_printf("  %s%s %-16s%-10s%-20s%-15u%s\n" ANSI_RESET,
+                  status_color,
+                  artifact_ok ? "✔" : "⚠",
+                  m->name,
+                  kind_str,
+                  status_str,
+                  m->total_files,
+                  time_buf);
     }
 
     vx_printf("  ------------------------------------------------------------------\n");
@@ -118,6 +127,7 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
         vx_printf(ANSI_BOLD "  Workspace Status: " ANSI_GREEN "READY / HEALTHY" ANSI_RESET
                             " (All targets verified up-to-date).\n");
     }
-    vx_printf(ANSI_BOLD ANSI_CYAN
-              "====================================================================\n" ANSI_RESET);
+    vx_printf(
+        ANSI_BOLD ANSI_CYAN
+        "========================================================================\n" ANSI_RESET);
 }

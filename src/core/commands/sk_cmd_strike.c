@@ -166,6 +166,8 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         u32 unit_idx = 0;
 
+        vx_platform_get_cache_dir();  // warm up
+
         for (u32 i = 0; i < sorted_count; i++)
         {
             struct sk_target *t    = &eval_result->targets[sorted[i]];

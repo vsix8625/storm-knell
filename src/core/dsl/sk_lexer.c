@@ -419,7 +419,7 @@ static inline char advance(struct sk_lexer *lx)
     if (c == CHAR_NEWLINE)
     {
         lx->line_n++;
-        lx->col_n = 0;
+        lx->col_n = 1;
     }
     else
     {

@@ -157,7 +157,6 @@ void sk_meta_init_cc(const char *cc_name, const char *rpath)
     {
         vx_process_wait(&proc);
         vx_dbglog("exit_code: %d", proc.exit_code);
-        vx_dbglog("tmp file exists: %d", vx_isfile(tmp_ver_file));
 
         if (proc.exit_code == 0)
         {
@@ -252,4 +251,70 @@ void sk_cmd_init_fn(struct sk_ctx *ctx)
     }
 
     vx_log("Storm-Knell initialized in: %s", rpath);
+}
+
+void sk_meta_init_git(char *git_branch_out, char *git_hash_out, size_t max_len)
+{
+    snprintf(git_branch_out, max_len, "unknown");
+    snprintf(git_hash_out, max_len, "unknown");
+
+    vx_sv head_data = vx_fs_read(".git/HEAD", sk_arena_alloc, g_sk_global_arena);
+    if (head_data.data == nullptr || head_data.len == 0)
+    {
+        return;
+    }
+
+    char  *head_str = (char *) head_data.data;
+    size_t head_len = head_data.len;
+
+    while (head_len > 0 &&
+           (head_str[head_len - 1] == CHAR_NEWLINE || head_str[head_len - 1] == CHAR_CARRIAGE ||
+            head_str[head_len - 1] == CHAR_SPACE))
+    {
+        head_str[head_len - 1] = CHAR_NULTERM;
+        head_len--;
+    }
+
+    const char *ref_prefix = "ref: ";
+
+    size_t ref_prefix_len = 5;
+
+    if (head_len > ref_prefix_len && strncmp(head_str, ref_prefix, ref_prefix_len) == 0)
+    {
+        char *ref_path = head_str + ref_prefix_len;
+
+        const char *heads_dir   = "refs/heads/";
+        char       *branch_name = strstr(ref_path, heads_dir);
+
+        if (branch_name)
+        {
+            snprintf(git_branch_out, max_len, "%s", branch_name + strlen(heads_dir));
+        }
+        else
+        {
+            snprintf(git_branch_out, max_len, "%s", ref_path);
+        }
+
+        char *full_ref_path = sk_path_join(g_sk_global_arena, ".git", ref_path);
+
+        vx_sv hash_data = vx_fs_read(full_ref_path, sk_arena_alloc, g_sk_global_arena);
+        if (hash_data.data && hash_data.len >= 7)
+        {
+            char  *hash_str = (char *) hash_data.data;
+            size_t hash_len = hash_data.len;
+            while (hash_len > 0 &&
+                   (hash_str[hash_len - 1] == '\n' || hash_str[hash_len - 1] == '\r' ||
+                    hash_str[hash_len - 1] == ' '))
+            {
+                hash_str[hash_len - 1] = '\0';
+                hash_len--;
+            }
+            snprintf(git_hash_out, max_len, "%s", hash_str);
+        }
+    }
+    else if (head_len >= 7)
+    {
+        snprintf(git_branch_out, max_len, "DETACHED");
+        snprintf(git_hash_out, max_len, "%s", head_str);
+    }
 }
