@@ -7,6 +7,7 @@
 #include "sk_config.h"
 
 #include "vx_fs.h"
+#include "vx_cpu.h"
 #include "vx_io.h"
 #include <stdlib.h>
 
@@ -861,6 +862,13 @@ vx_status sk_top_level_eval(struct sk_parser *p, struct sk_eval_result *result)
     sk_eval_set_builtin(result, "__sk_version_major__", maj_buf);
     sk_eval_set_builtin(result, "__sk_version_minor__", min_buf);
     sk_eval_set_builtin(result, "__sk_version_patch__", pat_buf);
+
+    sk_eval_set_builtin(result, "__arch__", VX_ARCH_NAME);
+    sk_eval_set_builtin(result, "__has_avx__", vx_cpu_has_avx() ? "1" : "0");
+    sk_eval_set_builtin(result, "__has_avx2__", vx_cpu_has_avx2() ? "1" : "0");
+    sk_eval_set_builtin(result, "__has_sse4_2__", vx_cpu_has_sse4_2() ? "1" : "0");
+    sk_eval_set_builtin(result, "__has_bmi__", vx_cpu_has_bmi() ? "1" : "0");
+    sk_eval_set_builtin(result, "__arch__", VX_ARCH_NAME);
 
     while (node != 0)
     {
