@@ -12,7 +12,8 @@
 #include "vx_time.h"
 #include <string.h>
 
-static char *resolve_val_or_var(struct sk_eval_result *r, char *cfg_str);
+static vx_status resolve_depends(struct sk_eval_result *result);
+static char     *resolve_val_or_var(struct sk_eval_result *r, char *cfg_str);
 
 static char *
 resolve_token_or_var(struct sk_parser *p, vx_sv stormfile, struct sk_eval_result *r, u32 token_idx);
@@ -54,7 +55,10 @@ static vx_status finalize_evaluation(struct sk_eval_result *result)
 
             sk_scan_dir_r(t->sources, t->excludes, t->exclude_count, dir_to_scan);
         }
-        vx_log("Installing: %s", t->install_dir);
+        if (t->install_dir)
+        {
+            vx_log("Installing: %s", t->install_dir);
+        }
     }
 
     return VX_OK;
@@ -185,7 +189,10 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
         }
     }
 
-    // ----
+    if (resolve_depends(ev_result) != VX_OK)
+    {
+        pipeline_status = VX_ERROR;
+    }
 
     if (finalize_evaluation(ev_result) != VX_OK)
     {
@@ -407,5 +414,41 @@ sk_pipeline_codegen(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_ev
 
     fclose(f);
     vx_log("Generated: %s", path);
+    return VX_OK;
+}
+
+static vx_status resolve_depends(struct sk_eval_result *result)
+{
+    if (result == nullptr)
+    {
+        return VX_ERROR;
+    }
+
+    for (u32 i = 0; i < result->target_count; i++)
+    {
+        struct sk_target *t = &result->targets[i];
+
+        for (u32 d = 0; d < t->depend_count; d++)
+        {
+            const char *dep_name = t->depends[d];
+
+            bool found = false;
+
+            for (u32 j = 0; j < result->target_count; j++)
+            {
+                if (strcmp(result->targets[j].name, dep_name) == 0)
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+            {
+                vx_errlog("Target '%s' depends on unknown target '%s'", t->name, dep_name);
+                return VX_ERROR;
+            }
+        }
+    }
     return VX_OK;
 }

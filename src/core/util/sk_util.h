@@ -131,7 +131,7 @@ void sk_fmt_relative_time(u64 target_epoch, char *out_buf, size_t buf_size);
 #define SK_MAX_LIBS    128
 #define SK_MAX_VARS    8192
 
-#define SK_MAX_DEPENDS  32
+#define SK_MAX_DEPS     16
 #define SK_MAX_EXCLUDES 32
 #define SK_MAX_INCLUDES 64
 

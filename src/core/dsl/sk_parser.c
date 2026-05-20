@@ -388,7 +388,6 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
             case SK_TOKEN_KWORD_OUT_DIR:
             case SK_TOKEN_KWORD_KIND:
             case SK_TOKEN_KWORD_MODE:
-            case SK_TOKEN_KWORD_DEPENDS:
             case SK_TOKEN_KWORD_DEFINES:
             case SK_TOKEN_IDENT:
             {
@@ -437,6 +436,31 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
             {
                 syntax_error(p, "Codegen block can only be used in top-level");
                 advance(p);
+                break;
+            }
+
+            case SK_TOKEN_KWORD_DEPENDS:
+            {
+                u32 tok_idx = advance(p);
+                expect(p, SK_TOKEN_COLON);
+
+                u32 node     = emit(SK_NODE_DEPENDS, tok_idx);
+                u32 last_dep = SK_NODE_INVALID;
+
+                while (!is_at_end(p) && peek(p) == SK_TOKEN_IDENT)
+                {
+                    u32 dep = emit(SK_NODE_IDENT, advance(p));
+                    if (last_dep == SK_NODE_INVALID)
+                    {
+                        p->nodes->data_a[node] = dep;
+                    }
+                    else
+                    {
+                        p->nodes->nexts[last_dep] = dep;
+                    }
+                    last_dep = dep;
+                }
+                child = node;
                 break;
             }
 

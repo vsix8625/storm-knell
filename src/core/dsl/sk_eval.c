@@ -461,6 +461,22 @@ static void eval_target(struct sk_parser      *p,
                 break;
             }
 
+            case SK_NODE_DEPENDS:
+            {
+                u32 dep_node = p->nodes->data_a[child];
+
+                while (dep_node != 0)
+                {
+                    u32   dep_tok_idx = p->nodes->token_idxs[dep_node];
+                    vx_sv sv          = tok_to_sv(p, stormfile, dep_tok_idx);
+
+                    target->depends[target->depend_count++] = sv_to_arena(g_sk_global_arena, sv);
+
+                    dep_node = p->nodes->nexts[dep_node];
+                }
+                break;
+            }
+
             default:
             {
                 break;
@@ -648,7 +664,7 @@ target_init(struct mem_arena *ar, struct sk_eval_result *result, vx_sv name_sv)
     t->cfg.includes  = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_FLAGS);
 
     t->excludes = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_EXCLUDES);
-    t->depends  = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_DEPENDS);
+    t->depends  = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_DEPS);
 
     t->cfg.cflags_count = result->global.cflags_count;
     memcpy(t->cfg.cflags, result->global.cflags, sizeof(char *) * t->cfg.cflags_count);

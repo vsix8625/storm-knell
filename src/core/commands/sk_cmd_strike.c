@@ -53,6 +53,13 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
 
 static void *sk_worker_compile_fn(void *arg);
 
+static vx_status topo_visit(struct sk_eval_result *result,
+                            u32                    idx,
+                            u32                   *sorted,
+                            u32                   *sorted_count,
+                            bool                  *visited,
+                            bool                  *in_stack);
+
 //----------------------------------------------------------------------------------------------------
 
 vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
@@ -132,6 +139,26 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         u32 t_count = eval_result->target_count;
 
         //----------------------------------------------------------------------------------------------------
+        // topo_visit
+
+        u32  *sorted   = mem_arena_alloc(g_sk_global_arena, sizeof(u32) * SK_MAX_TARGETS);
+        bool *visited  = mem_arena_alloc(g_sk_global_arena, sizeof(bool) * SK_MAX_TARGETS);
+        bool *in_stack = mem_arena_alloc(g_sk_global_arena, sizeof(bool) * SK_MAX_TARGETS);
+
+        u32 sorted_count = 0;
+        memset(visited, 0, sizeof(bool) * SK_MAX_TARGETS);
+        memset(in_stack, 0, sizeof(bool) * SK_MAX_TARGETS);
+        // ----------------------------------------------------------
+
+        for (u32 i = 0; i < t_count; i++)
+        {
+            if (topo_visit(eval_result, i, sorted, &sorted_count, visited, in_stack) != VX_OK)
+            {
+                return VX_ERROR;
+            }
+        }
+
+        //----------------------------------------------------------------------------------------------------
         // Main loop
 
         struct sk_work_unit **work_units =
@@ -139,9 +166,9 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         u32 unit_idx = 0;
 
-        for (u32 i = 0; i < t_count; i++)
+        for (u32 i = 0; i < sorted_count; i++)
         {
-            struct sk_target *t    = &eval_result->targets[i];
+            struct sk_target *t    = &eval_result->targets[sorted[i]];
             struct sk_meta    meta = {0};
 
             char abs_cc[VX_PATH_MAX];
@@ -377,7 +404,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                                           t->install_dir);
                             }
 
-                            vx_log("[install]: Copying '%s' to '%s'", t->out_name, dest_path);
+                            vx_log("Copying: '%s' to '%s'", t->out_name, dest_path);
 
                             if (!vx_fs_cp(t->finalized_bin_rpath, dest_path))
                             {
@@ -592,6 +619,47 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
 }
 
 // ----------------------------------------------------------------------------------------------------
+
+static vx_status topo_visit(struct sk_eval_result *result,
+                            u32                    idx,
+                            u32                   *sorted,
+                            u32                   *sorted_count,
+                            bool                  *visited,
+                            bool                  *in_stack)
+{
+    if (in_stack[idx])
+    {
+        vx_errlog("Circular dependency detected at target '%s'", result->targets[idx].name);
+        return VX_ERROR;
+    }
+
+    if (visited[idx])
+    {
+        return VX_OK;
+    }
+    visited[idx]  = true;
+    in_stack[idx] = true;
+
+    struct sk_target *t = &result->targets[idx];
+    for (u32 d = 0; d < t->depend_count; d++)
+    {
+        for (u32 j = 0; j < result->target_count; j++)
+        {
+            if (strcmp(result->targets[j].name, t->depends[d]) == 0)
+            {
+                if (topo_visit(result, j, sorted, sorted_count, visited, in_stack) != VX_OK)
+                {
+                    return VX_ERROR;
+                }
+                break;
+            }
+        }
+    }
+
+    in_stack[idx]             = false;
+    sorted[(*sorted_count)++] = idx;
+    return VX_OK;
+}
 
 static void *sk_worker_compile_fn(void *arg)
 {
