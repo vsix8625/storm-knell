@@ -360,11 +360,40 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         {
             vx_ticks link_time = {0};
             vx_ticks_start(&link_time);
-            for (u32 i = 0; i < t_count; i++)
+
+            for (u32 i = 0; i < sorted_count; i++)
             {
-                struct sk_target *t    = &eval_result->targets[i];
+                struct sk_target *t    = &eval_result->targets[sorted[i]];
                 struct sk_meta    meta = {0};
                 sk_meta_load(&meta, t->cfg.cc);
+
+                //----------------------------------------------------------------------------------------------------
+                // depends injection
+
+                for (u32 d = 0; d < t->depend_count; d++)
+                {
+                    for (u32 j = 0; j < t->depend_count; j++)
+                    {
+                        struct sk_target *dep = &eval_result->targets[j];
+                        if (strcmp(dep->name, t->depends[d]) == 0)
+                        {
+                            if (dep->kind == SK_TARGET_KIND_STATIC ||
+                                dep->kind == SK_TARGET_KIND_SHARED)
+                            {
+                                char *lflag_L = mem_arena_alloc(g_sk_global_arena, VX_PATH_MAX);
+                                snprintf(lflag_L, VX_PATH_MAX, "-L%s", dep->finalized_bin_dirpath);
+                                t->cfg.lflags[t->cfg.lflags_count++] = lflag_L;
+
+                                char *lflag_l = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_64);
+                                snprintf(lflag_l, VX_BUF_SIZE_64, "-l%s", dep->out_name);
+                                t->cfg.lflags[t->cfg.lflags_count++] = lflag_l;
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                //----------------------------------------------------------------------------------------------------
 
                 struct vx_process proc = {0};
 

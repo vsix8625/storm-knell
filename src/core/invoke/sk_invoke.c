@@ -156,20 +156,20 @@ char **sk_invoke_link_nularr(struct sk_target *t, struct mem_arena *arena)
         return nullptr;
     }
 
-    u32 i     = 0;
-    argv[i++] = t->cfg.cc;
+    u32 idx     = 0;
+    argv[idx++] = t->cfg.cc;
 
     // -fuse-ld=mold / lld / ld
     if (t->cfg.linker != nullptr)
     {
         char *fuse = mem_arena_alloc(arena, VX_BUF_SIZE_32);
         snprintf(fuse, VX_BUF_SIZE_32, "-fuse-ld=%s", t->cfg.linker);
-        argv[i++] = fuse;
+        argv[idx++] = fuse;
     }
 
     if (t->kind == SK_TARGET_KIND_SHARED)
     {
-        argv[i++] = "-shared";
+        argv[idx++] = "-shared";
         total_args++;
     }
 
@@ -182,32 +182,40 @@ char **sk_invoke_link_nularr(struct sk_target *t, struct mem_arena *arena)
         char *obj            = mem_arena_alloc(arena, VX_PATH_MAX);
 
         snprintf(obj, VX_PATH_MAX, "%s%s%s.o", t->finalized_obj_dirpath, VX_PATH_SEP_STR, filename);
-        argv[i++] = obj;
+        argv[idx++] = obj;
     }
 
     for (u32 j = 0; j < t->cfg.lflags_count; j++)
     {
-        argv[i++] = t->cfg.lflags[j];
+        argv[idx++] = t->cfg.lflags[j];
     }
 
     for (u32 j = 0; j < t->cfg.lib_paths_count; j++)
     {
-        argv[i++] = t->cfg.lib_paths[j];
+        argv[idx++] = t->cfg.lib_paths[j];
     }
 
     for (u32 j = 0; j < t->cfg.libs_count; j++)
     {
-        argv[i++] = t->cfg.libs[j];
+        argv[idx++] = t->cfg.libs[j];
     }
 
     // output path
     char *out = mem_arena_alloc(arena, VX_PATH_MAX);
     snprintf(out, VX_PATH_MAX, "%s%s%s", t->finalized_bin_dirpath, VX_PATH_SEP_STR, t->out_name);
 
-    argv[i++] = "-o";
-    argv[i++] = out;
-    argv[i]   = nullptr;
+    argv[idx++] = "-o";
+    argv[idx++] = out;
+    argv[idx]   = nullptr;
 
+    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
+    {
+        for (size_t i = 0; i < idx; i++)
+        {
+            vx_printf("%s ", argv[i]);
+        }
+        vx_printf("\n");
+    }
     return argv;
 }
 
