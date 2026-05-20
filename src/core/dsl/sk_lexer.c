@@ -792,6 +792,11 @@ static sk_token_kind check_keywords(struct sk_lexer *lx)
                 return SK_TOKEN_KWORD_ELSE;
             }
 
+            if (len == 4 && vx_strncmplit(s, len, "exit", 4))
+            {
+                return SK_TOKEN_KWORD_EXIT;
+            }
+
             if (len == 7 && vx_strncmplit(s, len, "exclude", 7))
             {
                 return SK_TOKEN_KWORD_EXCLUDE;

@@ -82,7 +82,7 @@ struct sk_eval_result
     u32    var_count;
 };
 
-vx_status sk_eval(struct sk_parser *p, struct sk_eval_result *result);
+vx_status sk_top_level_eval(struct sk_parser *p, struct sk_eval_result *result);
 
 void sk_dbg_dump_eval(struct sk_parser *p, struct sk_eval_result *result);
 

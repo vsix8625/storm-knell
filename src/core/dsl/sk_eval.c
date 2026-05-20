@@ -8,6 +8,7 @@
 
 #include "vx_fs.h"
 #include "vx_io.h"
+#include <stdlib.h>
 
 static bool eval_expr(struct sk_parser *p,
                       vx_sv             stormfile,
@@ -333,7 +334,14 @@ static void eval_if(struct sk_parser      *p,
                 case SK_NODE_ASSIGN:
                 case SK_NODE_APPEND:
                 {
-                    eval_cfg(p, stormfile, child, &target->cfg, target);
+                    if (target != nullptr)
+                    {
+                        eval_cfg(p, stormfile, child, &target->cfg, target);
+                    }
+                    else
+                    {
+                        eval_cfg(p, stormfile, child, &result->global, nullptr);
+                    }
                     break;
                 }
 
@@ -347,6 +355,24 @@ static void eval_if(struct sk_parser      *p,
                 {
                     eval_print(p, stormfile, child, result);
                     break;
+                }
+
+                case SK_NODE_EXIT:
+                {
+                    u32 val_node = p->nodes->data_a[child];
+                    u32 exit_idx = p->nodes->token_idxs[val_node];
+
+                    vx_sv sv = tok_to_sv(p, stormfile, exit_idx);
+
+                    if (sv.len >= 2)
+                    {
+                        sv.data++;
+                        sv.len -= 2;
+                    }
+                    vx_errlog("%.*s", (i32) sv.len, sv.data);
+
+                    sk_shutdown();
+                    exit(1);
                 }
 
                 default:
@@ -378,7 +404,14 @@ static void eval_if(struct sk_parser      *p,
                     case SK_NODE_ASSIGN:
                     case SK_NODE_APPEND:
                     {
-                        eval_cfg(p, stormfile, child, &target->cfg, target);
+                        if (target != nullptr)
+                        {
+                            eval_cfg(p, stormfile, child, &target->cfg, target);
+                        }
+                        else
+                        {
+                            eval_cfg(p, stormfile, child, &result->global, nullptr);
+                        }
                         break;
                     }
                     case SK_NODE_IF:
@@ -391,6 +424,24 @@ static void eval_if(struct sk_parser      *p,
                     {
                         eval_print(p, stormfile, child, result);
                         break;
+                    }
+
+                    case SK_NODE_EXIT:
+                    {
+                        u32 val_node = p->nodes->data_a[child];
+                        u32 exit_idx = p->nodes->token_idxs[val_node];
+
+                        vx_sv sv = tok_to_sv(p, stormfile, exit_idx);
+
+                        if (sv.len >= 2)
+                        {
+                            sv.data++;
+                            sv.len -= 2;
+                        }
+                        vx_errlog("%.*s", (i32) sv.len, sv.data);
+
+                        sk_shutdown();
+                        exit(1);
                     }
 
                     default:
@@ -447,6 +498,24 @@ static void eval_target(struct sk_parser      *p,
             {
                 eval_print(p, stormfile, child, result);
                 break;
+            }
+
+            case SK_NODE_EXIT:
+            {
+                u32 val_node = p->nodes->data_a[child];
+                u32 exit_idx = p->nodes->token_idxs[val_node];
+
+                vx_sv sv = tok_to_sv(p, stormfile, exit_idx);
+
+                if (sv.len >= 2)
+                {
+                    sv.data++;
+                    sv.len -= 2;
+                }
+                vx_errlog("%.*s", (i32) sv.len, sv.data);
+
+                sk_shutdown();
+                exit(1);
             }
 
             case SK_NODE_INSTALL:
@@ -583,13 +652,13 @@ static bool eval_expr(struct sk_parser *p,
 
     if (kind == SK_NODE_EXPR)
     {
-        u32           op_tok  = p->nodes->token_idxs[node];
+        u32 op_tok = p->nodes->token_idxs[node];
+
         sk_token_kind op_kind = p->tokens->kinds[op_tok];
 
         u32 left  = p->nodes->data_a[node];
         u32 right = p->nodes->data_b[node];
 
-        // resolve left — must be ident, look up in var store
         vx_sv lhs = {0};
         if (p->nodes->kinds[left] == SK_NODE_IDENT)
         {
@@ -605,6 +674,10 @@ static bool eval_expr(struct sk_parser *p,
                     break;
                 }
             }
+        }
+        else if (p->nodes->kinds[left] == SK_NODE_LIT_NUMBER)
+        {
+            lhs = tok_to_sv(p, stormfile, p->nodes->token_idxs[left]);
         }
 
         // resolve right — literal ident value
@@ -627,6 +700,32 @@ static bool eval_expr(struct sk_parser *p,
             case SK_TOKEN_NOT_EQUAL:
             {
                 return !(lhs.len == rhs.len && strncmp(lhs.data, rhs.data, rhs.len) == 0);
+            }
+
+            case SK_TOKEN_LT:
+            case SK_TOKEN_GT:
+            case SK_TOKEN_LE:
+            case SK_TOKEN_GE:
+            {
+                i32 l = atoi(lhs.data ? lhs.data : "0");
+                i32 r = atoi(rhs.data ? rhs.data : "0");
+                if (op_kind == SK_TOKEN_LT)
+                {
+                    return l < r;
+                }
+                if (op_kind == SK_TOKEN_GT)
+                {
+                    return l > r;
+                }
+                if (op_kind == SK_TOKEN_LE)
+                {
+                    return l <= r;
+                }
+                if (op_kind == SK_TOKEN_GE)
+                {
+                    return l >= r;
+                }
+                return false;
             }
 
             default:
@@ -711,7 +810,7 @@ target_init(struct mem_arena *ar, struct sk_eval_result *result, vx_sv name_sv)
 }
 
 // EVAL ENTRY
-vx_status sk_eval(struct sk_parser *p, struct sk_eval_result *result)
+vx_status sk_top_level_eval(struct sk_parser *p, struct sk_eval_result *result)
 {
     if (p == nullptr || result == nullptr)
     {
@@ -752,6 +851,16 @@ vx_status sk_eval(struct sk_parser *p, struct sk_eval_result *result)
     char **snapshot = mem_arena_alloc(g_sk_global_arena, sizeof(char *) * SK_MAX_VARS);
 
     sk_eval_set_builtin(result, "__sk_version__", SK_VERSION_STRING);
+
+    char *maj_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_16);
+    char *min_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_16);
+    char *pat_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_16);
+    snprintf(maj_buf, VX_BUF_SIZE_16, "%d", SK_VERSION_MAJOR);
+    snprintf(min_buf, VX_BUF_SIZE_16, "%d", SK_VERSION_MINOR);
+    snprintf(pat_buf, VX_BUF_SIZE_16, "%d", SK_VERSION_PATCH);
+    sk_eval_set_builtin(result, "__sk_version_major__", maj_buf);
+    sk_eval_set_builtin(result, "__sk_version_minor__", min_buf);
+    sk_eval_set_builtin(result, "__sk_version_patch__", pat_buf);
 
     while (node != 0)
     {
@@ -815,6 +924,31 @@ vx_status sk_eval(struct sk_parser *p, struct sk_eval_result *result)
                 result->codegen_node_idxs[result->codegen_count] = node;
                 result->codegen_count++;
                 break;
+            }
+
+            case SK_NODE_IF:
+            {
+                eval_if(p, stormfile, node, nullptr, result);
+                break;
+            }
+
+            // top
+            case SK_NODE_EXIT:
+            {
+                u32 val_node = p->nodes->data_a[node];
+                u32 exit_idx = p->nodes->token_idxs[val_node];
+
+                vx_sv sv = tok_to_sv(p, stormfile, exit_idx);
+
+                if (sv.len >= 2)
+                {
+                    sv.data++;
+                    sv.len -= 2;
+                }
+                vx_errlog("%.*s", (i32) sv.len, sv.data);
+
+                sk_shutdown();
+                exit(1);
             }
 
             default:

@@ -155,7 +155,7 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
         vx_ticks_start(&eval_time);
     }
 
-    if (sk_eval(p, ev_result) != VX_OK)
+    if (sk_top_level_eval(p, ev_result) != VX_OK)
     {
         vx_errlog("Eval failed");
         pipeline_status = VX_ERROR;

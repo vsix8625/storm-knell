@@ -32,6 +32,7 @@ typedef enum sk_ast_node_kind : u32
     SK_NODE_CODEGEN_LITERAL,
     SK_NODE_PRINT,
     SK_NODE_INSTALL,
+    SK_NODE_EXIT,
 
     SK_NODE_LIT_STRING,
     SK_NODE_LIT_BOOL,
@@ -101,6 +102,7 @@ static const char *SK_NODE_STR[SK_NODE_KIND_COUNT] = {
     [SK_NODE_CODEGEN_LITERAL] = "SK_NODE_CODEGEN_LITERAL",
     [SK_NODE_PRINT]           = "SK_NODE_PRINT",
     [SK_NODE_INSTALL]         = "SK_NODE_INSTALL",
+    [SK_NODE_EXIT]            = "SK_NODE_EXIT",
     [SK_NODE_LIT_STRING]      = "SK_NODE_LIT_STRING",
     [SK_NODE_LIT_BOOL]        = "SK_NODE_LIT_BOOL",
     [SK_NODE_LIT_NUMBER]      = "SK_NODE_LIT_NUMBER",

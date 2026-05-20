@@ -3,6 +3,7 @@
 
 #include "vx_defs.h"
 #include "vx_string.h"
+#include "sk_version.h"
 #include "storm-knell.h"
 
 #define CHAR_LPAREN   '('

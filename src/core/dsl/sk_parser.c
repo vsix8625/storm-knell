@@ -146,6 +146,24 @@ vx_status sk_top_level_parse(struct sk_parser *p)
                 break;
             }
 
+            case SK_TOKEN_KWORD_IF:
+            {
+                node = parse_if(p);
+                break;
+            }
+
+            case SK_TOKEN_KWORD_EXIT:
+            {
+                u32 tok_idx = advance(p);
+                expect(p, SK_TOKEN_COLON);
+
+                u32 node = emit(SK_NODE_EXIT, tok_idx);
+                u32 val  = emit(SK_NODE_LIT_STRING, advance(p));
+
+                p->nodes->data_a[node] = val;
+                break;
+            }
+
             default:
             {
                 syntax_error(p, "unexpected token at top level");
@@ -412,6 +430,20 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
                 break;
             }
 
+            case SK_TOKEN_KWORD_EXIT:
+            {
+                u32 tok_idx = advance(p);
+                expect(p, SK_TOKEN_COLON);
+
+                u32 node = emit(SK_NODE_EXIT, tok_idx);
+                u32 val  = emit(SK_NODE_LIT_STRING, advance(p));
+
+                p->nodes->data_a[node] = val;
+
+                child = node;
+                break;
+            }
+
             case SK_TOKEN_KWORD_IF:
             {
                 child = parse_if(p);
@@ -498,13 +530,23 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
 
 static u32 parse_expr(struct sk_parser *p)
 {
-    if (peek(p) != SK_TOKEN_IDENT)
+    sk_ast_node_kind lkind = literal_kind(peek(p));
+
+    u32 left;
+
+    if (peek(p) == SK_TOKEN_IDENT)
     {
-        syntax_error(p, "Expected identifier");
+        left = emit(SK_NODE_IDENT, advance(p));
+    }
+    else if (lkind != SK_NODE_INVALID)
+    {
+        left = emit(lkind, advance(p));
+    }
+    else
+    {
+        syntax_error(p, "Expected identifier or literal");
         return SK_NODE_INVALID;
     }
-
-    u32 left = emit(SK_NODE_IDENT, advance(p));
 
     sk_token_kind op = peek(p);
 
