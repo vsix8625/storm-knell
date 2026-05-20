@@ -4,8 +4,8 @@ cflags: -std=c23 -Wall -Werror -Wextra -pedantic
 lflags: -lpthread -lxxhash
 
 major: 0
-minor: 3
-patch: 5
+minor: 4
+patch: 0
 
 codegen src/core/sk_config.h {
     literal: "#pragma once"
