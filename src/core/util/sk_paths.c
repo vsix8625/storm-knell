@@ -109,7 +109,13 @@ void sk_scan_dir_r(struct sk_arena_array *sources,
         {
             sk_scan_dir_r(sources, excludes, exclude_count, presisten_path);
         }
-        else if (entry.name_len >= 2 && sk_has_ext(entry.name, entry.name_len, ".c"))
+        else if (entry.name_len >= 2 && sk_has_ext(entry.name, entry.name_len, ".c") &&
+                 sk_has_ext(entry.name, entry.name_len, ".cc") &&
+                 sk_has_ext(entry.name, entry.name_len, ".cpp") &&
+                 sk_has_ext(entry.name, entry.name_len, ".cxx") &&
+                 sk_has_ext(entry.name, entry.name_len, ".s") &&
+                 sk_has_ext(entry.name, entry.name_len, ".S") &&
+                 sk_has_ext(entry.name, entry.name_len, ".asm"))
         {
             if (!sk_arena_array_contains(sources, presisten_path))
             {
