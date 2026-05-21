@@ -25,7 +25,7 @@ The bootstrap script compiles sk using your system compiler. Once built, sk rebu
 
 ### Prebuilt binaries
 
-Download the latest binary for your platform from [Releases](https://github.com/yourusername/storm-knell/releases).
+Download the latest binary for your platform from [Releases](https://github.com/vsix8625/storm-knell).
 
 ```bash
 chmod +x sk

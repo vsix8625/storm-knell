@@ -374,7 +374,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
                 for (u32 d = 0; d < t->depend_count; d++)
                 {
-                    for (u32 j = 0; j < t->depend_count; j++)
+                    for (u32 j = 0; j < eval_result->target_count; j++)
                     {
                         struct sk_target *dep = &eval_result->targets[j];
                         if (strcmp(dep->name, t->depends[d]) == 0)

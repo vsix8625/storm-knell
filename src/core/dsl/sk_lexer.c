@@ -526,7 +526,7 @@ static void handle_path(struct sk_lexer *lx, u32 start_col)
         }
 
         if (c == CHAR_SLASH || c == CHAR_DOT || c == CHAR_MINUS || c == CHAR_UNDERSCORE ||
-            c == CHAR_TILDE || sk_util_is_ident(c) || sk_util_is_digit(c))
+            c == CHAR_TILDE || c == CHAR_PLUS || sk_util_is_ident(c) || sk_util_is_digit(c))
         {
             advance(lx);
         }
@@ -545,6 +545,15 @@ static void handle_ident(struct sk_lexer *lx, u32 start_col)
     while (sk_util_is_ident(*p) || sk_util_is_digit(*p))
     {
         p++;
+    }
+
+    while (*p == CHAR_MINUS && (sk_util_is_ident(*(p + 1)) || sk_util_is_digit(*(p + 1))))
+    {
+        p++;  // skip '-'
+        while (sk_util_is_ident(*p) || sk_util_is_digit(*p))
+        {
+            p++;
+        }
     }
 
     size_t len = p - (lx->source.data + lx->current);
