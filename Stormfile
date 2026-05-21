@@ -6,7 +6,8 @@ lflags: -lpthread -lxxhash
 
 major: 0
 minor: 4
-patch: 1
+patch: 2
+
 
 codegen src/core/sk_config.h {
     literal: "#pragma once"
