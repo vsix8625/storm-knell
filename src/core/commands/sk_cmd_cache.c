@@ -114,18 +114,21 @@ void sk_cache_config_init_global(struct sk_cache_config *cfg)
     }
 }
 
-u64 sk_cache_calculate_size(void)
+struct sk_cache_info sk_cache_calculate_size(void)
 {
+    struct sk_cache_info info = {0};
+
     const char *cache_dir = vx_platform_get_cache_dir();
 
     if (cache_dir == nullptr)
     {
-        return 0;
+        return info;
     }
 
     char *base_path = sk_path_join(g_sk_global_arena, cache_dir, SK_PATH_STORM_KNELL);
 
     u64 total_size = 0;
+    u64 obj_count  = 0;
 
     for (i32 i = 0x00; i <= 0xff; i++)
     {
@@ -160,13 +163,17 @@ u64 sk_cache_calculate_size(void)
             if (vx_fs_get_file_metrics(file_path, &file_size, &dummy_mtime) == VX_OK)
             {
                 total_size += file_size;
+                obj_count++;
             }
         }
 
         vx_fs_dir_close(dir);
     }
 
-    return total_size;
+    info.total_size   = total_size;
+    info.object_count = obj_count;
+
+    return info;
 }
 
 i32 sk_cache_sort_evict(const void *a, const void *b)
@@ -329,7 +336,10 @@ vx_status sk_cmd_cache_fn(struct sk_ctx *ctx)
         return VX_OK;
     }
 
-    u64 cache_size = sk_cache_calculate_size();
-    vx_log("Cache size: %.2f MB", (f32) cache_size / 1048576.0f);
+    struct sk_cache_info cache_info = sk_cache_calculate_size();
+
+    vx_log("Cache objects: %llu | size: %.2f MB",
+           (unsigned long long) cache_info.object_count,
+           (f32) cache_info.total_size / 1048576.0f);
     return VX_OK;
 }

@@ -115,8 +115,8 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         vx_mutex_init(&g_proc_spawn_mutex);
 
-        ctx->cores       = ctx->cores == 0 ? vx_cpu_get_nproc() : ctx->cores;
-        u32 thread_count = (ctx->threads == 0) ? ctx->cores - 1 : ctx->threads;
+        u32 thread_count = (ctx->threads > 0) ? ctx->threads : ctx->cores;
+        ctx->threads     = thread_count;
 
         u32 total_sources = 0;
 
@@ -462,7 +462,9 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         }
 
         // cache check and prune if needed
-        u64 current_cache_bytes = sk_cache_calculate_size();
+        struct sk_cache_info current_cache_info = sk_cache_calculate_size();
+
+        u64 current_cache_bytes = current_cache_info.total_size;
 
         u64 max_allowed_b  = (u64) ctx->ccfg.max_size_mb * 1024 * 1024;
         u64 prune_target_b = (u64) ctx->ccfg.prune_threshold_mb * 1024 * 1024;
@@ -475,7 +477,9 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
             sk_cache_prune_to_size(ctx->ccfg.prune_threshold_mb);
 
-            u64 new_cache_bytes = sk_cache_calculate_size();
+            struct sk_cache_info new_cache_info = sk_cache_calculate_size();
+
+            u64 new_cache_bytes = new_cache_info.total_size;
             vx_log("Prune complete. New cache size: %.2f MB", new_cache_bytes / 1048576.0f);
             VX_CAST(void, prune_target_b);
         }

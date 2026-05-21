@@ -43,7 +43,9 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
     vx_printf("Version: %s\n", SK_VERSION_STRING);
     vx_printf("Working directory: %s\n", ctx->rpath ? ctx->rpath : vx_getcwd_fn());
 
-    u64 cache_size = sk_cache_calculate_size();
+    struct sk_cache_info cache_info = sk_cache_calculate_size();
+
+    u64 cache_size = cache_info.total_size;
     vx_printf("Cache size: %.2f MB\n", (f32) cache_size / 1048576.0f);
 
     vx_printf(

@@ -5,6 +5,7 @@
 #include "vx_fs.h"
 #include "vx_cpu.h"
 
+#include "sk_paths.h"
 #include "sk_commands.h"
 #include "sk_globals.h"
 #include "sk_config.h"
@@ -16,6 +17,9 @@
 #include "mem.h"
 #include <stdlib.h>
 #include <string.h>
+
+static const char *g_sk_template_c;
+static const char *g_sk_template_cpp;
 
 // ----------------------------------------------------------------------------------------------------
 
@@ -55,8 +59,8 @@ static inline vx_status subcmd_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i3
 }
 
 static struct sk_subcmd_entry g_sk_subcmds[] = {
-    {"strike", SK_CMD_STRIKE, subcmd_handler, "Parse Stormfile and build project"},
-    {"surge", SK_CMD_SURGE, subcmd_surge_handler, "Run target (manifest-aware)"},
+    {"strike", SK_CMD_STRIKE, subcmd_handler, "Parse Stormfile and build project (alias: build)"},
+    {"surge", SK_CMD_SURGE, subcmd_surge_handler, "Run target (alias: run & manifest-aware)"},
     {"clean", SK_CMD_CLEAN, subcmd_handler, "Clean artifacts (manifest-aware)"},
     {"init", SK_CMD_INIT, subcmd_handler, "Initialize Storm-Knell in working directory"},
     {"purge", SK_CMD_PURGE, subcmd_handler, "De-initialize Storm-Knell from working directory"},
@@ -67,6 +71,8 @@ static struct sk_subcmd_entry g_sk_subcmds[] = {
 
 static struct sk_opt_entry g_sk_opts[] = {
     // globals - owner = SK_CMD_NONE
+    {"-C", SK_CMD_NONE, SK_OPT_RUN_FROM_PATH, opt_set_rpath, "Run from path"},
+    {"-j", SK_CMD_NONE, SK_OPT_THREADS, opt_set_jobs, "Allow N jobs at once"},
     {"--verbose", SK_CMD_NONE, SK_OPT_VERBOSE, opt_toggle_logging, "Verbosity levels"},
     {"--silent", SK_CMD_NONE, SK_OPT_SILENT, opt_toggle_logging, "No output"},
     {"--version", SK_CMD_NONE, SK_OPT_VERSION, opt_set_bit, "Show version information and exit"},
@@ -74,13 +80,12 @@ static struct sk_opt_entry g_sk_opts[] = {
     {"--force", SK_CMD_NONE, SK_OPT_FORCE, opt_set_bit, "Force action"},
     {"--profile", SK_CMD_NONE, SK_OPT_PROFILE, opt_set_bit, "Enable profiling"},
     {"--memstat", SK_CMD_NONE, SK_OPT_MEMSTAT, opt_set_bit, "Show memory information"},
+    {"--main-c", SK_CMD_NONE, SK_OPT_MAIN_C, opt_set_bit, "Generate 'Hello, from sk' main.c"},
+    {"--main-cpp", SK_CMD_NONE, SK_OPT_MAIN_CPP, opt_set_bit, "Generate 'Hello, from sk' main.cpp"},
     {"--token-dump", SK_CMD_NONE, SK_OPT_TOK_DUMP, opt_set_bit, "Show tokens"},
     {"--node-dump", SK_CMD_NONE, SK_OPT_NODE_DUMP, opt_set_bit, "Show nodes"},
     {"--eval-dump", SK_CMD_NONE, SK_OPT_EVAL_DUMP, opt_set_bit, "Show eval"},
-    {"--gen-ccmds", SK_CMD_NONE, SK_OPT_GEN_CCMDS, opt_set_bit, "Generate compile_commands.json"},
     {"-h", SK_CMD_NONE, SK_OPT_HELP, opt_help, "Show help information and exit"},
-    {"-C", SK_CMD_NONE, SK_OPT_RUN_FROM_PATH, opt_set_rpath, "Run from path"},
-    {"-j", SK_CMD_NONE, SK_OPT_THREADS, opt_set_jobs, "Allow N jobs at once"},
     // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
@@ -88,6 +93,7 @@ static struct sk_opt_entry g_sk_opts[] = {
     {"--dry", SK_CMD_STRIKE, SK_OPT_STRIKE_DRY, opt_set_bit, "Dry run"},
     {"--release", SK_CMD_STRIKE, SK_OPT_STRIKE_REL, opt_set_bit, "Release build"},
     {"-r", SK_CMD_STRIKE, SK_OPT_STRIKE_REL, opt_set_bit, "Release build"},
+    {"--gen-ccmds", SK_CMD_STRIKE, SK_OPT_GEN_CCMDS, opt_set_bit, "Generate compile_commands.json"},
     // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
@@ -101,7 +107,7 @@ static struct sk_opt_entry g_sk_opts[] = {
     // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
-    {"(init)", SK_CMD_INIT, SK_OPT_NONE, nullptr, "sk init [path]"},
+    {"(init)", SK_CMD_INIT, SK_OPT_NONE, nullptr, "sk init"},
 
     {nullptr, SK_CMD_NONE, SK_OPT_NONE, nullptr, nullptr},
 };
@@ -362,6 +368,30 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         }
     }
 
+    if (ctx->active_opt & SK_OPT_MAIN_C)
+    {
+        const char *rpath = ctx->rpath ? ctx->rpath : vx_getcwd_fn();
+        const char *path  = sk_path_join(g_sk_global_arena, rpath, "main.c");
+
+        vx_dbglog("opt: --main-c -> %s", path);
+        if (vx_mkdir_p(rpath) == VX_OK)
+        {
+            vx_fwrite(path, "%s", g_sk_template_c);
+        }
+    }
+
+    if (ctx->active_opt & SK_OPT_MAIN_CPP)
+    {
+        const char *rpath = ctx->rpath ? ctx->rpath : vx_getcwd_fn();
+        const char *path  = sk_path_join(g_sk_global_arena, rpath, "main.cpp");
+
+        vx_dbglog("opt: --main-cpp -> %s", path);
+        if (vx_mkdir_p(rpath) == VX_OK)
+        {
+            vx_fwrite(path, "%s", g_sk_template_cpp);
+        }
+    }
+
     if (ctx->active_cmd & SK_CMD_STRIKE)
     {
         if (sk_cmd_strike_fn(ctx) != VX_OK)
@@ -410,6 +440,8 @@ vx_status sk_cli_driver(struct sk_ctx *ctx, i32 argc, char **argv)
         return VX_ERROR;
     }
 
+    ctx->cores = vx_cpu_get_nproc();
+
     if (parse_subcmds(ctx, argc, argv) != VX_OK)
     {
         return VX_ERROR;
@@ -445,8 +477,7 @@ opt_set_jobs(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, cha
 
     char *arg = argv[*i];
 
-    u32 nproc   = vx_cpu_get_nproc();
-    u32 threads = 1;
+    u32 threads = 0;
 
     if (strncmp(arg, "-j", 2) == 0)
     {
@@ -469,10 +500,8 @@ opt_set_jobs(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, cha
             *i += 1;
         }
 
-        ctx->cores   = nproc;
         ctx->threads = threads;
 
-        vx_dbglog("Cores: %u, Threads: %u", nproc, threads);
         return VX_OK;
     }
 
@@ -576,8 +605,8 @@ opt_set_bit(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char
 {
     VX_CAST(void, argc);
     VX_CAST(void, argv);
-    VX_CAST(void, owner);
 
+    ctx->active_cmd |= owner;
     ctx->active_opt |= opt;
 
     (*i)++;
@@ -585,6 +614,113 @@ opt_set_bit(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char
 }
 
 //----------------------------------------------------------------------------------------------------
+
+static inline vx_status
+subcmd_surge_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i32 argc, char **argv)
+{
+    ctx->active_cmd |= id;
+    (*i)++;
+
+    if (*i < argc && argv[*i][0] != CHAR_MINUS && strcmp(argv[*i], ":::") != 0)
+    {
+        ctx->surge_target = argv[*i];
+        (*i)++;
+    }
+
+    if (*i < argc && strcmp(argv[*i], ":::") == 0)
+    {
+        (*i)++;
+        ctx->surge_passthrough_argv = &argv[*i];
+        ctx->surge_passthrough_argc = argc - *i;
+
+        *i = argc;
+    }
+
+    return VX_OK;
+}
+
+// help
+
+struct sk_deep_help_entry
+{
+    sk_cmd      cmd_mask;
+    const char *extended;
+};
+
+static const struct sk_deep_help_entry g_sk_deep_helps[] = {
+    {SK_CMD_STRIKE,
+     "Usage: sk strike [options]\n\n"
+     "Detailed Information:\n"
+     "  Parses the Stormfile in the current directory and executes the dependency graph\n"
+     "  to compile targets.\n"
+     "  \n\n"
+     "Examples:\n"
+     "  sk strike -r          Builds the current project with optimizations turned on.(NYI)\n"
+     "  sk strike -jN         Global opt: Allow N jobs at onces.\n"
+     "  sk strike --gen-ccmds Generate compile_commands.json in working directory.\n"
+     "  sk strike --dry       Validates the Stormfile parsing without starting compilation."},
+
+    {SK_CMD_SURGE,
+     "Usage: sk surge [target] [::: arguments...]\n\n"
+     "Detailed Information:\n"
+     "  Executes a compiled binary target. It reads 'manifest.bin' (generated\n"
+     "  by 'strike' inside the .storm directory) to locate valid outputs.\n\n"
+     "  If no target is specified, surge spawns the most recently compiled executable.\n\n"
+     "  Use the ':::' separator to pass raw flags or options to the target process.\n"
+     "  Everything after ':::' bypasses Storm-Knell's parser and is forwarded directly\n"
+     "  into the child process's argv array.\n\n"
+     "Examples:\n"
+     "  sk surge                          Spawns the last successfully built target.\n"
+     "  sk surge foo                      Spawns the target named 'foo'.\n"
+     "  sk surge foo ::: -arg1 --flags    Spawns 'foo' and forwards '-arg1 --flags' directly to "
+     "it."},
+
+    {SK_CMD_INIT,
+     "Usage: sk init [options]\n\n"
+     "Detailed Information:\n"
+     "  Creates a base 'Stormfile' and the local '.storm/' tracking directory.\n"
+     "  If the target directory path does not exist, Storm-Knell will create it.\n\n"
+     "Examples:\n"
+     "  sk init                          Initializes the current directory.\n"
+     "  sk init --force                  Overwrites and resets existing Stormfile and .storm/\n"
+     "  sk init -C <path>                Initializes inside the specified path."},
+
+    {SK_CMD_PURGE,
+     "Usage: sk purge [options]\n\n"
+     "Detailed Information:\n"
+     "  Removes 'Stormfile' and deletes the '.storm/' directory completely.\n"
+     "  NOTE: This only removes files owned by sk; it will never delete your parent\n"
+     "  project directories.\n\n"
+     "Examples:\n"
+     "  sk purge                         Purges sk files from the current directory.\n"
+     "  sk purge -C <path>               Purges sk files from the specified path."},
+
+    {SK_CMD_CACHE,
+     "Usage: sk cache [options]\n\n"
+     "Detailed Information:\n"
+     "  Displays the total disk space used by the global object cache.\n"
+     "  Use '--nuke' to clear out the cached objects and reset the directory size.\n\n"
+     "Examples:\n"
+     "  sk cache                         Show global cache size and object count.\n"
+     "  sk cache --nuke                  Deletes all objects stored in the global cache."},
+
+    {SK_CMD_STATUS,
+     "Usage: sk status\n\n"
+     "Detailed Information:\n"
+     "  Reads 'manifest.bin' to show the state of the last build.\n"
+     "  Displays which targets are compiled, up to date, or missing.\n\n"
+     "Examples:\n"
+     "  sk status"},
+
+    {SK_CMD_CLEAN,
+     "Usage: sk clean\n\n"
+     "Detailed Information:\n"
+     "  Deletes local build artifacts (object files and binaries) tracked in 'manifest.bin'.\n"
+     "  Unlike 'cache --nuke', this only affects the current project's outputs.\n\n"
+     "Examples:\n"
+     "  sk clean"},
+
+    {SK_CMD_NONE, nullptr}};
 
 static vx_status
 opt_help(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **argv)
@@ -671,33 +807,44 @@ opt_help(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **
         }
     }
 
+    if (focus != SK_CMD_NONE)
+    {
+        for (i32 d = 0; g_sk_deep_helps[d].extended; d++)
+        {
+            if (g_sk_deep_helps[d].cmd_mask & focus)
+            {
+                vx_printf("\n--------------------------------------------------\n");
+                vx_printf("%s\n", g_sk_deep_helps[d].extended);
+            }
+        }
+    }
+
     sk_shutdown();
     exit(0);
 }
 
-static inline vx_status
-subcmd_surge_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i32 argc, char **argv)
-{
-    ctx->active_cmd |= id;
-    (*i)++;
+static const char *g_sk_template_c = "#include <stdio.h>\n"
+                                     "\n"
+                                     "int main(int argc, char **argv)\n"
+                                     "{\n"
+                                     "    (void)argc;\n"
+                                     "    (void)argv;\n"
+                                     "\n"
+                                     "    printf(\"Hello from Storm-Knell C project!\\n\");\n"
+                                     "    return 0;\n"
+                                     "}\n";
 
-    if (*i < argc && argv[*i][0] != CHAR_MINUS && strcmp(argv[*i], ":::") != 0)
-    {
-        ctx->surge_target = argv[*i];
-        (*i)++;
-    }
-
-    if (*i < argc && strcmp(argv[*i], ":::") == 0)
-    {
-        (*i)++;
-        ctx->surge_passthrough_argv = &argv[*i];
-        ctx->surge_passthrough_argc = argc - *i;
-
-        *i = argc;
-    }
-
-    return VX_OK;
-}
+static const char *g_sk_template_cpp =
+    "#include <iostream>\n"
+    "\n"
+    "int main(int argc, char *argv[])\n"
+    "{\n"
+    "    (void)argc;\n"
+    "    (void)argv;\n"
+    "\n"
+    "    std::cout << \"Hello from Storm-Knell C++ project!\\n\";\n"
+    "    return 0;\n"
+    "}\n";
 
 //----------------------------------------------------------------------------------------------------
 /*

@@ -18,6 +18,8 @@ static bool eval_expr(struct sk_parser *p,
                       char            **var_vals,
                       u32               var_count);
 
+static void load_builtin_vars(struct sk_eval_result *result);
+
 static void eval_var(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_eval_result *result);
 
 static void sk_meta_init_git(char *git_branch_out, char *git_hash_out, size_t max_len);
@@ -417,6 +419,7 @@ static void eval_if(struct sk_parser      *p,
                         }
                         break;
                     }
+
                     case SK_NODE_IF:
                     {
                         eval_if(p, stormfile, child, target, result);
@@ -799,7 +802,8 @@ target_init(struct mem_arena *ar, struct sk_eval_result *result, vx_sv name_sv)
         {
             const char *base = strrchr(abs_cc, VX_PATH_SEP);
 
-            base          = base ? base + 1 : abs_cc;
+            base = base ? base + 1 : abs_cc;
+
             bool is_clang = strncmp(base, "clang", 5) == 0;
             bool is_gcc   = strncmp(base, "gcc", 3) == 0;
 
@@ -853,35 +857,7 @@ vx_status sk_top_level_eval(struct sk_parser *p, struct sk_eval_result *result)
 
     char **snapshot = mem_arena_alloc(g_sk_global_arena, sizeof(char *) * SK_MAX_VARS);
 
-    sk_eval_set_builtin(result, "__sk_version__", SK_VERSION_STRING);
-
-    char *maj_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_16);
-    char *min_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_16);
-    char *pat_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_16);
-    snprintf(maj_buf, VX_BUF_SIZE_16, "%d", SK_VERSION_MAJOR);
-    snprintf(min_buf, VX_BUF_SIZE_16, "%d", SK_VERSION_MINOR);
-    snprintf(pat_buf, VX_BUF_SIZE_16, "%d", SK_VERSION_PATCH);
-
-    char *cache_line_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_16);
-    snprintf(cache_line_buf, VX_BUF_SIZE_16, "%d", vx_cpu_get_cache_line());
-
-    char *git_hash_buf   = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_256);
-    char *git_branch_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_256);
-    sk_meta_init_git(git_branch_buf, git_hash_buf, VX_BUF_SIZE_256);
-
-    sk_eval_set_builtin(result, "__git_branch__", git_branch_buf);
-    sk_eval_set_builtin(result, "__git_hash__", git_hash_buf);
-    sk_eval_set_builtin(result, "__sk_version_major__", maj_buf);
-    sk_eval_set_builtin(result, "__sk_version_minor__", min_buf);
-    sk_eval_set_builtin(result, "__sk_version_patch__", pat_buf);
-    sk_eval_set_builtin(result, "__arch__", VX_ARCH_NAME);
-    sk_eval_set_builtin(result, "__has_avx__", vx_cpu_has_avx() ? "1" : "0");
-    sk_eval_set_builtin(result, "__has_avx2__", vx_cpu_has_avx2() ? "1" : "0");
-    sk_eval_set_builtin(result, "__has_sse4_2__", vx_cpu_has_sse4_2() ? "1" : "0");
-    sk_eval_set_builtin(result, "__has_bmi__", vx_cpu_has_bmi() ? "1" : "0");
-    sk_eval_set_builtin(result, "__arch__", VX_ARCH_NAME);
-    sk_eval_set_builtin(result, "__arch__", VX_ARCH_NAME);
-    sk_eval_set_builtin(result, "__cache_line__", cache_line_buf);
+    load_builtin_vars(result);
 
     while (node != 0)
     {
@@ -956,7 +932,7 @@ vx_status sk_top_level_eval(struct sk_parser *p, struct sk_eval_result *result)
             // top
             case SK_NODE_EXIT:
             {
-                u32 val_node = p->nodes->data_a[node];
+                u32 val_node = p->nodes->data_a[node];  //
                 u32 exit_idx = p->nodes->token_idxs[val_node];
 
                 vx_sv sv = tok_to_sv(p, stormfile, exit_idx);
@@ -1206,4 +1182,40 @@ static void sk_meta_init_git(char *git_branch_out, char *git_hash_out, size_t ma
         snprintf(git_branch_out, max_len, "DETACHED");
         snprintf(git_hash_out, max_len, "%s", head_str);
     }
+}
+
+static void load_builtin_vars(struct sk_eval_result *result)
+{
+    if (result == nullptr)
+    {
+        return;
+    }
+
+    char *maj_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_16);
+    char *min_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_16);
+    char *pat_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_16);
+    snprintf(maj_buf, VX_BUF_SIZE_16, "%d", SK_VERSION_MAJOR);
+    snprintf(min_buf, VX_BUF_SIZE_16, "%d", SK_VERSION_MINOR);
+    snprintf(pat_buf, VX_BUF_SIZE_16, "%d", SK_VERSION_PATCH);
+
+    char *cache_line_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_16);
+    snprintf(cache_line_buf, VX_BUF_SIZE_16, "%d", vx_cpu_get_cache_line());
+
+    char *git_hash_buf   = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_256);
+    char *git_branch_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_256);
+    sk_meta_init_git(git_branch_buf, git_hash_buf, VX_BUF_SIZE_256);
+
+    sk_eval_set_builtin(result, "__sk_version__", SK_VERSION_STRING);
+    sk_eval_set_builtin(result, "__git_branch__", git_branch_buf);
+    sk_eval_set_builtin(result, "__git_hash__", git_hash_buf);
+    sk_eval_set_builtin(result, "__sk_version_major__", maj_buf);
+    sk_eval_set_builtin(result, "__sk_version_minor__", min_buf);
+    sk_eval_set_builtin(result, "__sk_version_patch__", pat_buf);
+    sk_eval_set_builtin(result, "__arch__", VX_ARCH_NAME);
+    sk_eval_set_builtin(result, "__has_avx__", vx_cpu_has_avx() ? "1" : "0");
+    sk_eval_set_builtin(result, "__has_avx2__", vx_cpu_has_avx2() ? "1" : "0");
+    sk_eval_set_builtin(result, "__has_sse4_2__", vx_cpu_has_sse4_2() ? "1" : "0");
+    sk_eval_set_builtin(result, "__has_bmi__", vx_cpu_has_bmi() ? "1" : "0");
+    sk_eval_set_builtin(result, "__arch__", VX_ARCH_NAME);
+    sk_eval_set_builtin(result, "__cache_line__", cache_line_buf);
 }

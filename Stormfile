@@ -45,6 +45,8 @@ target skdbg
     -Isrc/core/sk_cache
     -Isrc/core/util
     -Iexternal/vx/include
+
+    install: ~/.local/bin
 }
 
 target sk

@@ -157,10 +157,12 @@ vx_status sk_top_level_parse(struct sk_parser *p)
                 u32 tok_idx = advance(p);
                 expect(p, SK_TOKEN_COLON);
 
-                u32 node = emit(SK_NODE_EXIT, tok_idx);
-                u32 val  = emit(SK_NODE_LIT_STRING, advance(p));
+                u32 exit_node = emit(SK_NODE_EXIT, tok_idx);
+                u32 val       = emit(SK_NODE_LIT_STRING, advance(p));
 
-                p->nodes->data_a[node] = val;
+                p->nodes->data_a[exit_node] = val;
+
+                node = exit_node;
                 break;
             }
 
