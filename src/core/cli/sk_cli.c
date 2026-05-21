@@ -1,3 +1,4 @@
+#include "sk_array.h"
 #include "vx_platform.h"
 #include "vx_time.h"
 #include "vx_util.h"
@@ -26,6 +27,9 @@ static const char *g_sk_template_cpp;
 // static bool is_subcmd(const char *arg);
 
 // ----------------------------------------------------------------------------------------------------
+
+static inline vx_status
+opt_set_var(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **argv);
 
 static inline vx_status
 opt_set_jobs(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **argv);
@@ -85,6 +89,7 @@ static struct sk_opt_entry g_sk_opts[] = {
     {"--token-dump", SK_CMD_NONE, SK_OPT_TOK_DUMP, opt_set_bit, "Show tokens"},
     {"--node-dump", SK_CMD_NONE, SK_OPT_NODE_DUMP, opt_set_bit, "Show nodes"},
     {"--eval-dump", SK_CMD_NONE, SK_OPT_EVAL_DUMP, opt_set_bit, "Show eval"},
+    {"--set", SK_CMD_NONE, SK_OPT_SETVAR, opt_set_var, "Inject boolean variable into eval"},
     {"-h", SK_CMD_NONE, SK_OPT_HELP, opt_help, "Show help information and exit"},
     // ----------------------------------------------------------------------------------------------------
 
@@ -229,6 +234,10 @@ static vx_status parse_opts(struct sk_ctx *ctx, i32 argc, char **argv)
                 if (arg[1] == CHAR_MINUS)
                 {
                     match = strcmp(arg, opt) == 0;
+                    if (!match)
+                    {
+                        match = (strncmp(arg, opt, opt_len) == 0 && arg[opt_len] == CHAR_EQUAL);
+                    }
                 }
                 else
                 {
@@ -440,7 +449,8 @@ vx_status sk_cli_driver(struct sk_ctx *ctx, i32 argc, char **argv)
         return VX_ERROR;
     }
 
-    ctx->cores = vx_cpu_get_nproc();
+    ctx->cores   = vx_cpu_get_nproc();
+    ctx->setvars = sk_arena_array_create(g_sk_global_arena, 16);
 
     if (parse_subcmds(ctx, argc, argv) != VX_OK)
     {
@@ -821,6 +831,41 @@ opt_help(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **
 
     sk_shutdown();
     exit(0);
+}
+
+static bool ctx_var_is_set(struct sk_ctx *ctx, const char *name)
+{
+    return sk_arena_array_contains(ctx->setvars, name);
+}
+
+static inline vx_status
+opt_set_var(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **argv)
+{
+    VX_CAST(void, argc);
+    VX_CAST(void, owner);
+
+    ctx->active_opt |= opt;
+
+    char *arg = argv[*i];
+    char *eq  = strchr(arg, CHAR_EQUAL);
+
+    if (eq == nullptr || eq[1] == CHAR_NULTERM)
+    {
+        return VX_ERROR;
+    }
+    char *name = mem_arena_strdup(g_sk_global_arena, eq + 1);
+
+    if (ctx_var_is_set(ctx, name))
+    {
+        vx_warn("--set=%s already set, ignored", name);
+        (*i)++;
+        return VX_OK;
+    }
+
+    sk_arena_array_push(ctx->setvars, name);
+
+    (*i)++;
+    return VX_OK;
 }
 
 static const char *g_sk_template_c = "#include <stdio.h>\n"

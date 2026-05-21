@@ -1,11 +1,12 @@
 // Stormfile for Storm-Knell (sk)
 cc: /usr/bin/gcc
+linker: mold
 cflags: -std=c23 -Wall -Werror -Wextra -pedantic
 lflags: -lpthread -lxxhash
 
 major: 0
 minor: 4
-patch: 0
+patch: 1
 
 codegen src/core/sk_config.h {
     literal: "#pragma once"
@@ -61,13 +62,25 @@ target sk
         cflags:: -Wloop-analysis -Wthread-safety-pointer -Wdocumentation -Wunicode-whitespace
     }
 
+    if(__has_mbmi__){
+        cflags:: -mbmi
+    }
+
     cflags::
-    -O3 -march=native
-    -mbmi -mlzcnt -pthread
+    -O2 -march=native
+    -mlzcnt -pthread
     -Wvla -Wcast-align
     -Wredundant-decls
     -Wmissing-noreturn
     -fvisibility=hidden
+
+    if(full_opt)
+    {
+        print: "Toggled full optimizations: cflags::  -O3 -flto=auto lflags::  -flto=auto -Wl,-O1 -Wl,--as-needed"
+        cflags::  -O3 -flto=auto
+        lflags::  -flto=auto -Wl,-O1 -Wl,--as-needed
+    }
+
 
     exclude:
     build/

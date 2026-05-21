@@ -50,6 +50,7 @@ typedef enum sk_opt : u64
 
     SK_OPT_MAIN_C   = 1 << 17,
     SK_OPT_MAIN_CPP = 1 << 18,
+    SK_OPT_SETVAR   = 1 << 19,
 } sk_opt;
 
 typedef vx_status (*sk_cmd_fn)(struct sk_ctx *ctx, sk_cmd cmd_id, i32 *i, i32 argc, char **argv);

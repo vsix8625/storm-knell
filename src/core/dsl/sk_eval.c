@@ -795,24 +795,6 @@ target_init(struct mem_arena *ar, struct sk_eval_result *result, vx_sv name_sv)
     t->cfg.cc     = result->global.cc;
     t->cfg.linker = result->global.linker;
 
-    if (result->global.cc != nullptr)
-    {
-        char abs_cc[VX_PATH_MAX];
-        if (vx_fs_which(result->global.cc, abs_cc, sizeof(abs_cc)) == VX_OK)
-        {
-            const char *base = strrchr(abs_cc, VX_PATH_SEP);
-
-            base = base ? base + 1 : abs_cc;
-
-            bool is_clang = strncmp(base, "clang", 5) == 0;
-            bool is_gcc   = strncmp(base, "gcc", 3) == 0;
-
-            sk_eval_set_builtin(result, "__clang__", is_clang ? "1" : "0");
-            sk_eval_set_builtin(result, "__gcc__", is_gcc ? "1" : "0");
-            sk_eval_set_builtin(result, "__os__", VX_OS_NAME);
-        }
-    }
-
     return t;
 }
 
@@ -1079,6 +1061,18 @@ void sk_dbg_dump_eval(struct sk_parser *p, struct sk_eval_result *result)
     vx_printf("--- END DUMP ---\n\n");
 }
 
+static const char *sk_eval_get_builtin(struct sk_eval_result *result, const char *key)
+{
+    for (u32 i = 0; i < result->var_count; i++)
+    {
+        if (strcmp(result->var_keys[i], key) == 0)
+        {
+            return result->var_vals[i];
+        }
+    }
+    return nullptr;
+}
+
 static void sk_eval_set_builtin(struct sk_eval_result *result, char *key, char *val)
 {
     for (u32 i = 0; i < result->var_count; i++)
@@ -1218,4 +1212,40 @@ static void load_builtin_vars(struct sk_eval_result *result)
     sk_eval_set_builtin(result, "__has_bmi__", vx_cpu_has_bmi() ? "1" : "0");
     sk_eval_set_builtin(result, "__arch__", VX_ARCH_NAME);
     sk_eval_set_builtin(result, "__cache_line__", cache_line_buf);
+    sk_eval_set_builtin(result, "__os__", VX_OS_NAME);
+
+    if (result->global.cc != nullptr)
+    {
+        char abs_cc[VX_PATH_MAX];
+        if (vx_fs_which(result->global.cc, abs_cc, sizeof(abs_cc)) == VX_OK)
+        {
+            const char *base = strrchr(abs_cc, VX_PATH_SEP);
+
+            base = base ? base + 1 : abs_cc;
+
+            bool is_clang = strncmp(base, "clang", 5) == 0;
+            bool is_gcc   = strncmp(base, "gcc", 3) == 0;
+
+            sk_eval_set_builtin(result, "__clang__", is_clang ? "1" : "0");
+            sk_eval_set_builtin(result, "__gcc__", is_gcc ? "1" : "0");
+        }
+    }
+
+    if (g_sk_global_ctx.setvars == nullptr)
+    {
+        return;
+    }
+
+    for (u32 i = 0; i < g_sk_global_ctx.setvars->count; i++)
+    {
+        const char *name = (const char *) g_sk_global_ctx.setvars->items[i];
+
+        if (sk_eval_get_builtin(result, name) != nullptr)
+        {
+            vx_warn("--set=%s conflicts with a builtin, ignored", name);
+            continue;
+        }
+
+        sk_eval_set_builtin(result, (char *) name, "1");
+    }
 }
