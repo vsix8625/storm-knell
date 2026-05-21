@@ -16,7 +16,7 @@ A fast, cache-aware build tool with its own DSL — describe your project once, 
 ### From source (recommended)
 
 ```bash
-git clone --recurse-submodules https://github.com/yourusername/storm-knell.git
+git clone --recurse-submodules https://github.com/vsix8625/storm-knell 
 cd storm-knell
 ./scripts/build.sh
 ```
@@ -25,7 +25,7 @@ The bootstrap script compiles sk using your system compiler. Once built, sk rebu
 
 ### Prebuilt binaries
 
-Download the latest binary for your platform from [Releases](https://github.com/vsix8625/storm-knell).
+Download the latest binary from [Releases](https://github.com/vsix8625/storm-knell).
 
 ```bash
 chmod +x sk
