@@ -44,7 +44,7 @@ Only `cflags`, `lflags`, `defines`, `sources`, `includes`, and `exclude` support
 
 | Keyword | Required | Description |
 |---|---|---|
-| `cc` | ✅ | Path to the C compiler — sk will error if missing |
+| `cc` | required | Path to the C compiler — sk will error if missing |
 | `compiler` | | Alias for `cc` |
 | `linker` | | Linker to use (e.g. `mold`, `lld`) — optional |
 | `cflags` | | Global compiler flags inherited by all targets |
@@ -108,9 +108,9 @@ target <name>
 | `depends` | | Target dependencies — built first, libs auto-linked |
 | `install` | | Install destination after a successful build |
 | `print` | | Print a message or builtin value during eval |
-| `exit` | | Abort eval with a log message *(experimental)* |
+| `exit` | | Abort eval with a log message |
 
-> ⚠️ **mode defaults to `debug`** — always set `mode: release` explicitly on release targets.
+> **mode defaults to `debug`** — always set `mode: release` explicitly on release targets.
 > Output path is `out_dir/mode/bin/out_name`, so a missing `mode` on a release target will silently place the binary under `debug/` regardless of your flags.
 
 ---
@@ -238,7 +238,7 @@ Generated output:
 
 ## Conditionals
 
-sk supports `if` / `else` blocks evaluated at build time. Blocks can be used at the top level or inside targets. Nesting is supported.
+sk supports `if` / `else` blocks evaluated at build time. Blocks can be used at the top level, inside targets, or wrapping entire target blocks at the top level. Nesting is supported.
 
 ```
 if(<condition>)
@@ -287,7 +287,7 @@ print: __sk_version__
 
 ## exit
 
-Aborts eval with a log message. Can be used at the top level to guard before any target runs. *(Experimental)*
+Aborts eval with a log message. Can be used at the top level to guard before any target runs. 
 
 ```
 if(__arch__ != "x86_64")
