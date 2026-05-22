@@ -905,6 +905,12 @@ vx_status sk_top_level_eval(struct sk_parser *p, struct sk_eval_result *result)
                 break;
             }
 
+            case SK_NODE_PRINT:
+            {
+                eval_print(p, stormfile, node, result);
+                break;
+            }
+
             case SK_NODE_IF:
             {
                 eval_if(p, stormfile, node, nullptr, result);
@@ -938,6 +944,26 @@ vx_status sk_top_level_eval(struct sk_parser *p, struct sk_eval_result *result)
 
         node = p->nodes->nexts[node];
     }
+
+    // other builtins are loaded before eval
+    // but these are set after
+    if (result->global.cc != nullptr)
+    {
+        char abs_cc[VX_PATH_MAX];
+        if (vx_fs_which(result->global.cc, abs_cc, sizeof(abs_cc)) == VX_OK)
+        {
+            const char *base = strrchr(abs_cc, VX_PATH_SEP);
+
+            base = base ? base + 1 : abs_cc;
+
+            bool is_clang = strncmp(base, "clang", 5) == 0;
+            bool is_gcc   = strncmp(base, "gcc", 3) == 0;
+
+            sk_eval_set_builtin(result, "__clang__", is_clang ? "1" : "0");
+            sk_eval_set_builtin(result, "__gcc__", is_gcc ? "1" : "0");
+        }
+    }
+
     return VX_OK;
 }
 
@@ -1200,36 +1226,21 @@ static void load_builtin_vars(struct sk_eval_result *result)
     sk_meta_init_git(git_branch_buf, git_hash_buf, VX_BUF_SIZE_256);
 
     sk_eval_set_builtin(result, "__sk_version__", SK_VERSION_STRING);
-    sk_eval_set_builtin(result, "__git_branch__", git_branch_buf);
-    sk_eval_set_builtin(result, "__git_hash__", git_hash_buf);
     sk_eval_set_builtin(result, "__sk_version_major__", maj_buf);
     sk_eval_set_builtin(result, "__sk_version_minor__", min_buf);
     sk_eval_set_builtin(result, "__sk_version_patch__", pat_buf);
+
+    sk_eval_set_builtin(result, "__git_branch__", git_branch_buf);
+    sk_eval_set_builtin(result, "__git_hash__", git_hash_buf);
+
     sk_eval_set_builtin(result, "__arch__", VX_ARCH_NAME);
+    sk_eval_set_builtin(result, "__os__", VX_OS_NAME);
+
     sk_eval_set_builtin(result, "__has_avx__", vx_cpu_has_avx() ? "1" : "0");
     sk_eval_set_builtin(result, "__has_avx2__", vx_cpu_has_avx2() ? "1" : "0");
     sk_eval_set_builtin(result, "__has_sse4_2__", vx_cpu_has_sse4_2() ? "1" : "0");
     sk_eval_set_builtin(result, "__has_bmi__", vx_cpu_has_bmi() ? "1" : "0");
-    sk_eval_set_builtin(result, "__arch__", VX_ARCH_NAME);
     sk_eval_set_builtin(result, "__cache_line__", cache_line_buf);
-    sk_eval_set_builtin(result, "__os__", VX_OS_NAME);
-
-    if (result->global.cc != nullptr)
-    {
-        char abs_cc[VX_PATH_MAX];
-        if (vx_fs_which(result->global.cc, abs_cc, sizeof(abs_cc)) == VX_OK)
-        {
-            const char *base = strrchr(abs_cc, VX_PATH_SEP);
-
-            base = base ? base + 1 : abs_cc;
-
-            bool is_clang = strncmp(base, "clang", 5) == 0;
-            bool is_gcc   = strncmp(base, "gcc", 3) == 0;
-
-            sk_eval_set_builtin(result, "__clang__", is_clang ? "1" : "0");
-            sk_eval_set_builtin(result, "__gcc__", is_gcc ? "1" : "0");
-        }
-    }
 
     if (g_sk_global_ctx.setvars == nullptr)
     {

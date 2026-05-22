@@ -114,6 +114,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         struct vx_thread_pool pool;
 
         vx_mutex_init(&g_proc_spawn_mutex);
+        vx_mutex_init(&ctx->console_lock);
 
         u32 thread_count = (ctx->threads > 0) ? ctx->threads : ctx->cores;
         ctx->threads     = thread_count;
@@ -298,29 +299,9 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                                     sizeof(out_meta.bin_dirpath));
                 }
 
-                if (t->kind == SK_TARGET_KIND_EXEC)
+                if (t->artifact_path)
                 {
-                    if (t->finalized_bin_rpath)
-                    {
-                        sk_strncpy_safe(
-                            out_meta.bin_path, t->finalized_bin_rpath, sizeof(out_meta.bin_path));
-                    }
-                }
-                else
-                {
-                    if (t->finalized_bin_dirpath && t->out_name)
-                    {
-                        sk_strncpy_safe(out_meta.bin_dirpath,
-                                        t->finalized_bin_dirpath,
-                                        sizeof(out_meta.bin_dirpath));
-
-                        snprintf(out_meta.bin_path,
-                                 sizeof(out_meta.bin_path),
-                                 "%s%s%s",
-                                 t->finalized_bin_dirpath,
-                                 VX_PATH_SEP_STR,
-                                 t->out_name);
-                    }
+                    sk_strncpy_safe(out_meta.bin_path, t->artifact_path, sizeof(out_meta.bin_path));
                 }
 
                 out_meta.kind           = t->kind;
@@ -437,7 +418,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
                             vx_log("Copying: '%s' to '%s'", t->out_name, dest_path);
 
-                            if (!vx_fs_cp(t->finalized_bin_rpath, dest_path))
+                            if (!vx_fs_cp(t->artifact_path, dest_path))
                             {
                                 vx_errlog("Failed to copy binary to install location: %s",
                                           dest_path);
@@ -537,6 +518,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
     }
 
     vx_mutex_destroy(&g_proc_spawn_mutex);
+    vx_mutex_destroy(&ctx->console_lock);
     return strike_status;
 }
 
@@ -631,23 +613,38 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
     // the final ../../bin
     t->finalized_bin_dirpath = mem_arena_strdup(g_sk_global_arena, final_bin_dir_buf);
 
-    t->finalized_bin_rpath = nullptr;
+    t->artifact_path = nullptr;
+
+    const char *prefix = "";
+    const char *ext    = "";
 
     if (t->kind == SK_TARGET_KIND_EXEC)
     {
-        // executable
-        size_t needed =
-            strlen(final_bin_dir_buf) + strlen(VX_PATH_SEP_STR) + strlen(t->out_name) + 1;
-        char *bin_rpath_buf = mem_arena_alloc(g_sk_global_arena, needed);
-        snprintf(bin_rpath_buf, needed, "%s%s%s", final_bin_dir_buf, VX_PATH_SEP_STR, t->out_name);
-
-        // the final ../../bin/out_name
-        t->finalized_bin_rpath = mem_arena_strdup(g_sk_global_arena, bin_rpath_buf);
+        ext = VX_EXE_EXT;
     }
+    else if (t->kind == SK_TARGET_KIND_STATIC)
+    {
+        prefix = VX_LIB_PREFIX;
+        ext    = VX_LIB_EXT;
+    }
+    else if (t->kind == SK_TARGET_KIND_SHARED)
+    {
+        prefix = VX_LIB_PREFIX;
+        ext    = VX_DLL_EXT;
+    }
+
+    const char *actual_out_name = (t->out_name != nullptr) ? t->out_name : t->name;
+
+    char filename_buf[VX_BUF_SIZE_64];
+    snprintf(filename_buf, sizeof(filename_buf), "%s%s%s", prefix, actual_out_name, ext);
+
+    t->finalized_filename = mem_arena_strdup(g_sk_global_arena, filename_buf);
+
+    t->artifact_path = sk_path_join(g_sk_global_arena, final_bin_dir_buf, t->finalized_filename);
 
     if (ctx->active_opt & SK_OPT_VERBOSE)
     {
-        vx_log("Created: %s", final_bin_dir_buf);
+        vx_log("Created: %s -> Artifact: %s", final_bin_dir_buf, t->finalized_filename);
     }
 
     return VX_OK;

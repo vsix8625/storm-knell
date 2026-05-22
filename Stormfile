@@ -2,7 +2,14 @@
 cc: /usr/bin/gcc
 linker: mold
 cflags: -std=c23 -Wall -Werror -Wextra -pedantic
-lflags: -lpthread -lxxhash
+lflags: -lxxhash
+
+if(__os__ == "linux")
+{
+    print: "Linux detected"
+    cflags:: -pthread
+    lflags:: -lpthread
+}
 
 major: 0
 minor: 4
@@ -26,27 +33,27 @@ target skdbg
     out: skdbg
     mode: debug
 
-    cflags:: -g -pthread -DDEBUG
+    cflags:: -g -DDEBUG
 
     exclude:
-    build/
-    test/
-    docs/
+        build/
+        test/
+        docs/
     sources:
-    src/
-    external/vx/src/
+        src/
+        external/vx/src/
     includes:
-    -Isrc
-    -Isrc/core
-    -Isrc/core/cli
-    -Isrc/core/commands
-    -Isrc/core/dsl
-    -Isrc/core/hash
-    -Isrc/core/invoke
-    -Isrc/core/memory
-    -Isrc/core/sk_cache
-    -Isrc/core/util
-    -Iexternal/vx/include
+        -Isrc
+        -Isrc/core
+        -Isrc/core/cli
+        -Isrc/core/commands
+        -Isrc/core/dsl
+        -Isrc/core/hash
+        -Isrc/core/invoke
+        -Isrc/core/memory
+        -Isrc/core/sk_cache
+        -Isrc/core/util
+        -Iexternal/vx/include
 
     install: ~/.local/bin
 }
@@ -60,6 +67,7 @@ target sk
 
     if (__clang__)
     {
+        print: "cc: clang"
         cflags:: -Wloop-analysis -Wthread-safety-pointer -Wdocumentation -Wunicode-whitespace
     }
 
@@ -68,12 +76,11 @@ target sk
     }
 
     cflags::
-    -O2 -march=native
-    -mlzcnt -pthread
-    -Wvla -Wcast-align
-    -Wredundant-decls
-    -Wmissing-noreturn
-    -fvisibility=hidden
+        -O2 -march=native
+        -mlzcnt -Wvla -Wcast-align
+        -Wredundant-decls
+        -Wmissing-noreturn
+        -fvisibility=hidden
 
     if(full_opt)
     {
@@ -84,24 +91,25 @@ target sk
 
 
     exclude:
-    build/
-    test/
-    docs/
+        build/
+        test/
+        docs/
     sources:
-    src/
-    external/vx/src/
+        src/
+        external/vx/src/
     includes:
-    -Isrc
-    -Isrc/core
-    -Isrc/core/cli
-    -Isrc/core/commands
-    -Isrc/core/dsl
-    -Isrc/core/hash
-    -Isrc/core/invoke
-    -Isrc/core/memory
-    -Isrc/core/sk_cache
-    -Isrc/core/util
-    -Iexternal/vx/include
+        -Isrc
+        -Isrc/core
+        -Isrc/core/cli
+        -Isrc/core/commands
+        -Isrc/core/dsl
+        -Isrc/core/hash
+        -Isrc/core/invoke
+        -Isrc/core/memory
+        -Isrc/core/sk_cache
+        -Isrc/core/util
+        -Iexternal/vx/include
 
+    // Installs the binary directly to your local system binaries path
     install: ~/.local/bin
 }

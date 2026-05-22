@@ -7,6 +7,7 @@
 
 #include "vx_io.h"
 #include "vx_fs.h"
+#include "vx_thread.h"
 
 _Atomic u32 g_sk_ccmds_count = 0;
 
@@ -14,6 +15,27 @@ struct sk_ccmds_entry *g_sk_ccmds = {0};
 
 #include <stdatomic.h>
 #include <stdio.h>
+
+static void verbose_argv_log(char **argv, u32 idx)
+{
+    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
+    {
+        static _Thread_local char t_log_buf[VX_BUF_SIZE_1024];
+        vx_sbuf sbuf = {.data = t_log_buf, .size = sizeof(t_log_buf), .offset = 0};
+
+        vx_mutex_lock(&g_sk_global_ctx.console_lock);
+        vx_sbuf_append(&sbuf, "\n%s\n", argv[idx - 1]);
+        vx_sbuf_append(
+            &sbuf,
+            "================================================================================\n");
+        for (size_t i = 0; i < idx; i++)
+        {
+            vx_sbuf_append(&sbuf, "%s ", argv[i]);
+        }
+        vx_printf("%s\n", t_log_buf);
+        vx_mutex_unlock(&g_sk_global_ctx.console_lock);
+    }
+}
 
 char *sk_invoke_compile(struct sk_target *t, u32 source_idx)
 {
@@ -23,7 +45,8 @@ char *sk_invoke_compile(struct sk_target *t, u32 source_idx)
     }
 
     size_t buf_stride = VX_PATH_MAX * 4;
-    char  *buf        = mem_arena_alloc(g_sk_global_arena, buf_stride);
+
+    char *buf = mem_arena_alloc(g_sk_global_arena, buf_stride);
 
     if (buf == nullptr)
     {
@@ -123,14 +146,7 @@ char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx, struct mem_
 
     argv[idx] = nullptr;
 
-    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
-    {
-        for (size_t i = 0; i < idx; i++)
-        {
-            vx_printf("%s ", argv[i]);
-        }
-        vx_printf("\n");
-    }
+    verbose_argv_log(argv, idx);
     return argv;
 }
 
@@ -143,12 +159,12 @@ char **sk_invoke_link_nularr(struct sk_target *t, struct mem_arena *arena)
 
     // cc + -fuse-ld + objs + lflags + lib_paths + libs + -o + out + NULL
     u32 obj_count  = t->sources->count;
-    u32 total_args = 1            // cc
-                     + 1          // -fuse-ld=<linker>
-                     + obj_count  // all .o files
+    u32 total_args = 1  // cc
+                     + ((t->cfg.linker != nullptr) ? 1 : 0) +
+                     ((t->kind == SK_TARGET_KIND_SHARED) ? 1 : 0) + obj_count  // all .o files
                      + t->cfg.lflags_count + t->cfg.lib_paths_count + t->cfg.libs_count +
-                     2  // -o <output>
-                     + 1;
+                     2     // -o <output>
+                     + 1;  // nullptr sentinel
 
     char **argv = mem_arena_alloc(arena, sizeof(char *) * total_args);
     if (argv == nullptr)
@@ -170,7 +186,6 @@ char **sk_invoke_link_nularr(struct sk_target *t, struct mem_arena *arena)
     if (t->kind == SK_TARGET_KIND_SHARED)
     {
         argv[idx++] = "-shared";
-        total_args++;
     }
 
     // object files
@@ -201,21 +216,12 @@ char **sk_invoke_link_nularr(struct sk_target *t, struct mem_arena *arena)
     }
 
     // output path
-    char *out = mem_arena_alloc(arena, VX_PATH_MAX);
-    snprintf(out, VX_PATH_MAX, "%s%s%s", t->finalized_bin_dirpath, VX_PATH_SEP_STR, t->out_name);
 
     argv[idx++] = "-o";
-    argv[idx++] = out;
+    argv[idx++] = (char *) t->artifact_path;
     argv[idx]   = nullptr;
 
-    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
-    {
-        for (size_t i = 0; i < idx; i++)
-        {
-            vx_printf("%s ", argv[i]);
-        }
-        vx_printf("\n");
-    }
+    verbose_argv_log(argv, idx);
     return argv;
 }
 
@@ -242,8 +248,14 @@ char **sk_invoke_ar_nularr(struct sk_target *t, struct sk_meta *meta, struct mem
     argv[idx++] = "rcs";
 
     char *out = mem_arena_alloc(arena, VX_PATH_MAX);
-    snprintf(
-        out, VX_PATH_MAX, "%s%slib%s.a", t->finalized_bin_dirpath, VX_PATH_SEP_STR, t->out_name);
+    snprintf(out,
+             VX_PATH_MAX,
+             "%s%s%s%s%s",
+             t->finalized_bin_dirpath,
+             VX_PATH_SEP_STR,
+             VX_LIB_PREFIX,
+             t->out_name,
+             VX_LIB_EXT);
 
     argv[idx++] = out;
 
@@ -260,14 +272,7 @@ char **sk_invoke_ar_nularr(struct sk_target *t, struct sk_meta *meta, struct mem
 
     argv[idx] = nullptr;
 
-    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
-    {
-        for (size_t i = 0; i < idx; i++)
-        {
-            vx_printf("%s ", argv[i]);
-        }
-        vx_printf("\n");
-    }
+    verbose_argv_log(argv, idx);
     return argv;
 }
 
@@ -318,14 +323,7 @@ char **sk_invoke_syntax_check_nularr(struct sk_target *t, u32 source_idx, struct
     argv[idx++] = (char *) t->sources->items[source_idx];
     argv[idx]   = nullptr;
 
-    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
-    {
-        for (size_t i = 0; i < idx; i++)
-        {
-            vx_printf("%s ", argv[i]);
-        }
-        vx_printf("\n");
-    }
+    verbose_argv_log(argv, idx);
     return argv;
 }
 

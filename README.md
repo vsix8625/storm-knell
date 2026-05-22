@@ -8,8 +8,8 @@ A fast, cache-aware build tool with its own DSL — describe your project once, 
 
 - GCC or Clang (C23)
 - [xxhash](https://github.com/Cyan4973/xxHash)
-- [mold](https://github.com/rui314/mold) *(recommended, but not required)*
 - pthreads *(usually ships with your system)*
+- [mold](https://github.com/rui314/mold) *(recommended, but not required)*
 
 ## Installation
 
@@ -127,6 +127,16 @@ sk maintains a global object cache keyed on source content, compiler version, sk
 sk cache          # view cache size
 sk cache --nuke   # clear cache
 ```
+
+## Editor Support (Neovim)
+
+To get syntax highlighting, automatic file detection, and auto-formatting on save for Storm files, copy or link these files into your personal Neovim configuration directory:
+
+1. `utils/nvim/ftdetect/storm.lua` -> `~/.config/nvim/ftdetect/storm.lua`
+2. `utils/nvim/ftplugin/storm.lua` -> `~/.config/nvim/ftplugin/storm.lua`
+3. `utils/nvim/syntax/storm.lua`   -> `~/.config/nvim/syntax/storm.lua`
+
+*(Alternatively, you can append the repository's `utils/nvim` directory directly to your Neovim `runtimepath`).*
 
 ## License
 
