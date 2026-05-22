@@ -12,8 +12,8 @@ if(__os__ == "linux")
 }
 
 major: 0
-minor: 4
-patch: 2
+minor: 5
+patch: 1
 
 
 codegen src/core/sk_config.h {
@@ -26,36 +26,6 @@ codegen src/core/sk_config.h {
     define: SK_VERSION_STRING "major.minor.patch"
     define: SK_COMPILED_GCC __gcc__
     define: SK_COMPILED_CLANG __clang__
-}
-
-target skdbg
-{
-    out: skdbg
-    mode: debug
-
-    cflags:: -g -DDEBUG
-
-    exclude:
-        build/
-        test/
-        docs/
-    sources:
-        src/
-        external/vx/src/
-    includes:
-        -Isrc
-        -Isrc/core
-        -Isrc/core/cli
-        -Isrc/core/commands
-        -Isrc/core/dsl
-        -Isrc/core/hash
-        -Isrc/core/invoke
-        -Isrc/core/memory
-        -Isrc/core/sk_cache
-        -Isrc/core/util
-        -Iexternal/vx/include
-
-    install: ~/.local/bin
 }
 
 target sk
@@ -112,4 +82,38 @@ target sk
 
     // Installs the binary directly to your local system binaries path
     install: ~/.local/bin
+}
+
+if(sk_debug)
+{
+    target skdbg
+    {
+        out: skdbg
+        mode: debug
+
+        cflags:: -g -DDEBUG
+
+        exclude:
+            build/
+            test/
+            docs/
+        sources:
+            src/
+            external/vx/src/
+        includes:
+            -Isrc
+            -Isrc/core
+            -Isrc/core/cli
+            -Isrc/core/commands
+            -Isrc/core/dsl
+            -Isrc/core/hash
+            -Isrc/core/invoke
+            -Isrc/core/memory
+            -Isrc/core/sk_cache
+            -Isrc/core/util
+            -Iexternal/vx/include
+
+        install: ~/.local/bin
+
+    }
 }

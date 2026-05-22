@@ -18,6 +18,14 @@ static bool eval_expr(struct sk_parser *p,
                       char            **var_vals,
                       u32               var_count);
 
+static struct sk_target *
+target_init(struct mem_arena *ar, struct sk_eval_result *result, vx_sv name_sv);
+static void eval_target(struct sk_parser      *p,
+                        vx_sv                  stormfile,
+                        u32                    node,
+                        struct sk_target      *target,
+                        struct sk_eval_result *result);
+
 static void load_builtin_vars(struct sk_eval_result *result);
 
 static void eval_var(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_eval_result *result);
@@ -319,7 +327,9 @@ static void eval_if(struct sk_parser      *p,
                     vx_sv                  stormfile,
                     u32                    node,
                     struct sk_target      *target,
-                    struct sk_eval_result *result)
+                    struct sk_eval_result *result,
+                    struct mem_arena      *ar,
+                    char                 **snapshot)
 {
     u32 cond_node = p->nodes->data_a[node];
 
@@ -352,7 +362,7 @@ static void eval_if(struct sk_parser      *p,
 
                 case SK_NODE_IF:
                 {
-                    eval_if(p, stormfile, child, target, result);
+                    eval_if(p, stormfile, child, target, result, ar, snapshot);
                     break;
                 }
 
@@ -380,6 +390,41 @@ static void eval_if(struct sk_parser      *p,
                     exit(1);
                 }
 
+                case SK_NODE_TARGET:
+                {
+                    if (result->target_count >= SK_MAX_TARGETS)
+                    {
+                        VX_ASSERT_LOG("Max targets limit reached: %d", SK_MAX_TARGETS);
+                        return;
+                    }
+
+                    u32   name_tok = p->nodes->data_a[child];
+                    vx_sv name_sv  = tok_to_sv(p, stormfile, name_tok);
+
+                    for (u32 i = 0; i < result->target_count; i++)
+                    {
+                        if (strncmp(result->targets[i].name, name_sv.data, name_sv.len) == 0 &&
+                            result->targets[i].name[name_sv.len] == CHAR_NULTERM)
+                        {
+                            vx_errlog(
+                                "Duplicate target name: '%.*s'", (i32) name_sv.len, name_sv.data);
+                            return;
+                        }
+                    }
+
+                    struct sk_target *t = target_init(ar, result, name_sv);
+
+                    u32 saved_var_count = result->var_count;
+                    memcpy(snapshot, result->var_vals, sizeof(char *) * result->var_count);
+
+                    eval_target(p, stormfile, child, t, result);
+
+                    result->var_count = saved_var_count;
+                    memcpy(result->var_vals, snapshot, sizeof(char *) * saved_var_count);
+
+                    break;
+                }
+
                 default:
                 {
                     break;
@@ -396,7 +441,7 @@ static void eval_if(struct sk_parser      *p,
 
         if (kind == SK_NODE_IF)
         {
-            eval_if(p, stormfile, child, target, result);
+            eval_if(p, stormfile, child, target, result, ar, snapshot);
         }
         else
         {
@@ -422,7 +467,7 @@ static void eval_if(struct sk_parser      *p,
 
                     case SK_NODE_IF:
                     {
-                        eval_if(p, stormfile, child, target, result);
+                        eval_if(p, stormfile, child, target, result, ar, snapshot);
                         break;
                     }
 
@@ -448,6 +493,42 @@ static void eval_if(struct sk_parser      *p,
 
                         sk_shutdown();
                         exit(1);
+                    }
+
+                    case SK_NODE_TARGET:
+                    {
+                        if (result->target_count >= SK_MAX_TARGETS)
+                        {
+                            VX_ASSERT_LOG("Max targets limit reached: %d", SK_MAX_TARGETS);
+                            return;
+                        }
+
+                        u32   name_tok = p->nodes->data_a[child];
+                        vx_sv name_sv  = tok_to_sv(p, stormfile, name_tok);
+
+                        for (u32 i = 0; i < result->target_count; i++)
+                        {
+                            if (strncmp(result->targets[i].name, name_sv.data, name_sv.len) == 0 &&
+                                result->targets[i].name[name_sv.len] == CHAR_NULTERM)
+                            {
+                                vx_errlog("Duplicate target name: '%.*s'",
+                                          (i32) name_sv.len,
+                                          name_sv.data);
+                                return;
+                            }
+                        }
+
+                        struct sk_target *t = target_init(ar, result, name_sv);
+
+                        u32 saved_var_count = result->var_count;
+                        memcpy(snapshot, result->var_vals, sizeof(char *) * result->var_count);
+
+                        eval_target(p, stormfile, child, t, result);
+
+                        result->var_count = saved_var_count;
+                        memcpy(result->var_vals, snapshot, sizeof(char *) * saved_var_count);
+
+                        break;
                     }
 
                     default:
@@ -496,7 +577,8 @@ static void eval_target(struct sk_parser      *p,
 
             case SK_NODE_IF:
             {
-                eval_if(p, stormfile, child, target, result);
+                char **snapshot = mem_arena_alloc(g_sk_global_arena, sizeof(char *) * SK_MAX_VARS);
+                eval_if(p, stormfile, child, target, result, g_sk_global_arena, snapshot);
                 break;
             }
 
@@ -913,7 +995,7 @@ vx_status sk_top_level_eval(struct sk_parser *p, struct sk_eval_result *result)
 
             case SK_NODE_IF:
             {
-                eval_if(p, stormfile, node, nullptr, result);
+                eval_if(p, stormfile, node, nullptr, result, ar, snapshot);
                 break;
             }
 

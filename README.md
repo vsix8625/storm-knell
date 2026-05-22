@@ -57,6 +57,11 @@ This creates a starter `Stormfile`. Edit it to match your project, then build:
 sk strike
 ```
 
+Commands can be chained — and order doesn't matter. For example, initialize, build, profile, and run in one shot:
+```bash
+sk -C myproject init strike --profile surge --main-c
+```
+
 ## Basic Stormfile
 
 ```

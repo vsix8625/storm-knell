@@ -512,6 +512,12 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
                 break;
             }
 
+            case SK_TOKEN_KWORD_TARGET:
+            {
+                child = parse_target(p);
+                break;
+            }
+
             default:
             {
                 syntax_error(p, "unexpected token at target block");

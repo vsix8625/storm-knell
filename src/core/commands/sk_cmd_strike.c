@@ -131,6 +131,12 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         g_sk_ccmds =
             mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_ccmds_entry) * total_tasks);
 
+        if (eval_result->target_count == 0)
+        {
+            vx_log("Nothing to build");
+            return VX_OK;
+        }
+
         if (vx_thread_pool_create(&pool, thread_count, total_tasks) != VX_OK)
         {
             VX_ASSERT_LOG("Failed to create thread pool");
