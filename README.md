@@ -18,7 +18,7 @@ A fast, cache-aware build tool with its own DSL — describe your project once, 
 ```bash
 git clone --recurse-submodules https://github.com/vsix8625/storm-knell 
 cd storm-knell
-./scripts/build.sh
+python3 ./scripts/build.py
 ```
 
 The bootstrap script compiles sk using your system compiler. Once built, sk rebuilds itself using its own Stormfile and installs to `~/.local/bin`.
@@ -32,12 +32,16 @@ chmod +x sk
 mv sk ~/.local/bin/
 ```
 
-## Platform support
-
+## Platform Support
 | Platform | Status |
-|---|---|
-| Linux x86_64 | Tested |
-| Windows | Untested |
+| :--- | :--- |
+| **Linux x86_64** | Verified (Tested on Arch) |
+| **Windows** | Untested |
+
+## Requirements
+Before running the bootstrap script, ensure the following are installed:
+  - **General:** `git`, `libxxhash` (Development Headers)
+  - **Arch Linux:** `sudo pacman -S base-devel xxhash`
 
 ## Quick start
 
