@@ -33,6 +33,8 @@ struct sk_ctx
     i32 pad;
 
     struct sk_arena_array *setvars;
+
+    vx_mutex console_lock;
 };
 
 void sk_shutdown(void);

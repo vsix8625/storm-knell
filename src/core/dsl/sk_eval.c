@@ -18,6 +18,14 @@ static bool eval_expr(struct sk_parser *p,
                       char            **var_vals,
                       u32               var_count);
 
+static struct sk_target *
+target_init(struct mem_arena *ar, struct sk_eval_result *result, vx_sv name_sv);
+static void eval_target(struct sk_parser      *p,
+                        vx_sv                  stormfile,
+                        u32                    node,
+                        struct sk_target      *target,
+                        struct sk_eval_result *result);
+
 static void load_builtin_vars(struct sk_eval_result *result);
 
 static void eval_var(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_eval_result *result);
@@ -319,7 +327,9 @@ static void eval_if(struct sk_parser      *p,
                     vx_sv                  stormfile,
                     u32                    node,
                     struct sk_target      *target,
-                    struct sk_eval_result *result)
+                    struct sk_eval_result *result,
+                    struct mem_arena      *ar,
+                    char                 **snapshot)
 {
     u32 cond_node = p->nodes->data_a[node];
 
@@ -352,7 +362,7 @@ static void eval_if(struct sk_parser      *p,
 
                 case SK_NODE_IF:
                 {
-                    eval_if(p, stormfile, child, target, result);
+                    eval_if(p, stormfile, child, target, result, ar, snapshot);
                     break;
                 }
 
@@ -380,6 +390,41 @@ static void eval_if(struct sk_parser      *p,
                     exit(1);
                 }
 
+                case SK_NODE_TARGET:
+                {
+                    if (result->target_count >= SK_MAX_TARGETS)
+                    {
+                        VX_ASSERT_LOG("Max targets limit reached: %d", SK_MAX_TARGETS);
+                        return;
+                    }
+
+                    u32   name_tok = p->nodes->data_a[child];
+                    vx_sv name_sv  = tok_to_sv(p, stormfile, name_tok);
+
+                    for (u32 i = 0; i < result->target_count; i++)
+                    {
+                        if (strncmp(result->targets[i].name, name_sv.data, name_sv.len) == 0 &&
+                            result->targets[i].name[name_sv.len] == CHAR_NULTERM)
+                        {
+                            vx_errlog(
+                                "Duplicate target name: '%.*s'", (i32) name_sv.len, name_sv.data);
+                            return;
+                        }
+                    }
+
+                    struct sk_target *t = target_init(ar, result, name_sv);
+
+                    u32 saved_var_count = result->var_count;
+                    memcpy(snapshot, result->var_vals, sizeof(char *) * result->var_count);
+
+                    eval_target(p, stormfile, child, t, result);
+
+                    result->var_count = saved_var_count;
+                    memcpy(result->var_vals, snapshot, sizeof(char *) * saved_var_count);
+
+                    break;
+                }
+
                 default:
                 {
                     break;
@@ -396,7 +441,7 @@ static void eval_if(struct sk_parser      *p,
 
         if (kind == SK_NODE_IF)
         {
-            eval_if(p, stormfile, child, target, result);
+            eval_if(p, stormfile, child, target, result, ar, snapshot);
         }
         else
         {
@@ -422,7 +467,7 @@ static void eval_if(struct sk_parser      *p,
 
                     case SK_NODE_IF:
                     {
-                        eval_if(p, stormfile, child, target, result);
+                        eval_if(p, stormfile, child, target, result, ar, snapshot);
                         break;
                     }
 
@@ -448,6 +493,42 @@ static void eval_if(struct sk_parser      *p,
 
                         sk_shutdown();
                         exit(1);
+                    }
+
+                    case SK_NODE_TARGET:
+                    {
+                        if (result->target_count >= SK_MAX_TARGETS)
+                        {
+                            VX_ASSERT_LOG("Max targets limit reached: %d", SK_MAX_TARGETS);
+                            return;
+                        }
+
+                        u32   name_tok = p->nodes->data_a[child];
+                        vx_sv name_sv  = tok_to_sv(p, stormfile, name_tok);
+
+                        for (u32 i = 0; i < result->target_count; i++)
+                        {
+                            if (strncmp(result->targets[i].name, name_sv.data, name_sv.len) == 0 &&
+                                result->targets[i].name[name_sv.len] == CHAR_NULTERM)
+                            {
+                                vx_errlog("Duplicate target name: '%.*s'",
+                                          (i32) name_sv.len,
+                                          name_sv.data);
+                                return;
+                            }
+                        }
+
+                        struct sk_target *t = target_init(ar, result, name_sv);
+
+                        u32 saved_var_count = result->var_count;
+                        memcpy(snapshot, result->var_vals, sizeof(char *) * result->var_count);
+
+                        eval_target(p, stormfile, child, t, result);
+
+                        result->var_count = saved_var_count;
+                        memcpy(result->var_vals, snapshot, sizeof(char *) * saved_var_count);
+
+                        break;
                     }
 
                     default:
@@ -496,7 +577,8 @@ static void eval_target(struct sk_parser      *p,
 
             case SK_NODE_IF:
             {
-                eval_if(p, stormfile, child, target, result);
+                char **snapshot = mem_arena_alloc(g_sk_global_arena, sizeof(char *) * SK_MAX_VARS);
+                eval_if(p, stormfile, child, target, result, g_sk_global_arena, snapshot);
                 break;
             }
 
@@ -905,9 +987,15 @@ vx_status sk_top_level_eval(struct sk_parser *p, struct sk_eval_result *result)
                 break;
             }
 
+            case SK_NODE_PRINT:
+            {
+                eval_print(p, stormfile, node, result);
+                break;
+            }
+
             case SK_NODE_IF:
             {
-                eval_if(p, stormfile, node, nullptr, result);
+                eval_if(p, stormfile, node, nullptr, result, ar, snapshot);
                 break;
             }
 
@@ -938,6 +1026,26 @@ vx_status sk_top_level_eval(struct sk_parser *p, struct sk_eval_result *result)
 
         node = p->nodes->nexts[node];
     }
+
+    // other builtins are loaded before eval
+    // but these are set after
+    if (result->global.cc != nullptr)
+    {
+        char abs_cc[VX_PATH_MAX];
+        if (vx_fs_which(result->global.cc, abs_cc, sizeof(abs_cc)) == VX_OK)
+        {
+            const char *base = strrchr(abs_cc, VX_PATH_SEP);
+
+            base = base ? base + 1 : abs_cc;
+
+            bool is_clang = strncmp(base, "clang", 5) == 0;
+            bool is_gcc   = strncmp(base, "gcc", 3) == 0;
+
+            sk_eval_set_builtin(result, "__clang__", is_clang ? "1" : "0");
+            sk_eval_set_builtin(result, "__gcc__", is_gcc ? "1" : "0");
+        }
+    }
+
     return VX_OK;
 }
 
@@ -1200,36 +1308,21 @@ static void load_builtin_vars(struct sk_eval_result *result)
     sk_meta_init_git(git_branch_buf, git_hash_buf, VX_BUF_SIZE_256);
 
     sk_eval_set_builtin(result, "__sk_version__", SK_VERSION_STRING);
-    sk_eval_set_builtin(result, "__git_branch__", git_branch_buf);
-    sk_eval_set_builtin(result, "__git_hash__", git_hash_buf);
     sk_eval_set_builtin(result, "__sk_version_major__", maj_buf);
     sk_eval_set_builtin(result, "__sk_version_minor__", min_buf);
     sk_eval_set_builtin(result, "__sk_version_patch__", pat_buf);
+
+    sk_eval_set_builtin(result, "__git_branch__", git_branch_buf);
+    sk_eval_set_builtin(result, "__git_hash__", git_hash_buf);
+
     sk_eval_set_builtin(result, "__arch__", VX_ARCH_NAME);
+    sk_eval_set_builtin(result, "__os__", VX_OS_NAME);
+
     sk_eval_set_builtin(result, "__has_avx__", vx_cpu_has_avx() ? "1" : "0");
     sk_eval_set_builtin(result, "__has_avx2__", vx_cpu_has_avx2() ? "1" : "0");
     sk_eval_set_builtin(result, "__has_sse4_2__", vx_cpu_has_sse4_2() ? "1" : "0");
     sk_eval_set_builtin(result, "__has_bmi__", vx_cpu_has_bmi() ? "1" : "0");
-    sk_eval_set_builtin(result, "__arch__", VX_ARCH_NAME);
     sk_eval_set_builtin(result, "__cache_line__", cache_line_buf);
-    sk_eval_set_builtin(result, "__os__", VX_OS_NAME);
-
-    if (result->global.cc != nullptr)
-    {
-        char abs_cc[VX_PATH_MAX];
-        if (vx_fs_which(result->global.cc, abs_cc, sizeof(abs_cc)) == VX_OK)
-        {
-            const char *base = strrchr(abs_cc, VX_PATH_SEP);
-
-            base = base ? base + 1 : abs_cc;
-
-            bool is_clang = strncmp(base, "clang", 5) == 0;
-            bool is_gcc   = strncmp(base, "gcc", 3) == 0;
-
-            sk_eval_set_builtin(result, "__clang__", is_clang ? "1" : "0");
-            sk_eval_set_builtin(result, "__gcc__", is_gcc ? "1" : "0");
-        }
-    }
 
     if (g_sk_global_ctx.setvars == nullptr)
     {

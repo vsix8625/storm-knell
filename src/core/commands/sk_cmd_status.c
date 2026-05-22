@@ -68,8 +68,15 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
         char time_buf[64];
         sk_fmt_relative_time(m->last_strike_ts, time_buf, sizeof(time_buf));
 
-        const char *kind_str    = (m->kind == SK_TARGET_KIND_EXEC) ? "EXEC  " : "STATIC";
-        bool        artifact_ok = vx_isfile(m->bin_path);
+        const char *kind_str = "UNKNOWN";
+        switch (m->kind)
+        {
+            case SK_TARGET_KIND_NONE: kind_str = "UNKNOWN  "; break;
+            case SK_TARGET_KIND_EXEC: kind_str = "EXEC  "; break;
+            case SK_TARGET_KIND_STATIC: kind_str = "STATIC"; break;
+            case SK_TARGET_KIND_SHARED: kind_str = "SHARED"; break;
+        }
+        bool artifact_ok = vx_isfile(m->bin_path);
 
         if (!artifact_ok)
         {
@@ -85,7 +92,8 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
         }
         else if (!artifact_ok)
         {
-            status_str   = "[MISSING BINARY]";
+            status_str =
+                (m->kind == SK_TARGET_KIND_EXEC) ? "[MISSING BINARY]" : "[MISSING LIBRARY]";
             status_color = ANSI_YELLOW;
         }
         else

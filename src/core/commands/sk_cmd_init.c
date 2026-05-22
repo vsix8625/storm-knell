@@ -122,6 +122,7 @@ bool sk_meta_load(struct sk_meta *meta, const char *target_cc)
 static const char *g_sk_compiler_canditates[] = {
     "clang",
     "gcc",
+    "cc",
     "cl",
     "clang++",
     "g++",

@@ -8,36 +8,40 @@ A fast, cache-aware build tool with its own DSL — describe your project once, 
 
 - GCC or Clang (C23)
 - [xxhash](https://github.com/Cyan4973/xxHash)
-- [mold](https://github.com/rui314/mold) *(recommended, but not required)*
 - pthreads *(usually ships with your system)*
+- [mold](https://github.com/rui314/mold) *(recommended, but not required)*
 
 ## Installation
 
 ### From source (recommended)
 
 ```bash
-git clone --recurse-submodules https://github.com/yourusername/storm-knell.git
+git clone --recurse-submodules https://github.com/vsix8625/storm-knell 
 cd storm-knell
-./scripts/build.sh
+python3 ./scripts/build.py
 ```
 
 The bootstrap script compiles sk using your system compiler. Once built, sk rebuilds itself using its own Stormfile and installs to `~/.local/bin`.
 
 ### Prebuilt binaries
 
-Download the latest binary for your platform from [Releases](https://github.com/yourusername/storm-knell/releases).
+Download the latest binary from [Releases](https://github.com/vsix8625/storm-knell).
 
 ```bash
 chmod +x sk
 mv sk ~/.local/bin/
 ```
 
-## Platform support
-
+## Platform Support
 | Platform | Status |
-|---|---|
-| Linux x86_64 | Tested |
-| Windows | Untested |
+| :--- | :--- |
+| **Linux x86_64** | Verified (Tested on Arch) |
+| **Windows** | Untested |
+
+## Requirements
+Before running the bootstrap script, ensure the following are installed:
+  - **General:** `git`, `libxxhash` (Development Headers)
+  - **Arch Linux:** `sudo pacman -S base-devel xxhash`
 
 ## Quick start
 
@@ -51,6 +55,11 @@ This creates a starter `Stormfile`. Edit it to match your project, then build:
 
 ```bash
 sk strike
+```
+
+Commands can be chained — and order doesn't matter. For example, initialize, build, profile, and run in one shot:
+```bash
+sk -C myproject init strike --profile surge --main-c
 ```
 
 ## Basic Stormfile
@@ -127,6 +136,16 @@ sk maintains a global object cache keyed on source content, compiler version, sk
 sk cache          # view cache size
 sk cache --nuke   # clear cache
 ```
+
+## Editor Support (Neovim)
+
+To get syntax highlighting, automatic file detection, and auto-formatting on save for Storm files, copy or link these files into your personal Neovim configuration directory:
+
+1. `utils/nvim/ftdetect/storm.lua` -> `~/.config/nvim/ftdetect/storm.lua`
+2. `utils/nvim/ftplugin/storm.lua` -> `~/.config/nvim/ftplugin/storm.lua`
+3. `utils/nvim/syntax/storm.lua`   -> `~/.config/nvim/syntax/storm.lua`
+
+*(Alternatively, you can append the repository's `utils/nvim` directory directly to your Neovim `runtimepath`).*
 
 ## License
 

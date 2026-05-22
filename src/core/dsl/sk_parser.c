@@ -152,6 +152,20 @@ vx_status sk_top_level_parse(struct sk_parser *p)
                 break;
             }
 
+            case SK_TOKEN_KWORD_PRINT:
+            {
+                u32 tok_idx = advance(p);
+                expect(p, SK_TOKEN_COLON);
+
+                u32 print_node = emit(SK_NODE_PRINT, tok_idx);
+                u32 val        = emit(SK_NODE_IDENT, advance(p));
+
+                p->nodes->data_a[print_node] = val;
+
+                node = print_node;
+                break;
+            }
+
             case SK_TOKEN_KWORD_EXIT:
             {
                 u32 tok_idx = advance(p);
@@ -495,6 +509,12 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
                     last_dep = dep;
                 }
                 child = node;
+                break;
+            }
+
+            case SK_TOKEN_KWORD_TARGET:
+            {
+                child = parse_target(p);
                 break;
             }
 

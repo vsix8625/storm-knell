@@ -338,13 +338,6 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         exit(VX_EXIT_SUCCESS);
     }
 
-    if (ctx->active_cmd & SK_CMD_STATUS)
-    {
-        sk_cmd_status_fn(ctx);
-        sk_shutdown();
-        exit(VX_EXIT_SUCCESS);
-    }
-
     if (ctx->active_cmd & SK_CMD_INIT)
     {
         sk_cmd_init_fn(ctx);
@@ -415,6 +408,11 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         {
             return VX_ERROR;
         }
+    }
+
+    if (ctx->active_cmd & SK_CMD_STATUS)
+    {
+        sk_cmd_status_fn(ctx);
     }
 
     if (ctx->active_cmd & SK_CMD_CACHE)

@@ -47,8 +47,9 @@ struct sk_target
     char *out_dir;
     char *build_mode;
     char *finalized_bin_dirpath;
-    char *finalized_bin_rpath;
+    char *artifact_path;
     char *finalized_obj_dirpath;
+    char *finalized_filename;
     char *install_dir;
 
     struct sk_arena_array *sources;    // final resolved list
