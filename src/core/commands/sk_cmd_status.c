@@ -16,7 +16,21 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
 {
     VX_CAST(void, ctx);
 
-    const char *manifest_path = SK_PATH_STORM_MANIFEST_BIN;
+    if (sk_resolve_project_root(ctx) != VX_OK)
+    {
+        vx_errlog("Storm-knell is not initialized in '%s'  directory or any parent",
+                  ctx->rpath ? ctx->rpath : vx_getcwd_fn());
+        return;
+    }
+    if (vx_chdir(ctx->rpath) != VX_OK)
+    {
+        vx_errlog("Failed to change dir to project root: %s", ctx->rpath);
+        return;
+    }
+    vx_dbglog("Working directory: %s", ctx->rpath);
+
+    const char *manifest_path =
+        sk_path_join(g_sk_global_arena, ctx->rpath, SK_PATH_STORM_MANIFEST_BIN);
 
     FILE *f = fopen(manifest_path, "rb");
 
@@ -48,16 +62,17 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
     u64 cache_size = cache_info.total_size;
     vx_printf("Cache size: %.2f MB\n", (f32) cache_size / 1048576.0f);
 
-    vx_printf(
-        ANSI_BOLD ANSI_CYAN
-        "========================== STORM-KNELL STATUS ==========================\n" ANSI_RESET);
-    vx_printf(ANSI_BOLD "  %-18s%-10s%-20s%-15s%s\n",
+    vx_printf(ANSI_BOLD ANSI_CYAN "=============================== STORM-KNELL STATUS "
+                                  "============================================\n" ANSI_RESET);
+    vx_printf(ANSI_BOLD "  %-20s%-15s%-20s%-18s%s\n",
               "Target Name",
               "Kind",
               "Status Check",
               "Total Files",
               "Age" ANSI_RESET);
-    vx_printf("  ------------------------------------------------------------------\n");
+    vx_printf(
+        "  "
+        "--------------------------------------------------------------------------------------\n");
 
     u32 total_missing_artifacts = 0;
 
@@ -102,7 +117,7 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
             status_color = ANSI_GREEN;
         }
 
-        vx_printf("  %s%s %-16s%-10s%-20s%-15u%s\n" ANSI_RESET,
+        vx_printf("  %s%s %-20s%-15s%-20s%-15u%s\n" ANSI_RESET,
                   status_color,
                   artifact_ok ? "✔" : "⚠",
                   m->name,
@@ -112,7 +127,9 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
                   time_buf);
     }
 
-    vx_printf("  ------------------------------------------------------------------\n");
+    vx_printf(
+        "  "
+        "--------------------------------------------------------------------------------------\n");
 
     vx_printf(ANSI_BOLD "  Cache Summary:" ANSI_RESET "  %u hits, %u misses (Total Ops: %u)\n",
               header.global_cache_hits,
@@ -137,7 +154,6 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
         vx_printf(ANSI_BOLD "  Workspace Status: " ANSI_GREEN "READY / HEALTHY" ANSI_RESET
                             " (All targets verified up-to-date).\n");
     }
-    vx_printf(
-        ANSI_BOLD ANSI_CYAN
-        "========================================================================\n" ANSI_RESET);
+    vx_printf(ANSI_BOLD ANSI_CYAN "================================================================"
+                                  "===============================\n" ANSI_RESET);
 }

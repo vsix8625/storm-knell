@@ -1,6 +1,10 @@
 #include "sk_cache.h"
 #include "sk_paths.h"
+#include "sk_globals.h"
+#include "sk_util.h"
+
 #include <errno.h>
+#include <stdatomic.h>
 
 vx_status sk_cache_resolve(const u8 *out_hash, struct sk_cache_entry *entry)
 {
@@ -79,4 +83,17 @@ vx_status sk_cache_restore(const struct sk_cache_entry *entry, const char *local
         return VX_ERROR;
     }
     return VX_OK;
+}
+
+void sk_cache_record(const u8 *hash, const char *s_path, const char *o_path, const char *t_name)
+{
+    u32 idx = atomic_fetch_add(&g_sk_cache_record_count, 1);
+
+    struct sk_cache_proj_entry *e = &g_sk_cache_records[idx];
+
+    memcpy(e->hash, hash, 8);
+
+    sk_strncpy_safe(e->s_path, s_path, sizeof(e->s_path));
+    sk_strncpy_safe(e->o_path, o_path, sizeof(e->o_path));
+    sk_strncpy_safe(e->t_name, t_name, sizeof(e->t_name));
 }

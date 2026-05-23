@@ -4,6 +4,7 @@
 #include "sk_globals.h"
 #include "sk_paths.h"
 #include "sk_util.h"
+#include "sk_cache.h"
 
 #include "storm-knell.h"
 #include "vx.h"
@@ -27,6 +28,50 @@ vx_status sk_cmd_clean_fn(struct sk_ctx *ctx)
     }
     vx_log("Working directory: %s", ctx->rpath);
 
+    if (ctx->active_opt & SK_OPT_CLEAN_FULL)
+    {
+        struct sk_cache_info cinfo_current = sk_cache_calculate_size();
+
+        FILE *cache_f = fopen(SK_PATH_STORM_PROJ_CACHE_BIN, "rb");
+        if (cache_f != nullptr)
+        {
+            struct sk_cache_proj_header hdr = {0};
+            if (fread(&hdr, sizeof(hdr), 1, cache_f) == 1 && hdr.count > 0)
+            {
+                struct sk_cache_proj_entry *entries = mem_arena_alloc(
+                    g_sk_global_arena, sizeof(struct sk_cache_proj_entry) * hdr.count);
+
+                if (fread(entries, sizeof(struct sk_cache_proj_entry), hdr.count, cache_f) ==
+                    hdr.count)
+                {
+                    vx_log("Purging cached objects for this project...");
+                    for (u32 i = 0; i < hdr.count; i++)
+                    {
+                        struct sk_cache_entry resolved = {0};
+                        if (sk_cache_resolve(entries[i].hash, &resolved) == VX_OK)
+                        {
+                            if (ctx->active_opt & SK_OPT_VERBOSE)
+                            {
+                                vx_log("Purging: %s", resolved.cache_path);
+                            }
+                            vx_fs_rmrf(resolved.cache_path);
+                        }
+                        else
+                        {
+                            vx_warn("Resolve failed for entry %u", i);
+                        }
+                    }
+                }
+            }
+            fclose(cache_f);
+            vx_fs_rmrf(SK_PATH_STORM_PROJ_CACHE_BIN);
+        }
+        struct sk_cache_info cinfo_new = sk_cache_calculate_size();
+        vx_log("[summary]: Cleaned cache saved %.2f MB",
+               ((f32) cinfo_current.total_size - cinfo_new.total_size) / 1048576.0f);
+    }
+
+    // clean targets
     const char *manifest_path = SK_PATH_STORM_MANIFEST_BIN;
 
     FILE *f = fopen(manifest_path, "rb");
@@ -87,10 +132,9 @@ vx_status sk_cmd_clean_fn(struct sk_ctx *ctx)
             }
         }
     }
-
     vx_fs_rmrf(manifest_path);
 
-    vx_log("[summary]: Successfully cleared %u/%u target artifacts.",
+    vx_log("[summary]: Successfully nuked %u/%u target build artifacts.",
            wiped_count,
            header.target_count);
     return VX_OK;

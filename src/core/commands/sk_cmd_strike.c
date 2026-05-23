@@ -137,6 +137,11 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             return VX_OK;
         }
 
+        // cache record
+        g_sk_cache_records =
+            mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_cache_proj_entry) * total_sources);
+        atomic_store(&g_sk_cache_record_count, 0);
+
         if (vx_thread_pool_create(&pool, thread_count, total_tasks) != VX_OK)
         {
             VX_ASSERT_LOG("Failed to create thread pool");
@@ -318,6 +323,20 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             }
 
             fclose(manifest_f);
+        }
+
+        u32 record_count = atomic_load(&g_sk_cache_record_count);
+        if (record_count > 0)
+        {
+            FILE *cache_f = fopen(SK_PATH_STORM_PROJ_CACHE_BIN, "wb");
+            if (cache_f != nullptr)
+            {
+                struct sk_cache_proj_header hdr = {.count = record_count};
+                fwrite(&hdr, sizeof(hdr), 1, cache_f);
+                fwrite(
+                    g_sk_cache_records, sizeof(struct sk_cache_proj_entry), record_count, cache_f);
+                fclose(cache_f);
+            }
         }
 
         //----------------------------------------------------------------------------------------------------
@@ -530,7 +549,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
 //----------------------------------------------------------------------------------------------------
 
-// NOTE: keep an eye
+// NOTE: keep an eye on paths
 static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
 {
     if (ctx == nullptr || t == nullptr)
@@ -756,12 +775,17 @@ static void *sk_worker_compile_fn(void *arg)
         {
             if (sk_cache_exists(&cache_entry))
             {
-                atomic_fetch_add(&g_cache_hits, 1);
-                sk_cache_restore(&cache_entry, obj_path);
-                atomic_store(&g_compile_end_ns, vx_time_ns());
-
-                mem_arena_soft_reset(arena);
-                return nullptr;
+                if (sk_cache_restore(&cache_entry, obj_path) == VX_OK)
+                {
+                    atomic_fetch_add(&g_cache_hits, 1);
+                    atomic_store(&g_compile_end_ns, vx_time_ns());
+                    mem_arena_soft_reset(arena);
+                    return nullptr;
+                }
+                else
+                {
+                    vx_warn("Cache restore faild for '%s', recompiling", src_path);
+                }
             }
         }
 
@@ -773,18 +797,22 @@ static void *sk_worker_compile_fn(void *arg)
 
         if (status == VX_OK)
         {
-            vx_process_wait(&proc);
             vx_process_consume_output(&proc, &unit->diagnostic_log);
+            vx_process_wait(&proc);
 
             if (proc.exit_code == 0)
             {
                 if (!unit->dry_run)
                 {
-                    if (sk_cache_store(&cache_entry, obj_path) != VX_OK)
+                    if (sk_cache_store(&cache_entry, obj_path) == VX_OK)
+                    {
+                        atomic_fetch_add(&g_cache_misses, 1);
+                        sk_cache_record(out_hash, src_path, obj_path, t->name);
+                    }
+                    else
                     {
                         vx_errlog("Failed to store '%s' to cache", obj_path);
                     }
-                    atomic_fetch_add(&g_cache_misses, 1);
                 }
             }
             else

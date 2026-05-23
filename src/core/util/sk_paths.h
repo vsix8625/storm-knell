@@ -6,14 +6,15 @@
 struct sk_arena_array;
 struct mem_arena;
 
-#define SK_PATH_STORM_DIR          ".storm"
-#define SK_PATH_STORM_DATA_DIR     ".storm/data"
-#define SK_PATH_STORM_TRASH_DIR    ".storm/trash"
-#define SK_PATH_STORM_CACHE_DIR    ".storm/cache"
-#define SK_PATH_STORM_MANIFEST_BIN ".storm/manifest.bin"
-#define SK_PATH_STORMFILE          "Stormfile"
-#define SK_PATH_BUILD_DIR          "build"
-#define SK_PATH_STORM_META_FILE    ".storm/data/meta"
+#define SK_PATH_STORM_DIR            ".storm"
+#define SK_PATH_STORM_DATA_DIR       ".storm/data"
+#define SK_PATH_STORM_TRASH_DIR      ".storm/trash"
+#define SK_PATH_STORM_CACHE_DIR      ".storm/cache"
+#define SK_PATH_STORM_MANIFEST_BIN   ".storm/manifest.bin"
+#define SK_PATH_STORM_PROJ_CACHE_BIN ".storm/cache/obj_cache.bin"
+#define SK_PATH_STORMFILE            "Stormfile"
+#define SK_PATH_BUILD_DIR            "build"
+#define SK_PATH_STORM_META_FILE      ".storm/data/meta"
 
 #define SK_PATH_STORM_KNELL "storm_knell"
 

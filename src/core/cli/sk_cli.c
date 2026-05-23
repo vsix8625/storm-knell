@@ -111,6 +111,9 @@ static struct sk_opt_entry g_sk_opts[] = {
     {"--nuke", SK_CMD_CACHE, SK_OPT_CACHE_NUKE, opt_set_bit, "Clean cache"},
     // ----------------------------------------------------------------------------------------------------
 
+    // owner = SK_CMD_CLEAN
+    {"--full", SK_CMD_CLEAN, SK_OPT_CLEAN_FULL, opt_set_bit, "Clean also cached project objects"},
+
     // ----------------------------------------------------------------------------------------------------
     {"(init)", SK_CMD_INIT, SK_OPT_NONE, nullptr, "sk init"},
 
