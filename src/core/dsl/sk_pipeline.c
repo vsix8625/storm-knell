@@ -110,9 +110,7 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
     if (ctx->active_opt & SK_OPT_PROFILE)
     {
         vx_ticks_end(&lexer_time);
-        char  elapsed[32];
-        char *elapsed_fmt = vx_ticks_format(&lexer_time, elapsed, sizeof(elapsed));
-        vx_sbuf_append(&g_sk_profile_sbuf, "%s: Lexer: %s\n", __func__, elapsed_fmt);
+        sk_log_time("Lexer", &lexer_time);
     }
 
     if (ctx->tokens->err_count > 0)
@@ -142,9 +140,7 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
     if (ctx->active_opt & SK_OPT_PROFILE)
     {
         vx_ticks_end(&parser_time);
-        char  elapsed[32];
-        char *elapsed_fmt = vx_ticks_format(&parser_time, elapsed, sizeof(elapsed));
-        vx_sbuf_append(&g_sk_profile_sbuf, "%s: Parser: %s\n", __func__, elapsed_fmt);
+        sk_log_time("Parser", &parser_time);
     }
 
     //----------------------------------------------------------------------------------------------------
@@ -203,9 +199,7 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
     if (ctx->active_opt & SK_OPT_PROFILE)
     {
         vx_ticks_end(&eval_time);
-        char  elapsed[32];
-        char *elapsed_fmt = vx_ticks_format(&eval_time, elapsed, sizeof(elapsed));
-        vx_sbuf_append(&g_sk_profile_sbuf, "%s: Eval: %s\n", __func__, elapsed_fmt);
+        sk_log_time("Eval", &eval_time);
     }
 
     if (ctx->nodes->err_count > 0)

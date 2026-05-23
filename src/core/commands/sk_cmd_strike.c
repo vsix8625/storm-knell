@@ -29,6 +29,7 @@ _Atomic u32 g_compile_errors = 0;
 _Atomic u64 g_compile_start_ns = 0;
 _Atomic u64 g_compile_end_ns   = 0;
 
+// NOTE: No worker cleanup atm but OS reclaims the allocation when process exits
 static _Thread_local struct mem_arena *tls_worker_arena = nullptr;
 
 vx_mutex g_proc_spawn_mutex;
@@ -298,7 +299,9 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             {
                 struct sk_target *t = &eval_result->targets[i];
 
-                struct sk_target_persist out_meta = {0};
+                struct sk_target_persist out_meta = {.kind           = t->kind,
+                                                     .total_files    = t->sources->count,
+                                                     .last_strike_ts = vx_time_epoch_s()};
 
                 sk_strncpy_safe(out_meta.name, t->name, sizeof(out_meta.name));
                 sk_strncpy_safe(out_meta.out_dir, t->out_dir, sizeof(out_meta.out_dir));
@@ -314,10 +317,6 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 {
                     sk_strncpy_safe(out_meta.bin_path, t->artifact_path, sizeof(out_meta.bin_path));
                 }
-
-                out_meta.kind           = t->kind;
-                out_meta.total_files    = t->sources->count;
-                out_meta.last_strike_ts = vx_time_epoch_s();
 
                 fwrite(&out_meta, sizeof(struct sk_target_persist), 1, manifest_f);
             }
@@ -345,9 +344,8 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         {
             vx_ticks compile_time = {.start = atomic_load(&g_compile_start_ns),
                                      .end   = atomic_load(&g_compile_end_ns)};
-            char     elapsed[32];
-            char    *elapsed_fmt = vx_ticks_format(&compile_time, elapsed, sizeof(elapsed));
-            vx_sbuf_append(&g_sk_profile_sbuf, "%s: Compile: %s\n", __func__, elapsed_fmt);
+
+            sk_log_time("Compile", &compile_time);
         }
 
         vx_log("[cache]: %u hits, %u, %u total",
@@ -456,9 +454,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             if (ctx->active_opt & SK_OPT_PROFILE)
             {
                 vx_ticks_end(&link_time);
-                char  elapsed[32];
-                char *elapsed_fmt = vx_ticks_format(&link_time, elapsed, sizeof(elapsed));
-                vx_sbuf_append(&g_sk_profile_sbuf, "%s: Link: %s\n", __func__, elapsed_fmt);
+                sk_log_time("Link", &link_time);
             }
 
             if (ctx->active_opt & SK_OPT_GEN_CCMDS)
@@ -537,9 +533,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
     if (ctx->active_opt & SK_OPT_PROFILE)
     {
         vx_ticks_end(&profile);
-        char  elapsed[32];
-        char *elapsed_fmt = vx_ticks_format(&profile, elapsed, sizeof(elapsed));
-        vx_sbuf_append(&g_sk_profile_sbuf, "%s: %s\n", __func__, elapsed_fmt);
+        sk_log_time("Strike", &profile);
     }
 
     vx_mutex_destroy(&g_proc_spawn_mutex);

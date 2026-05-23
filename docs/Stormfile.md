@@ -429,8 +429,8 @@ target myapp
 
 | Resource | Limit |
 |---|---|
-| Targets | 32 |
-| Dependencies per target | 16 |
+| Targets | 256 |
+| Dependencies per target | 32 |
 | Excludes per target | 32 |
 | Includes per target | 64 |
 | Defines per target | 512 |

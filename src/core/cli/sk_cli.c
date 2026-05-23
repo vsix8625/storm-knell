@@ -77,7 +77,7 @@ static struct sk_opt_entry g_sk_opts[] = {
     // globals - owner = SK_CMD_NONE
     {"-C", SK_CMD_NONE, SK_OPT_RUN_FROM_PATH, opt_set_rpath, "Run from path"},
     {"-j", SK_CMD_NONE, SK_OPT_THREADS, opt_set_jobs, "Allow N jobs at once"},
-    {"--verbose", SK_CMD_NONE, SK_OPT_VERBOSE, opt_toggle_logging, "Verbosity levels"},
+    {"--verbose", SK_CMD_NONE, SK_OPT_VERBOSE, opt_toggle_logging, "Verbose output"},
     {"--silent", SK_CMD_NONE, SK_OPT_SILENT, opt_toggle_logging, "No output"},
     {"--version", SK_CMD_NONE, SK_OPT_VERSION, opt_set_bit, "Show version information and exit"},
     {"--help", SK_CMD_NONE, SK_OPT_HELP, opt_help, "Show help information and exit"},
@@ -426,7 +426,7 @@ static vx_status cli_execute(struct sk_ctx *ctx)
     if (ctx->active_opt & SK_OPT_PROFILE)
     {
         vx_ticks_end(&total_time);
-        char  elapsed[32];
+        char  elapsed[VX_BUF_SIZE_32];
         char *elapsed_fmt = vx_ticks_format(&total_time, elapsed, sizeof(elapsed));
         vx_sbuf_append(&g_sk_profile_sbuf,
                        "======================\n"
@@ -470,7 +470,7 @@ vx_status sk_cli_driver(struct sk_ctx *ctx, i32 argc, char **argv)
 
     if (ctx->active_opt & SK_OPT_MEMSTAT)
     {
-        mem_arena_log_all_stats();
+        mem_arena_log_stats(g_sk_global_arena);
         mem_heap_print_stats(nullptr);
     }
 

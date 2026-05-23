@@ -133,3 +133,11 @@ void sk_fmt_relative_time(u64 target_epoch, char *out_buf, size_t buf_size)
         snprintf(out_buf, buf_size, "%lu days ago", delta / 86400);
     }
 }
+
+void sk_log_time(const char *phase, vx_ticks *t)
+{
+    char elapsed[VX_BUF_SIZE_32];
+
+    vx_ticks_format(t, elapsed, sizeof(elapsed));
+    vx_sbuf_append(&g_sk_profile_sbuf, "%-7s: %s\n", phase != nullptr ? phase : "n/a", elapsed);
+}
