@@ -336,6 +336,16 @@ void *mem_arena_alloc(struct mem_arena *arena, size_t size)
     return mem_arena_alloc_aligned(arena, size, 16);
 }
 
+void *mem_arena_zalloc(struct mem_arena *arena, size_t size)
+{
+    void *ptr = mem_arena_alloc_aligned(arena, size, 16);
+    if (ptr != nullptr)
+    {
+        memset(ptr, 0, size);
+    }
+    return ptr;
+}
+
 /* -------------------------
  * Reset
  * ------------------------- */

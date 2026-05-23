@@ -94,8 +94,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
     struct sk_parser p  = {0};
 
     struct sk_eval_result *eval_result =
-        mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_eval_result));
-    memset(eval_result, 0, sizeof(struct sk_eval_result));
+        mem_arena_zalloc(g_sk_global_arena, sizeof(struct sk_eval_result));
 
     vx_status strike_status = VX_OK;
 
@@ -154,13 +153,11 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         //----------------------------------------------------------------------------------------------------
         // topo_visit
 
-        u32  *sorted   = mem_arena_alloc(g_sk_global_arena, sizeof(u32) * SK_MAX_TARGETS);
-        bool *visited  = mem_arena_alloc(g_sk_global_arena, sizeof(bool) * SK_MAX_TARGETS);
-        bool *in_stack = mem_arena_alloc(g_sk_global_arena, sizeof(bool) * SK_MAX_TARGETS);
+        u32  *sorted   = mem_arena_zalloc(g_sk_global_arena, sizeof(u32) * SK_MAX_TARGETS);
+        bool *visited  = mem_arena_zalloc(g_sk_global_arena, sizeof(bool) * SK_MAX_TARGETS);
+        bool *in_stack = mem_arena_zalloc(g_sk_global_arena, sizeof(bool) * SK_MAX_TARGETS);
 
         u32 sorted_count = 0;
-        memset(visited, 0, sizeof(bool) * SK_MAX_TARGETS);
-        memset(in_stack, 0, sizeof(bool) * SK_MAX_TARGETS);
         // ----------------------------------------------------------
 
         for (u32 i = 0; i < t_count; i++)
@@ -249,6 +246,14 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         vx_thread_pool_wait(&pool);
         vx_thread_pool_destroy(&pool);
+
+        if (ctx->active_opt & SK_OPT_PROFILE)
+        {
+            vx_ticks compile_time = {.start = atomic_load(&g_compile_start_ns),
+                                     .end   = atomic_load(&g_compile_end_ns)};
+
+            sk_log_time("Compile", &compile_time);
+        }
 
         // Diagnostic logs
         if (atomic_load(&g_compile_errors) > 0)
@@ -339,14 +344,6 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         }
 
         //----------------------------------------------------------------------------------------------------
-
-        if (ctx->active_opt & SK_OPT_PROFILE)
-        {
-            vx_ticks compile_time = {.start = atomic_load(&g_compile_start_ns),
-                                     .end   = atomic_load(&g_compile_end_ns)};
-
-            sk_log_time("Compile", &compile_time);
-        }
 
         vx_log("[cache]: %u hits, %u, %u total",
                g_cache_hits,

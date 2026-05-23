@@ -206,7 +206,10 @@ static void create_storm_dir(const char *root, const char *subdir)
         return;
     }
 
-    vx_log("Created: %s", path);
+    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
+    {
+        vx_log("Created: %s", path);
+    }
 }
 
 void sk_cmd_init_fn(struct sk_ctx *ctx)

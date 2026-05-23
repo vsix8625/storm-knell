@@ -25,6 +25,7 @@ extern "C"
 
     /* Allocation — bump pointer, no individual frees */
     void *mem_arena_alloc(struct mem_arena *arena, size_t size);
+    void *mem_arena_zalloc(struct mem_arena *arena, size_t size);
     void *mem_arena_alloc_aligned(struct mem_arena *arena, size_t size, size_t align);
 
     /*

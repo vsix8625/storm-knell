@@ -67,8 +67,21 @@ vx_status sk_cmd_clean_fn(struct sk_ctx *ctx)
             vx_fs_rmrf(SK_PATH_STORM_PROJ_CACHE_BIN);
         }
         struct sk_cache_info cinfo_new = sk_cache_calculate_size();
-        vx_log("[summary]: Cleaned cache saved %.2f MB",
-               ((f32) cinfo_current.total_size - cinfo_new.total_size) / 1048576.0f);
+
+        f32 total_size = (f32) cinfo_current.total_size - cinfo_new.total_size;
+
+        const char *sufix = "KB";
+
+        if (total_size > (f32) VX_MiB(1))
+        {
+            total_size = total_size / VX_MiB(1);
+            sufix      = "MB";
+        }
+        else
+        {
+            total_size = total_size / VX_KiB(1);
+        }
+        vx_log("[summary]: Cleaned cache saved %.2f %s", total_size, sufix);
     }
 
     // clean targets

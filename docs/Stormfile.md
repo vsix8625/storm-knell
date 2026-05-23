@@ -164,9 +164,9 @@ Excludes paths from the directory scanner. Takes a path:
 
 ```
 exclude:
-build/
-test/
-docs/
+    build/
+    test/
+    docs/
 ```
 
 Or append:
