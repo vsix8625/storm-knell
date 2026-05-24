@@ -29,6 +29,9 @@ static const char *g_sk_template_cpp;
 // ----------------------------------------------------------------------------------------------------
 
 static inline vx_status
+opt_config_add_cc(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **argv);
+
+static inline vx_status
 opt_set_var(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **argv);
 
 static inline vx_status
@@ -70,6 +73,7 @@ static struct sk_subcmd_entry g_sk_subcmds[] = {
     {"purge", SK_CMD_PURGE, subcmd_handler, "De-initialize Storm-Knell from working directory"},
     {"cache", SK_CMD_CACHE, subcmd_handler, "View global cache size, or nuke"},
     {"status", SK_CMD_STATUS, subcmd_handler, "View status"},
+    {"config", SK_CMD_CONFIG, subcmd_handler, "Config"},
     {nullptr, SK_CMD_NONE, nullptr, nullptr},
 };
 
@@ -88,6 +92,13 @@ static struct sk_opt_entry g_sk_opts[] = {
     {"--node-dump", SK_CMD_NONE, SK_OPT_NODE_DUMP, opt_set_bit, "Show nodes"},
     {"--eval-dump", SK_CMD_NONE, SK_OPT_EVAL_DUMP, opt_set_bit, "Show eval"},
     {"--set", SK_CMD_NONE, SK_OPT_SETVAR, opt_set_var, "Inject boolean variable into eval"},
+
+    {"--add-cc",
+     SK_CMD_CONFIG,
+     SK_OPT_CONFIG_ADD_CC,
+     opt_config_add_cc,
+     "Add compiler path to config"},
+
     {"-C", SK_CMD_NONE, SK_OPT_RUN_FROM_PATH, opt_set_rpath, "Run from path"},
     {"-j", SK_CMD_NONE, SK_OPT_THREADS, opt_set_jobs, "Allow N jobs at once"},
     {"-h", SK_CMD_NONE, SK_OPT_HELP, opt_help, "Show help information and exit"},
@@ -327,6 +338,14 @@ static vx_status cli_execute(struct sk_ctx *ctx)
     {
         vx_sbuf_append(&g_sk_profile_sbuf, "====== Profiler ======\n");
         vx_ticks_start(&total_time);
+    }
+
+    if (ctx->active_cmd & SK_CMD_CONFIG)
+    {
+        if (sk_cmd_config_fn(ctx) != VX_OK)
+        {
+            vx_warn("Config function exited abnormally");
+        }
     }
 
     vx_dbglog("active_cmd: 0x%08lX", ctx->active_cmd);
@@ -864,6 +883,39 @@ opt_set_var(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char
     }
 
     sk_arena_array_push(ctx->setvars, name);
+
+    (*i)++;
+    return VX_OK;
+}
+
+static inline vx_status
+opt_config_add_cc(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **argv)
+{
+    VX_CAST(void, argc);
+
+    ctx->active_cmd |= owner;
+    ctx->active_opt |= opt;
+
+    char *arg = argv[*i];
+    char *eq  = strchr(arg, CHAR_EQUAL);
+
+    if (eq == nullptr || eq[1] == CHAR_NULTERM)
+    {
+        return VX_ERROR;
+    }
+
+    char *path_val = eq + 1;
+
+    if (!vx_fs_is_abspath(path_val))
+    {
+        vx_warn("Option: '--add-cc' expects absolute path");
+        return VX_ERROR;
+    }
+
+    if (sk_config_add_cc_path_b(path_val) != VX_OK)
+    {
+        return VX_ERROR;
+    }
 
     (*i)++;
     return VX_OK;

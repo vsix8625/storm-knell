@@ -11,6 +11,10 @@ if(__os__ == "linux")
     lflags:: -lpthread
 }
 
+// You can set the desired global arena size by uncommenting this define and re-building
+// Default size is 128 MB, reserverd not allocated.
+// defines: -DSK_ARENA_SIZE_MB=256
+
 major: 0
 minor: 5
 patch: 1

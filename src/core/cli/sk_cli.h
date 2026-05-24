@@ -18,41 +18,35 @@ typedef enum sk_cmd : u64
     SK_CMD_PURGE  = 1 << 4,
     SK_CMD_CACHE  = 1 << 5,
     SK_CMD_STATUS = 1 << 6,
+    SK_CMD_CONFIG = 1 << 7,
 } sk_cmd;
 
 typedef enum sk_opt : u64
 {
     SK_OPT_NONE = 0,
 
-    SK_OPT_VERBOSE = 1 << 0,
-    SK_OPT_SILENT  = 1 << 1,
-    SK_OPT_VERSION = 1 << 2,
-    SK_OPT_HELP    = 1 << 3,
-
+    SK_OPT_VERBOSE       = 1 << 0,
+    SK_OPT_SILENT        = 1 << 1,
+    SK_OPT_VERSION       = 1 << 2,
+    SK_OPT_HELP          = 1 << 3,
     SK_OPT_RUN_FROM_PATH = 1 << 4,
-
-    SK_OPT_STRIKE_DRY = 1 << 5,
-    SK_OPT_STRIKE_REL = 1 << 6,
-
-    SK_OPT_SURGE_WITH = 1 << 7,
-
-    SK_OPT_FORCE   = 1 << 8,
-    SK_OPT_THREADS = 1 << 9,
-
-    SK_OPT_PROFILE   = 1 << 10,
-    SK_OPT_MEMSTAT   = 1 << 11,
-    SK_OPT_TOK_DUMP  = 1 << 12,
-    SK_OPT_NODE_DUMP = 1 << 13,
-    SK_OPT_EVAL_DUMP = 1 << 14,
-    SK_OPT_GEN_CCMDS = 1 << 15,
-
-    SK_OPT_CACHE_NUKE = 1 << 16,
-
-    SK_OPT_MAIN_C   = 1 << 17,
-    SK_OPT_MAIN_CPP = 1 << 18,
-    SK_OPT_SETVAR   = 1 << 19,
-
-    SK_OPT_CLEAN_FULL = 1 << 20,
+    SK_OPT_STRIKE_DRY    = 1 << 5,
+    SK_OPT_STRIKE_REL    = 1 << 6,
+    SK_OPT_SURGE_WITH    = 1 << 7,
+    SK_OPT_FORCE         = 1 << 8,
+    SK_OPT_THREADS       = 1 << 9,
+    SK_OPT_PROFILE       = 1 << 10,
+    SK_OPT_MEMSTAT       = 1 << 11,
+    SK_OPT_TOK_DUMP      = 1 << 12,
+    SK_OPT_NODE_DUMP     = 1 << 13,
+    SK_OPT_EVAL_DUMP     = 1 << 14,
+    SK_OPT_GEN_CCMDS     = 1 << 15,
+    SK_OPT_CACHE_NUKE    = 1 << 16,
+    SK_OPT_MAIN_C        = 1 << 17,
+    SK_OPT_MAIN_CPP      = 1 << 18,
+    SK_OPT_SETVAR        = 1 << 19,
+    SK_OPT_CLEAN_FULL    = 1 << 20,
+    SK_OPT_CONFIG_ADD_CC = 1 << 21,
 } sk_opt;
 
 typedef vx_status (*sk_cmd_fn)(struct sk_ctx *ctx, sk_cmd cmd_id, i32 *i, i32 argc, char **argv);

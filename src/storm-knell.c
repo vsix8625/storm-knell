@@ -44,7 +44,11 @@ i32 main(i32 argc, char **argv)
 
 // ----------------------------------------------------------------------------------------------------
 
-#define SK_GLOBAL_ARENA_SIZE (1024ULL * 1024ULL * 32)
+#if !defined(SK_ARENA_SIZE_MB)
+    #define SK_GLOBAL_ARENA_SIZE VX_MiB(128)
+#else
+    #define SK_GLOBAL_ARENA_SIZE VX_MiB(SK_ARENA_SIZE_MB)
+#endif
 
 static vx_status sk_init(i32 argc, char **argv)
 {

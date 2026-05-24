@@ -18,4 +18,6 @@ void sk_cmd_init_fn(struct sk_ctx *ctx);
 void sk_meta_init_cc(const char *cc_name, const char *rpath);
 bool sk_meta_load(struct sk_meta *meta, const char *target_cc);
 
+void sk_meta_add_custom_cc(const char *custom_path, const char *rpath);
+
 #endif  // SK_CMD_INIT_H_
