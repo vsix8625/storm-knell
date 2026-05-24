@@ -133,6 +133,8 @@ vx_status sk_top_level_parse(struct sk_parser *p)
             case SK_TOKEN_KWORD_CFLAGS:
             case SK_TOKEN_KWORD_LFLAGS:
             case SK_TOKEN_KWORD_DEFINES:
+            case SK_TOKEN_KWORD_INCLUDES:
+            case SK_TOKEN_KWORD_EXCLUDE:
             case SK_TOKEN_KWORD_MODE:
             case SK_TOKEN_KWORD_OUT_DIR:
             {

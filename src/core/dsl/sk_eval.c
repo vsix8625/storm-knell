@@ -240,8 +240,6 @@ static void eval_cfg(struct sk_parser *p,
             break;
         }
 
-        // NOTE: out names do not handle '-' eg: sk-rel
-        // NOTE: maybe a parser solution
         case SK_TOKEN_KWORD_OUT:
         {
             if (target)
@@ -1269,11 +1267,11 @@ static void sk_meta_init_git(char *git_branch_out, char *git_hash_out, size_t ma
         {
             char  *hash_str = (char *) hash_data.data;
             size_t hash_len = hash_data.len;
-            while (hash_len > 0 &&
-                   (hash_str[hash_len - 1] == '\n' || hash_str[hash_len - 1] == '\r' ||
-                    hash_str[hash_len - 1] == ' '))
+            while (hash_len > 0 && (hash_str[hash_len - 1] == CHAR_NEWLINE ||
+                                    hash_str[hash_len - 1] == CHAR_CARRIAGE ||
+                                    hash_str[hash_len - 1] == CHAR_SPACE))
             {
-                hash_str[hash_len - 1] = '\0';
+                hash_str[hash_len - 1] = CHAR_NULTERM;
                 hash_len--;
             }
             snprintf(git_hash_out, max_len, "%s", hash_str);
