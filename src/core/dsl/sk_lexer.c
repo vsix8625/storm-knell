@@ -239,17 +239,82 @@ static void sk_lx_next_token(struct sk_lexer *lx)
         {
             if (sk_util_is_ident(peek(lx)) || sk_util_is_digit(peek(lx)))
             {
-                while (!isatend(lx) && (sk_util_is_ident(lx->source.data[lx->current]) ||
-                                        sk_util_is_digit(lx->source.data[lx->current]) ||
-                                        lx->source.data[lx->current] == CHAR_EQUAL ||
-                                        lx->source.data[lx->current] == CHAR_COMMA ||
-                                        lx->source.data[lx->current] == CHAR_COLON ||
-                                        lx->source.data[lx->current] == CHAR_DOT ||
-                                        lx->source.data[lx->current] == CHAR_PLUS ||
-                                        lx->source.data[lx->current] == CHAR_SLASH ||
-                                        lx->source.data[lx->current] == CHAR_MINUS))
+                while (!isatend(lx))
                 {
-                    advance(lx);
+                    char curr = peek(lx);
+
+                    if (curr == CHAR_EQUAL)
+                    {
+                        advance(lx);  // consume '='
+
+                        char next = peek(lx);
+                        if (next == CHAR_DOUBLE_QUOTE || next == CHAR_SINGLE_QUOTE)
+                        {
+                            char quoted_type = next;
+                            advance(lx);
+
+                            while (true)
+                            {
+                                char c = peek(lx);
+
+                                if (c == quoted_type)
+                                {
+                                    break;
+                                }
+
+                                switch (c)
+                                {
+                                    case CHAR_NEWLINE:
+                                    {
+                                        record(lx, SK_TOKEN_ERROR, token_start);
+                                        return;
+                                    }
+
+                                    case CHAR_NULTERM:
+                                    {
+                                        lx->status |= SK_LEXER_EOF;
+                                        record(lx, SK_TOKEN_EOF, token_start);
+                                        return;
+                                    }
+
+                                    case CHAR_BACKSLASH:
+                                    {
+                                        advance(lx);  // consume escape backslash
+                                        break;
+                                    }
+                                }
+
+                                advance(lx);
+                            }
+
+                            if (isatend(lx))
+                            {
+                                lx->status |= SK_LEXER_EOF;
+                                record(lx, SK_TOKEN_EOF, token_start);
+                                return;
+                            }
+
+                            advance(lx);  // consume the closing quote character
+                            break;
+                        }
+                        curr = peek(lx);
+                    }
+
+                    if ((sk_util_is_ident(lx->source.data[lx->current]) ||
+                         sk_util_is_digit(lx->source.data[lx->current]) ||
+                         lx->source.data[lx->current] == CHAR_COMMA ||
+                         lx->source.data[lx->current] == CHAR_COLON ||
+                         lx->source.data[lx->current] == CHAR_DOT ||
+                         lx->source.data[lx->current] == CHAR_PLUS ||
+                         lx->source.data[lx->current] == CHAR_SLASH ||
+                         lx->source.data[lx->current] == CHAR_MINUS))
+                    {
+                        advance(lx);
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
                 record(lx, SK_TOKEN_FLAG, token_start);
                 return;
