@@ -114,6 +114,5 @@ if(sk_debug)
             -Iexternal/vx/include
 
         install: ~/.local/bin
-
     }
 }

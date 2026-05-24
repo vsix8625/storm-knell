@@ -21,7 +21,7 @@ A few patterns from earlier examples come together here:
 
 ```
 chocolate-doom/
-├── Stormfile
+├── Stormfile-chocolate-doom
 ├── src/
 │   ├── doom/
 │   ├── heretic/
@@ -57,6 +57,7 @@ $ sk strike --profile
 ```
 
 ```
+[log]: [cache]: 150 hits, 431, 581 total
 ====== Profiler ======
 Lexer  : 93.45 us
 Parser : 1.01 ms
