@@ -1,5 +1,4 @@
 # Storm-Knell (sk)
-
 A fast, cache-aware build tool with its own DSL — describe your project once, let sk figure out the rest.
 
 ---
@@ -11,30 +10,37 @@ A fast, cache-aware build tool with its own DSL — describe your project once, 
 - pthreads *(usually ships with your system)*
 - [mold](https://github.com/rui314/mold) *(recommended, but not required)*
 
+Before running the bootstrap script, ensure the following are installed:
+
+- **General:** `git`, `libxxhash` (Development Headers)
+- **Arch Linux:** `sudo pacman -S base-devel xxhash`
+
+---
+
 ## Installation
 
 ### From source (recommended)
 
 ```bash
-git clone --recurse-submodules https://github.com/vsix8625/storm-knell 
+git clone --recurse-submodules https://github.com/vsix8625/storm-knell
 cd storm-knell
 python3 ./scripts/build.py
 ```
 
 The bootstrap script compiles sk using your system compiler. Once built, sk rebuilds itself using its own Stormfile and installs to `~/.local/bin`.
 
+---
+
 ## Platform Support
+
 | Platform | Status |
 | :--- | :--- |
 | **Linux x86_64** | Verified (Tested on Arch) |
 | **Windows** | Untested |
 
-## Requirements
-Before running the bootstrap script, ensure the following are installed:
-  - **General:** `git`, `libxxhash` (Development Headers)
-  - **Arch Linux:** `sudo pacman -S base-devel xxhash`
+---
 
-## Quick start
+## Quick Start
 
 Initialize sk in your project:
 
@@ -42,16 +48,19 @@ Initialize sk in your project:
 sk init
 ```
 
-This creates a starter `Stormfile`. Edit it to match your project, then build:
+`sk init` creates a starter `Stormfile` and discovers available compilers on your system. Edit the Stormfile to match your project, then build:
 
 ```bash
 sk strike
 ```
 
-Commands can be chained — and order doesn't matter. For example, initialize, build, profile, and run in one shot:
+Commands can be chained — order matters left to right. Initialize, build, profile, and run in one shot:
+
 ```bash
 sk -C myproject init strike --profile surge --main-c
 ```
+
+---
 
 ## Basic Stormfile
 
@@ -63,16 +72,18 @@ lflags: -lpthread
 
 target myapp
 {
-    out: myapp
+    out:  myapp
     mode: release
     cflags:: -O2
     sources:
-    src/
+        src/
     includes:
-    -Isrc
+        -Isrc
     install: ~/.local/bin
 }
 ```
+
+---
 
 ## Commands
 
@@ -83,10 +94,13 @@ target myapp
 | `sk clean` | Clean build artifacts |
 | `sk init` | Initialize sk in working directory |
 | `sk purge` | De-initialize sk from working directory |
-| `sk cache` | View or clean the global cache |
+| `sk cache` | View global cache size or nuke |
 | `sk status` | View project status |
+| `sk config` | Manage sk configuration |
 
-## Global options
+---
+
+## Global Options
 
 | Option | Description |
 |---|---|
@@ -96,17 +110,31 @@ target myapp
 | `--silent` | No output |
 | `--profile` | Show pipeline timing |
 | `--set=<var>` | Inject a boolean variable into eval |
-| `--force` | Force action |
+| `--force` | Force action (see notes per command) |
 | `--version` | Show version and exit |
 | `--help, -h` | Show help and exit |
 
-## CLI variable injection
+---
+
+## Compiler Configuration
+
+sk auto-discovers `gcc`, `g++`, `clang`, and `clang++` on first `sk init`. To register additional compilers:
+
+```bash
+sk config --add-cc=/usr/bin/aarch64-linux-gnu-gcc
+```
+
+Registered compilers are stored in `~/.config/storm_knell/compilers.conf`. Re-run `sk init` to pick up changes.
+
+---
+
+## CLI Variable Injection
 
 Pass boolean variables into your Stormfile at build time without modifying it:
 
 ```bash
-sk --set=lto strike
-sk --set=asan --set=debug_tracy strike
+sk strike --set=lto
+sk strike --set=asan --set=debug_tracy
 ```
 
 In your Stormfile:
@@ -119,6 +147,21 @@ if(lto)
 }
 ```
 
+---
+
+## Passing Arguments to Surged Targets
+
+Use `:::` to separate sk arguments from arguments passed to the target binary:
+
+```bash
+sk strike surge ::: --my-app-flag --verbose
+sk clean strike surge ::: -h
+```
+
+Everything after `:::` is forwarded to the binary that `surge` runs.
+
+---
+
 ## Caching
 
 sk maintains a global object cache keyed on source content, compiler version, sk version, cflags, includes, and defines. Unchanged translation units are never recompiled.
@@ -128,15 +171,26 @@ sk cache          # view cache size
 sk cache --nuke   # clear cache
 ```
 
+---
+
+## Notes
+
+- `sk init --force` resets `.storm/` only — your `Stormfile` is never touched
+- `sk purge` is the full reset — removes both `.storm/` and the `Stormfile`
+
+---
+
 ## Editor Support (Neovim)
 
-To get syntax highlighting, automatic file detection, and auto-formatting on save for Storm files, copy or link these files into your personal Neovim configuration directory:
+To get syntax highlighting, automatic file detection, and auto-formatting on save for Stormfiles, copy or link these files into your Neovim configuration:
 
 1. `utils/nvim/ftdetect/storm.lua` -> `~/.config/nvim/ftdetect/storm.lua`
 2. `utils/nvim/ftplugin/storm.lua` -> `~/.config/nvim/ftplugin/storm.lua`
 3. `utils/nvim/syntax/storm.lua`   -> `~/.config/nvim/syntax/storm.lua`
 
-*(Alternatively, you can append the repository's `utils/nvim` directory directly to your Neovim `runtimepath`).*
+*(Alternatively, append the repository's `utils/nvim` directory to your Neovim `runtimepath`.)*
+
+---
 
 ## License
 
