@@ -5,6 +5,18 @@ import subprocess
 import shutil
 import time
 
+def get_c23_flag(cc):
+    try:
+        result = subprocess.run([cc, "--version"], capture_output=True, text=True)
+        # gcc 14+ uses c23, older uses c2x
+        if "gcc" in cc or "gcc" in result.stdout.lower():
+            ver = subprocess.run([cc, "-dumpversion"], capture_output=True, text=True)
+            major = int(ver.stdout.strip().split(".")[0])
+            return "-std=c23" if major >= 14 else "-std=c2x"
+    except:
+        pass
+    return "-std=c23"
+
 def main():
     if os.name != 'nt' and os.getuid() == 0:
         print("[build.py]: Error: Do not run the bootstrap as root.")
@@ -56,7 +68,11 @@ def main():
 
     out_exe = os.path.join(build_dir, "sk_bootstrap" + (".exe" if os.name == 'nt' else ""))
 
-    args = [cc, "-std=c23", "-O1", "-Wall", "-Wextra", "-Werror", "-D_GNU_SOURCE"]
+    args = [cc, get_c23_flag(cc), "-O1", "-Wall", "-Wextra", "-Werror"]
+
+    if sys.platform == "linux":
+        args.append("-D_GNU_SOURCE")
+
     args.extend([f"-I{p}" for p in include_paths])
     args.extend(ldflags)
     args.extend(sources)
@@ -74,9 +90,9 @@ def main():
         
         try:
             if os.name != 'nt':
-                cmd = [f"./{out_exe}", "init", "strike", "--profile"]
+                cmd = [f"./{out_exe}", "init", "strike", "--profile", "--set=bootstrap"]
             else:
-                cmd = [out_exe, "init", "strike", "--profile"]
+                cmd = [out_exe, "init", "strike", "--profile", "--set=bootstrap"]
 
             subprocess.run(cmd, check=True)
         except subprocess.CalledProcessError:

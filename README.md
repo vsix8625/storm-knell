@@ -35,7 +35,7 @@ The bootstrap script compiles sk using your system compiler. Once built, sk rebu
 
 | Platform | Status |
 | :--- | :--- |
-| **Linux x86_64** | Verified (Tested on Arch) |
+| **Linux x86_64** | Verified (Arch, Ubuntu, Fedora) |
 | **Windows** | Untested |
 
 ---
@@ -54,7 +54,7 @@ sk init
 sk strike
 ```
 
-Commands can be chained — order matters left to right. Initialize, build, profile, and run in one shot:
+Commands and flags can be mixed freely. The only positional rule is that `-C <path>` must be followed immediately by its directory. `init` should come before `strike` when setting up a new project.
 
 ```bash
 sk -C myproject init strike --profile surge --main-c
@@ -177,6 +177,12 @@ sk cache --nuke   # clear cache
 
 - `sk init --force` resets `.storm/` only — your `Stormfile` is never touched
 - `sk purge` is the full reset — removes both `.storm/` and the `Stormfile`
+
+Use `sk -h <command>` for detailed help on any command:
+
+    sk -h clean
+    sk -h strike
+    sk -h surge
 
 ---
 

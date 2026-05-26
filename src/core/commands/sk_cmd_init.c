@@ -168,6 +168,7 @@ static void init_from_config(const char *rpath)
     if (!vx_isfile(conf_path))
     {
         static const char *defaults[] = {"gcc", "g++", "clang", "clang++", nullptr};
+
         for (i32 i = 0; defaults[i] != nullptr; i++)
         {
             char resolved[VX_PATH_MAX];

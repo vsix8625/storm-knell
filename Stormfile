@@ -1,14 +1,25 @@
 // Stormfile for Storm-Knell (sk)
 cc: /usr/bin/gcc
-linker: mold
-cflags: -std=c23 -Wall -Werror -Wextra -pedantic
+cflags: -Wall -Werror -Wextra -pedantic
 lflags: -lxxhash
+
+if(bootstrap)
+{
+    print: "Building bootstrapped sk..."
+    cflags:: -std=c2x
+}
+else
+{
+    cflags:: -std=c23
+    linker:  mold
+}
 
 if(__os__ == "linux")
 {
     print: "Linux detected"
-    cflags:: -pthread
-    lflags:: -lpthread
+    defines:: -D_GNU_SOURCE
+    cflags::  -pthread
+    lflags::  -lpthread
 }
 
 // You can set the desired global arena size by uncommenting this define and re-building

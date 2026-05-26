@@ -49,7 +49,16 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
 
     struct sk_target_persist *saved_targets =
         mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_target_persist) * header.target_count);
-    fread(saved_targets, sizeof(struct sk_target_persist), header.target_count, f);
+
+    size_t bytes_read =
+        fread(saved_targets, sizeof(struct sk_target_persist), header.target_count, f);
+
+    if (bytes_read != header.target_count)
+    {
+        fclose(f);
+        return;
+    }
+
     fclose(f);
 
     vx_printf("Version: %s\n", SK_VERSION_STRING);
