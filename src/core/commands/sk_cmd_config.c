@@ -16,7 +16,7 @@ vx_status sk_cmd_config_fn(struct sk_ctx *ctx)
 }
 
 // v0.5.2
-vx_status sk_config_add_cc_path_b(const char *cc_realpath)
+vx_status sk_config_add_cc_path(const char *cc_realpath)
 {
     if (cc_realpath == nullptr)
     {
@@ -67,6 +67,12 @@ vx_status sk_config_add_cc_path_b(const char *cc_realpath)
                 cursor = (line_end == end) ? end : line_end + 1;
             }
         }
+    }
+
+    if (!vx_fs_is_exec(cc_realpath))
+    {
+        vx_warn("'%s' not found or not executable", cc_realpath);
+        return VX_ERROR;
     }
 
     if (vx_fappend(conf_path, "%s\n", cc_realpath) != VX_OK)

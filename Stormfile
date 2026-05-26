@@ -17,7 +17,7 @@ if(__os__ == "linux")
 
 major: 0
 minor: 5
-patch: 1
+patch: 2
 
 
 codegen src/core/sk_config.h {
@@ -88,6 +88,7 @@ target sk
     install: ~/.local/bin
 }
 
+// sk strike --set=sk_debug
 if(sk_debug)
 {
     target skdbg
