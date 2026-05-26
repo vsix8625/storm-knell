@@ -23,15 +23,6 @@ python3 ./scripts/build.py
 
 The bootstrap script compiles sk using your system compiler. Once built, sk rebuilds itself using its own Stormfile and installs to `~/.local/bin`.
 
-### Prebuilt binaries
-
-Download the latest binary from [Releases](https://github.com/vsix8625/storm-knell).
-
-```bash
-chmod +x sk
-mv sk ~/.local/bin/
-```
-
 ## Platform Support
 | Platform | Status |
 | :--- | :--- |

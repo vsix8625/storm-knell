@@ -1,6 +1,5 @@
 #include "sk_util.h"
 #include "mem_arena.h"
-#include "mem_heap.h"
 #include "sk_globals.h"
 #include "sk_paths.h"
 
@@ -15,13 +14,9 @@ bool sk_is_initialized_at(const char *dir)
         return false;
     }
 
-    char storm[VX_PATH_MAX];
-    char stormfile[VX_PATH_MAX];
+    char *storm = sk_path_join(g_sk_global_arena, dir, SK_PATH_STORM_DIR);
 
-    snprintf(storm, sizeof(storm), "%s%s%s", dir, VX_PATH_SEP_STR, SK_PATH_STORM_DIR);
-    snprintf(stormfile, sizeof(stormfile), "%s%s%s", dir, VX_PATH_SEP_STR, SK_PATH_STORMFILE);
-
-    return vx_isdir(storm) && vx_isfile(stormfile);
+    return vx_isdir(storm);
 }
 
 bool sk_discover_root(char *out_path, size_t size)

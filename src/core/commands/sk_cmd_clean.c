@@ -81,7 +81,7 @@ vx_status sk_cmd_clean_fn(struct sk_ctx *ctx)
         {
             total_size = total_size / VX_KiB(1);
         }
-        vx_log("[summary]: Cleaned cache saved %.2f %s", total_size, sufix);
+        vx_log("Cleaned cache saved %.2f %s", total_size, sufix);
     }
 
     // clean targets
@@ -126,7 +126,7 @@ vx_status sk_cmd_clean_fn(struct sk_ctx *ctx)
     {
         struct sk_target_persist *t = &saved_targets[i];
 
-        if (t->out_dir[0] != '\0')
+        if (t->out_dir[0] != CHAR_NULTERM)
         {
             if (!vx_isdir(t->out_dir))
             {
@@ -147,7 +147,7 @@ vx_status sk_cmd_clean_fn(struct sk_ctx *ctx)
     }
     vx_fs_rmrf(manifest_path);
 
-    vx_log("[summary]: Successfully nuked %u/%u target build artifacts.",
+    vx_log("[summary]: Successfully cleaned %u/%u target build artifacts.",
            wiped_count,
            header.target_count);
     return VX_OK;

@@ -8,9 +8,9 @@ struct sk_ctx;
 struct sk_meta
 {
     char cc_name[VX_BUF_SIZE_256];
-    char cc_path[VX_PATH_MAX];
+    char cc_path[VX_BUF_SIZE_512];
     char cc_ver[VX_BUF_SIZE_256];
-    char ar_path[VX_PATH_MAX];
+    char ar_path[VX_BUF_SIZE_512];
 };
 
 void sk_cmd_init_fn(struct sk_ctx *ctx);
