@@ -20,7 +20,7 @@ static void verbose_argv_log(char **argv, u32 idx)
 {
     if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
     {
-        static _Thread_local char t_log_buf[VX_BUF_SIZE_1024];
+        static _Thread_local char t_log_buf[VX_BUF_SIZE_16K];
         vx_sbuf sbuf = {.data = t_log_buf, .size = sizeof(t_log_buf), .offset = 0};
 
         vx_mutex_lock(&g_sk_global_ctx.console_lock);
@@ -95,9 +95,33 @@ char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx, struct mem_
         return nullptr;
     }
 
+    const char *src_path = (const char *) t->sources->items[source_idx];
+
+    bool is_header = false;
+
+    const char *ext = strrchr(src_path, CHAR_DOT);
+    if (ext && (strcmp(ext, ".h") == 0 || strcmp(ext, ".hpp") == 0 || strcmp(ext, ".hxx") == 0))
+    {
+        is_header = true;
+    }
+
+    const char *out_ext = ".o";
+    if (is_header)
+    {
+        if (strstr(t->cfg.cc, "clang") != nullptr)
+        {
+            out_ext = ".pch";
+        }
+        else
+        {
+            out_ext = ".gch";  // gcc
+        }
+    }
+
     // cc + cflags + includes + defines + "-c" + src + "-o" + obj + NULL
-    u32 total_args =
-        2 + t->cfg.cflags_count + t->cfg.includes_count + t->cfg.defines_count + 2 + 2 + 1;
+    u32 extra_args = is_header ? 2 : 0;
+    u32 total_args = 2 + t->cfg.cflags_count + t->cfg.includes_count + t->cfg.defines_count +
+                     extra_args + 2 + 2 + 1;
 
     char **argv = mem_arena_alloc(arena, sizeof(char *) * total_args);
 
@@ -115,6 +139,19 @@ char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx, struct mem_
         argv[idx++] = "-fdiagnostics-color=always";
     }
 
+    if (is_header)
+    {
+        argv[idx++] = "-x";
+        if (strstr(t->cfg.cc, "++") != nullptr || strstr(t->cfg.cc, "g++") != nullptr)
+        {
+            argv[idx++] = "c++-header";
+        }
+        else
+        {
+            argv[idx++] = "c-header";
+        }
+    }
+
     for (u32 i = 0; i < t->cfg.cflags_count; i++)
     {
         argv[idx++] = t->cfg.cflags[i];
@@ -130,14 +167,18 @@ char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx, struct mem_
         argv[idx++] = t->cfg.defines[i];
     }
 
-    const char *src_path  = (const char *) t->sources->items[source_idx];
     const char *file_name = strrchr(src_path, VX_PATH_SEP);
 
     file_name = file_name ? file_name + 1 : src_path;
 
     char *obj_path = mem_arena_alloc(arena, VX_PATH_MAX);
-    snprintf(
-        obj_path, VX_PATH_MAX, "%s%s%s.o", t->finalized_obj_dirpath, VX_PATH_SEP_STR, file_name);
+    snprintf(obj_path,
+             VX_PATH_MAX,
+             "%s%s%s%s",
+             t->finalized_obj_dirpath,
+             VX_PATH_SEP_STR,
+             file_name,
+             out_ext);
 
     argv[idx++] = "-c";
     argv[idx++] = (char *) src_path;

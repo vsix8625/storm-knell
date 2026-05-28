@@ -55,10 +55,6 @@ static vx_status finalize_evaluation(struct sk_eval_result *result)
 
             sk_scan_dir_r(t->sources, t->excludes, t->exclude_count, dir_to_scan);
         }
-        if (t->install_dir)
-        {
-            vx_log("Installing: %s", t->install_dir);
-        }
     }
 
     return VX_OK;

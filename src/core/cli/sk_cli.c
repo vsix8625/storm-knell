@@ -320,16 +320,7 @@ static vx_status cli_execute(struct sk_ctx *ctx)
 
     if (ctx->active_opt & SK_OPT_SILENT)
     {
-        FILE *nul_out = fopen(VX_DEVNUL, "w");
-
-        if (nul_out)
-        {
-            fflush(stdout);
-            fflush(stderr);
-            dup2(VX_FILENO(nul_out), STDOUT_FILENO);
-            dup2(VX_FILENO(nul_out), STDERR_FILENO);
-            fclose(nul_out);
-        }
+        vx_log_set_level(VX_LOG_QUIET);
     }
 
     vx_ticks total_time = {0};
@@ -411,7 +402,10 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         vx_dbglog("opt: --main-cpp -> %s", path);
         if (vx_mkdir_p(rpath) == VX_OK)
         {
-            vx_fwrite(path, "%s", g_sk_template_cpp);
+            if (vx_fwrite(path, "%s", g_sk_template_cpp) == VX_OK)
+            {
+                vx_log("Created: main.cpp (make sure target 'cc' set to a C++ compiler");
+            }
         }
     }
 

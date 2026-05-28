@@ -28,7 +28,7 @@ if(__os__ == "linux")
 
 major: 0
 minor: 5
-patch: 2
+patch: 3
 
 
 codegen src/core/sk_config.h {
@@ -102,6 +102,8 @@ target sk
 // sk strike --set=sk_debug
 if(sk_debug)
 {
+    cc: /usr/bin/clang // will append gcc from top and use clang for this target
+    linker: lld
     target skdbg
     {
         out: skdbg

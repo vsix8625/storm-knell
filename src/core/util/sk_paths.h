@@ -33,4 +33,6 @@ char *sk_path_join_hex(struct mem_arena *ar, const char *a, u32 hex);
 
 const char *sk_expand_path(struct mem_arena *ar, const char *path);
 
+void sk_path_canonicalize(char *path);
+
 #endif  // SK_PATHS_H_

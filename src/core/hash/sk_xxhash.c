@@ -1,6 +1,7 @@
 #include "sk_xxhash.h"
 #include "mem_arena.h"
 #include "sk_eval.h"
+#include "sk_paths.h"
 #include "sk_util.h"
 #include "sk_globals.h"
 #include "sk_config.h"
@@ -156,6 +157,7 @@ static void sk_scan_inc(const char            *src_path,
             if (vx_isfile(resolved))
             {
                 found = true;
+                sk_path_canonicalize(resolved);
             }
         }
 

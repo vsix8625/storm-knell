@@ -205,6 +205,86 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             }
 
             //----------------------------------------------------------------------------------------------------
+            // pch depends injection
+
+            for (u32 d = 0; d < t->depend_count; d++)
+            {
+                for (u32 j = 0; j < eval_result->target_count; j++)
+                {
+                    struct sk_target *dep = &eval_result->targets[j];
+                    if (strcmp(dep->name, t->depends[d]) == 0)
+                    {
+                        if (dep->kind == SK_TARGET_KIND_PCH)
+                        {
+                            char *pch_include_dir = mem_arena_alloc(g_sk_global_arena, VX_PATH_MAX);
+                            snprintf(
+                                pch_include_dir, VX_PATH_MAX, "-I%s", dep->finalized_obj_dirpath);
+
+                            memmove(&t->cfg.includes[1],
+                                    &t->cfg.includes[0],
+                                    t->cfg.includes_count * sizeof(char *));
+                            t->cfg.includes[0] = pch_include_dir;
+                            t->cfg.includes_count++;
+
+                            if (dep->sources->count > 0)
+                            {
+                                const char *src_path  = (const char *) dep->sources->items[0];
+                                const char *file_name = strrchr(src_path, VX_PATH_SEP);
+
+                                file_name = file_name ? file_name + 1 : src_path;
+
+                                t->cfg.cflags[t->cfg.cflags_count++] = "-include";
+
+                                char *pch_file_arg =
+                                    mem_arena_alloc(g_sk_global_arena, VX_PATH_MAX);
+                                snprintf(pch_file_arg, VX_PATH_MAX, "%s", file_name);
+                                t->cfg.cflags[t->cfg.cflags_count++] = pch_file_arg;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (t->kind == SK_TARGET_KIND_PCH)
+            {
+                for (u32 s = 0; s < t->sources->count; s++)
+                {
+                    char **argv = sk_invoke_compile_nularr(t, s, g_sk_global_arena);
+
+                    if (argv == nullptr)
+                    {
+                        vx_errlog("Failed to build argv for PCH: %s",
+                                  (const char *) t->sources->items[s]);
+                        strike_status = VX_ERROR;
+                        break;
+                    }
+
+                    struct vx_process  proc = {0};
+                    struct vx_proc_cfg cfg  = {.flags = VX_PROCESS_FLAGS_CAPTURE};
+
+                    vx_status status = vx_process_spawn(&proc, argv[0], argv, &cfg);
+                    if (status != VX_OK)
+                    {
+                        vx_errlog("Could not spawn compiler for PCH: %s",
+                                  (const char *) t->sources->items[s]);
+                        strike_status = VX_ERROR;
+                        break;
+                    }
+                    vx_process_wait(&proc);
+                    if (proc.exit_code != 0)
+                    {
+                        vx_errlog("Failed to compile PCH: %s", (const char *) t->sources->items[s]);
+                        strike_status = VX_ERROR;
+                        break;
+                    }
+                }
+                if (strike_status == VX_ERROR)
+                {
+                    break;
+                }
+                continue;
+            }
 
             for (u32 j = 0; j < t->sources->count; j++)
             {
@@ -261,6 +341,11 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             for (u32 j = 0; j < total_sources; j++)
             {
                 struct sk_work_unit *unit = work_units[j];
+
+                if (unit == nullptr)
+                {
+                    continue;
+                }
 
                 if (unit->diagnostic_log.offset > 0)
                 {
@@ -378,6 +463,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                     for (u32 j = 0; j < eval_result->target_count; j++)
                     {
                         struct sk_target *dep = &eval_result->targets[j];
+
                         if (strcmp(dep->name, t->depends[d]) == 0)
                         {
                             if (dep->kind == SK_TARGET_KIND_STATIC ||
@@ -401,6 +487,11 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 struct vx_process proc = {0};
 
                 char **argv;
+
+                if (t->kind == SK_TARGET_KIND_PCH)
+                {
+                    continue;  // nothing to link
+                }
 
                 if (t->kind == SK_TARGET_KIND_STATIC)
                 {
@@ -436,7 +527,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                                           t->install_dir);
                             }
 
-                            vx_log("Copying: '%s' to '%s'", t->out_name, dest_path);
+                            vx_log("Installing: %s -> %s", t->out_name, dest_path);
 
                             if (!vx_fs_cp(t->artifact_path, dest_path))
                             {
@@ -709,6 +800,16 @@ static vx_status topo_visit(struct sk_eval_result *result,
     return VX_OK;
 }
 
+static const char *sk_obj_ext(struct sk_target *t, const char *src_path)
+{
+    const char *ext = strrchr(src_path, CHAR_DOT);
+    if (ext && (strcmp(ext, ".h") == 0 || strcmp(ext, ".hpp") == 0 || strcmp(ext, ".hxx") == 0))
+    {
+        return strstr(t->cfg.cc, "clang") ? ".pch" : ".gch";
+    }
+    return ".o";
+}
+
 static void *sk_worker_compile_fn(void *arg)
 {
     if (tls_worker_arena == nullptr)
@@ -739,12 +840,14 @@ static void *sk_worker_compile_fn(void *arg)
         file_name             = file_name ? file_name + 1 : src_path;
         char *obj_path        = mem_arena_alloc(arena, VX_PATH_MAX);
 
+        const char *out_ext = sk_obj_ext(t, src_path);
         snprintf(obj_path,
                  VX_PATH_MAX,
-                 "%s%s%s.o",
+                 "%s%s%s%s",
                  t->finalized_obj_dirpath,
                  VX_PATH_SEP_STR,
-                 file_name);
+                 file_name,
+                 out_ext);
 
         char **argv = (unit->dry_run) ? sk_invoke_syntax_check_nularr(t, unit->source_idx, arena)
                                       : sk_invoke_compile_nularr(t, unit->source_idx, arena);
@@ -764,6 +867,7 @@ static void *sk_worker_compile_fn(void *arg)
 
         if (!unit->dry_run)
         {
+            // TODO: add sk strike --fresh to skip cache checks and compile full
             if (sk_cache_exists(&cache_entry))
             {
                 if (sk_cache_restore(&cache_entry, obj_path) == VX_OK)
@@ -775,7 +879,7 @@ static void *sk_worker_compile_fn(void *arg)
                 }
                 else
                 {
-                    vx_warn("Cache restore faild for '%s', recompiling", src_path);
+                    vx_warn("Cache restore failed for '%s', recompiling", src_path);
                 }
             }
         }
@@ -797,7 +901,6 @@ static void *sk_worker_compile_fn(void *arg)
                 {
                     if (sk_cache_store(&cache_entry, obj_path) == VX_OK)
                     {
-                        atomic_fetch_add(&g_cache_misses, 1);
                         sk_cache_record(out_hash, src_path, obj_path, t->name);
                     }
                     else
@@ -805,6 +908,9 @@ static void *sk_worker_compile_fn(void *arg)
                         vx_errlog("Failed to store '%s' to cache", obj_path);
                     }
                 }
+
+                u32 c_idx = atomic_fetch_add(&g_cache_misses, 1) + 1;
+                vx_printf("    [%u]: %s\n", c_idx, unit->tag);
             }
             else
             {

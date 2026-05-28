@@ -38,6 +38,7 @@ typedef enum sk_target_kind : u8
     SK_TARGET_KIND_EXEC,
     SK_TARGET_KIND_STATIC,
     SK_TARGET_KIND_SHARED,
+    SK_TARGET_KIND_PCH,
 } sk_target_kind;
 
 struct sk_target

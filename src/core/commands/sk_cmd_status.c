@@ -61,13 +61,13 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
 
     fclose(f);
 
-    vx_printf("Version: %s\n", SK_VERSION_STRING);
+    vx_printf("Storm-Knell Version: %s\n", SK_VERSION_STRING);
     vx_printf("Working directory: %s\n", ctx->rpath ? ctx->rpath : vx_getcwd_fn());
 
     struct sk_cache_info cache_info = sk_cache_calculate_size();
 
     u64 cache_size = cache_info.total_size;
-    vx_printf("Cache size: %.2f MB\n", (f32) cache_size / 1048576.0f);
+    vx_printf("Global Cache Size: %.2f MB\n", (f32) cache_size / 1048576.0f);
 
     vx_printf(ANSI_BOLD ANSI_CYAN "=============================== STORM-KNELL STATUS "
                                   "============================================\n" ANSI_RESET);
@@ -97,6 +97,7 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
             case SK_TARGET_KIND_EXEC: kind_str = "EXEC  "; break;
             case SK_TARGET_KIND_STATIC: kind_str = "STATIC"; break;
             case SK_TARGET_KIND_SHARED: kind_str = "SHARED"; break;
+            case SK_TARGET_KIND_PCH: kind_str = "PCH"; break;
         }
         bool artifact_ok = vx_isfile(m->bin_path);
 

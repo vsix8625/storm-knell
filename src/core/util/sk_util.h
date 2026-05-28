@@ -135,10 +135,5 @@ void sk_log_time(const char *phase, vx_ticks *t);
 
 #define SK_MAX_DEPS     32
 #define SK_MAX_EXCLUDES 32
-#define SK_MAX_INCLUDES 64
-
-#define SK_FLAG_LEN 64
-#define SK_NAME_LEN 64
-#define SK_PATH_LEN 256  // mostly for relative paths
 
 #endif  // SK_UTIL_H_

@@ -36,7 +36,6 @@ The bootstrap script compiles sk using your system compiler. Once built, sk rebu
 | Platform | Status |
 | :--- | :--- |
 | **Linux x86_64** | Verified (Arch, Ubuntu, Fedora) |
-| **Windows** | Untested |
 
 ---
 

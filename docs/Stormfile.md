@@ -156,6 +156,19 @@ includes: -Isrc
 includes:: -Isrc/core -Iexternal/lib/include
 ```
 
+**Quoted flags** — wrap multiple tokens in double quotes to pass compiler arguments
+that require a separate path or value argument:
+
+```
+includes: -I. -Iexternal "-include src/precompiled.h"
+```
+
+The quoted string is split on whitespace at parse time and expanded into separate
+arguments. This works for any flag that takes an argument (`-include`, `-isystem`,
+`-imacros`, etc).
+
+This applies to `cflags`, `lflags`, `defines`, and `includes` — anywhere a flag list is accepted.
+
 ---
 
 ## exclude
@@ -432,12 +445,10 @@ target myapp
 | Targets | 256 |
 | Dependencies per target | 32 |
 | Excludes per target | 32 |
-| Includes per target | 64 |
+| Includes per target | 256 |
 | Defines per target | 512 |
 | Flags per target | 256 |
 | Libs | 128 |
 | Variables | 8192 |
-| Flag length | 64 chars |
-| Name length | 64 chars |
 
 > These are compile-time constants. If your project approaches these limits, consider splitting into multiple targets with `depends`.

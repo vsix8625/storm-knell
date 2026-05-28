@@ -174,3 +174,50 @@ const char *sk_expand_path(struct mem_arena *ar, const char *path)
 
     return path;
 }
+
+void sk_path_canonicalize(char *path)
+{
+    char *parts[VX_BUF_SIZE_256];
+
+    u32 depth = 0;
+
+    char *out = path;
+
+    char tmp[VX_PATH_MAX];
+    strncpy(tmp, path, VX_PATH_MAX - 1);
+    tmp[VX_PATH_MAX - 1] = CHAR_NULTERM;
+
+    char *saveptr = nullptr;
+
+    char *tok = strtok_r(tmp, "/", &saveptr);
+
+    while (tok)
+    {
+        if (strcmp(tok, ".") == 0)
+        {
+            // skip
+        }
+        else if (strcmp(tok, "..") == 0)
+        {
+            if (depth > 0)
+            {
+                depth--;
+            }
+        }
+        else
+        {
+            parts[depth++] = tok;
+        }
+
+        tok = strtok_r(nullptr, "/", &saveptr);
+    }
+
+    u32 written = 0;
+    for (u32 i = 0; i < depth; i++)
+    {
+        written +=
+            snprintf(out + written, VX_PATH_MAX - written, "%s%s", i == 0 ? "" : "/", parts[i]);
+    }
+
+    out[written] = CHAR_NULTERM;
+}

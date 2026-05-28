@@ -39,11 +39,9 @@ static void sk_eval_set_builtin(struct sk_eval_result *result, char *key, char *
 
 static const char *eval_lookup_var(struct sk_eval_result *result, const char *key, size_t len);
 
-// TODO: DEPENDS handler
-
 //----------------------------------------------------------------------------------------------------
 
-static void cfg_push_flags(struct sk_parser *p,
+static void cfg_push_flags(struct sk_parser *parser,
                            vx_sv             stormfile,
                            u32               val_node,
                            u32               key_tok_idx,
@@ -59,7 +57,7 @@ static void cfg_push_flags(struct sk_parser *p,
 
     if (val_node == SK_NODE_INVALID)
     {
-        syntax_error_at(p, key_tok_idx, "flag list cannot be empty");
+        syntax_error_at(parser, key_tok_idx, "flag list cannot be empty");
         return;
     }
 
@@ -67,17 +65,54 @@ static void cfg_push_flags(struct sk_parser *p,
 
     while (cur != 0 && *count < max_limit)
     {
-        vx_sv sv = tok_to_sv(p, stormfile, p->nodes->token_idxs[cur]);
+        vx_sv sv = tok_to_sv(parser, stormfile, parser->nodes->token_idxs[cur]);
 
-        if (p->nodes->kinds[cur] != SK_NODE_FLAG)
+        if (parser->nodes->kinds[cur] == SK_NODE_FLAG)
         {
-            syntax_error_at(p, p->nodes->token_idxs[cur], "expected SK_TOKEN_FLAG");
+            flags[(*count)++] = sv_to_arena(g_sk_global_arena, sv);
+        }
+        else if (parser->nodes->kinds[cur] == SK_NODE_LIT_STRING)
+        {
+            vx_sv inner = {.data = sv.data + 1, .len = sv.len - 2};  // strip quotes
+
+            const char *p   = inner.data;
+            const char *end = inner.data + inner.len;
+
+            // split args
+            while (p < end && *count < max_limit)
+            {
+                while (p < end && *p == CHAR_SPACE)
+                {
+                    p++;
+                }
+
+                if (p >= end)
+                {
+                    break;
+                }
+
+                const char *start = p;
+
+                while (p < end && *p != CHAR_SPACE)
+                {
+                    p++;
+                }
+
+                u32   len   = p - start;
+                char *entry = mem_arena_alloc(g_sk_global_arena, len + 1);
+                memcpy(entry, start, len);
+
+                entry[len]        = CHAR_NULTERM;
+                flags[(*count)++] = entry;
+            }
+        }
+        else
+        {
+            syntax_error_at(parser, parser->nodes->token_idxs[cur], "expected SK_TOKEN_FLAG");
             return;
         }
 
-        flags[*count] = sv_to_arena(g_sk_global_arena, sv);
-        (*count)++;
-        cur = p->nodes->nexts[cur];
+        cur = parser->nodes->nexts[cur];
     }
 }
 
@@ -223,6 +258,10 @@ static void eval_cfg(struct sk_parser *p,
                 else if (strcmp(t_kind, "shared") == 0)
                 {
                     target->kind = SK_TARGET_KIND_SHARED;
+                }
+                else if (strcmp(t_kind, "pch") == 0)
+                {
+                    target->kind = SK_TARGET_KIND_PCH;
                 }
             }
             break;
@@ -1056,6 +1095,7 @@ static const char *sk_target_kind_to_str(sk_target_kind kind)
         case SK_TARGET_KIND_EXEC: return "executable";
         case SK_TARGET_KIND_STATIC: return "static_lib";
         case SK_TARGET_KIND_SHARED: return "shared_lib";
+        case SK_TARGET_KIND_PCH: return "precompiled_header";
         default: return "none";
     }
 }
