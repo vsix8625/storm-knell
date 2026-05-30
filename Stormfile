@@ -66,6 +66,7 @@ target sk
         -Wredundant-decls
         -Wmissing-noreturn
         -fvisibility=hidden
+        -DNDEBUG
 
     if(full_opt)
     {
@@ -102,7 +103,7 @@ target sk
 // sk strike --set=sk_debug
 if(sk_debug)
 {
-    cc: /usr/bin/clang // will append gcc from top and use clang for this target
+    cc: /usr/bin/clang // will override gcc from top and use clang for this target
     linker: lld
     target skdbg
     {

@@ -79,7 +79,7 @@ vx_status sk_config_add_cc_path(const char *cc_realpath)
     {
         return VX_ERROR;
     }
-    vx_log("Added: %s' -> %s", cc_realpath, conf_path);
+    vx_log("Added: %s' -> %s (To load: sk init [--force])", cc_realpath, conf_path);
 
     return VX_OK;
 }

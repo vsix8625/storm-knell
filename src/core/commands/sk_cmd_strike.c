@@ -192,7 +192,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
             if (!sk_meta_load(&meta, abs_cc))
             {
-                vx_errlog("Compiler %s not initialized", abs_cc);
+                vx_errlog("Compiler %s not initialized (try: sk config --add-cc=<path>)", abs_cc);
                 continue;
             }
 
@@ -220,6 +220,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                             snprintf(
                                 pch_include_dir, VX_PATH_MAX, "-I%s", dep->finalized_obj_dirpath);
 
+                            // move pch front of includes, could not be needed
                             memmove(&t->cfg.includes[1],
                                     &t->cfg.includes[0],
                                     t->cfg.includes_count * sizeof(char *));

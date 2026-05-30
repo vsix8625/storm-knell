@@ -12,6 +12,41 @@
 #define ANSI_BOLD   "\x1b[1m"
 #define ANSI_RESET  "\x1b[0m"
 
+static void fmt_file_size(u64 bytes, bool fexists, char *buf, size_t buf_size)
+{
+    if (!fexists)
+    {
+        snprintf(buf, buf_size, "-");
+        return;
+    }
+
+    if (bytes == 0)
+    {
+        snprintf(buf, buf_size, "0 B");
+        return;
+    }
+
+    const char *suffixes[] = {"B", "KB", "MB", "GB"};
+
+    u32 i            = 0;
+    f64 double_bytes = (f64) bytes;
+
+    while (double_bytes >= 1024.0 && i < 3)
+    {
+        double_bytes /= 1024.0;
+        i++;
+    }
+
+    if (i == 0)
+    {
+        snprintf(buf, buf_size, "%llu B", (unsigned long long) bytes);
+    }
+    else
+    {
+        snprintf(buf, buf_size, "%.2f %s", double_bytes, suffixes[i]);
+    }
+}
+
 void sk_cmd_status_fn(struct sk_ctx *ctx)
 {
     if (sk_resolve_project_root(ctx) != VX_OK)
@@ -69,17 +104,18 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
     u64 cache_size = cache_info.total_size;
     vx_printf("Global Cache Size: %.2f MB\n", (f32) cache_size / 1048576.0f);
 
-    vx_printf(ANSI_BOLD ANSI_CYAN "=============================== STORM-KNELL STATUS "
-                                  "============================================\n" ANSI_RESET);
-    vx_printf(ANSI_BOLD "  %-20s%-15s%-20s%-18s%s\n",
+    vx_printf(ANSI_BOLD ANSI_CYAN "================================= STORM-KNELL STATUS "
+                                  "==============================================\n" ANSI_RESET);
+    vx_printf(ANSI_BOLD "  %-24s%-10s%-22s%-16s%-14s%-12s\n",
               "Target Name",
               "Kind",
               "Status Check",
               "Total Files",
+              "Size",
               "Age" ANSI_RESET);
-    vx_printf(
-        "  "
-        "--------------------------------------------------------------------------------------\n");
+    vx_printf("  "
+              "------------------------------------------------------------------------------------"
+              "------------\n");
 
     u32 total_missing_artifacts = 0;
 
@@ -100,6 +136,19 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
             case SK_TARGET_KIND_PCH: kind_str = "PCH"; break;
         }
         bool artifact_ok = vx_isfile(m->bin_path);
+
+        u64 file_size = 0;
+        if (artifact_ok)
+        {
+            vx_stat_struct st;
+            if (vx_stat(m->bin_path, &st) == 0)
+            {
+                file_size = (u64) st.st_size;
+            }
+        }
+
+        char size_buf[VX_BUF_SIZE_32];
+        fmt_file_size(file_size, artifact_ok, size_buf, sizeof(size_buf));
 
         if (!artifact_ok)
         {
@@ -125,19 +174,21 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
             status_color = ANSI_GREEN;
         }
 
-        vx_printf("  %s%s %-20s%-15s%-20s%-15u%s\n" ANSI_RESET,
+        vx_printf("  %s%s %-22s" ANSI_RESET "%-10s%s%-22s" ANSI_RESET "%-16u%-14s%-12s\n",
                   status_color,
                   artifact_ok ? "✔" : "⚠",
                   m->name,
                   kind_str,
+                  status_color,
                   status_str,
                   m->total_files,
+                  size_buf,
                   time_buf);
     }
 
-    vx_printf(
-        "  "
-        "--------------------------------------------------------------------------------------\n");
+    vx_printf("  "
+              "------------------------------------------------------------------------------------"
+              "------------\n");
 
     vx_printf(ANSI_BOLD "  Cache Summary:" ANSI_RESET "  %u hits, %u misses (Total Ops: %u)\n",
               header.global_cache_hits,
@@ -163,5 +214,5 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
                             " (All targets verified up-to-date).\n");
     }
     vx_printf(ANSI_BOLD ANSI_CYAN "================================================================"
-                                  "===============================\n" ANSI_RESET);
+                                  "===================================\n" ANSI_RESET);
 }
