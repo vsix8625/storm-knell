@@ -25,6 +25,7 @@ static const char *g_sk_template_cpp;
 // ----------------------------------------------------------------------------------------------------
 
 // static bool is_subcmd(const char *arg);
+static inline const char *sk_cmd_tostr(sk_cmd cmd);
 
 // ----------------------------------------------------------------------------------------------------
 
@@ -53,11 +54,8 @@ subcmd_surge_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i32 argc, char **arg
 
 // ----------------------------------------------------------------------------------------------------
 
-static inline vx_status subcmd_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i32 argc, char **argv)
+static inline vx_status subcmd_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i32, char **)
 {
-    (void) argc;
-    (void) argv;
-
     ctx->active_cmd |= id;
 
     (*i)++;
@@ -66,7 +64,7 @@ static inline vx_status subcmd_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i3
 
 static struct sk_subcmd_entry g_sk_subcmds[] = {
     {"strike", SK_CMD_STRIKE, subcmd_handler, "Parse Stormfile and build project (alias: build)"},
-    {"surge", SK_CMD_SURGE, subcmd_surge_handler, "Run target (alias: run & manifest-aware)"},
+    {"surge", SK_CMD_SURGE, subcmd_surge_handler, "Run target (manifest-aware) (alias: run)"},
     {"clean", SK_CMD_CLEAN, subcmd_handler, "Clean artifacts (manifest-aware)"},
     {"init", SK_CMD_INIT, subcmd_handler, "Initialize Storm-Knell in working directory"},
     {"purge", SK_CMD_PURGE, subcmd_handler, "De-initialize Storm-Knell from working directory"},
@@ -87,9 +85,9 @@ static struct sk_opt_entry g_sk_opts[] = {
     {"--memstat", SK_CMD_NONE, SK_OPT_MEMSTAT, opt_set_bit, "Show memory information"},
     {"--main-c", SK_CMD_NONE, SK_OPT_MAIN_C, opt_set_bit, "Generate 'Hello, from sk' main.c"},
     {"--main-cpp", SK_CMD_NONE, SK_OPT_MAIN_CPP, opt_set_bit, "Generate 'Hello, from sk' main.cpp"},
-    {"--token-dump", SK_CMD_NONE, SK_OPT_TOK_DUMP, opt_set_bit, "Show tokens"},
-    {"--node-dump", SK_CMD_NONE, SK_OPT_NODE_DUMP, opt_set_bit, "Show nodes"},
-    {"--eval-dump", SK_CMD_NONE, SK_OPT_EVAL_DUMP, opt_set_bit, "Show eval"},
+    {"--token-dump", SK_CMD_NONE, SK_OPT_TOK_DUMP, opt_set_bit, "Show Stormfile tokens"},
+    {"--node-dump", SK_CMD_NONE, SK_OPT_NODE_DUMP, opt_set_bit, "Show Stormfile nodes"},
+    {"--eval-dump", SK_CMD_NONE, SK_OPT_EVAL_DUMP, opt_set_bit, "Show Stormfile eval"},
     {"--set", SK_CMD_NONE, SK_OPT_SETVAR, opt_set_var, "Inject boolean variable into eval"},
 
     {"--add-cc",
@@ -106,8 +104,6 @@ static struct sk_opt_entry g_sk_opts[] = {
     // ----------------------------------------------------------------------------------------------------
     // owner = SK_CMD_STRIKE
     {"--dry", SK_CMD_STRIKE, SK_OPT_STRIKE_DRY, opt_set_bit, "Dry run"},
-    {"--release", SK_CMD_STRIKE, SK_OPT_STRIKE_REL, opt_set_bit, "Release build"},
-    {"-r", SK_CMD_STRIKE, SK_OPT_STRIKE_REL, opt_set_bit, "Release build"},
     {"--gen-ccmds", SK_CMD_STRIKE, SK_OPT_GEN_CCMDS, opt_set_bit, "Generate compile_commands.json"},
     // ----------------------------------------------------------------------------------------------------
 
@@ -198,7 +194,7 @@ static vx_status parse_subcmds(struct sk_ctx *ctx, i32 argc, char **argv)
                 if (g_sk_subcmds[j].fn == nullptr ||
                     g_sk_subcmds[j].fn(ctx, g_sk_subcmds[j].id, &i, argc, argv) != VX_OK)
                 {
-                    VX_ASSERT_LOG("Subcommand: %s exit abnormally", arg);
+                    vx_errlog("Subcommand: %s exit abnormally", arg);
                     return VX_ERROR;
                 }
 
@@ -221,7 +217,7 @@ static vx_status parse_opts(struct sk_ctx *ctx, i32 argc, char **argv)
 {
     if (ctx == nullptr || argv == nullptr)
     {
-        VX_ASSERT_LOG("nullptr args");
+        // VX_ASSERT_LOG("nullptr args");
         return VX_ERROR;
     }
 
@@ -264,7 +260,9 @@ static vx_status parse_opts(struct sk_ctx *ctx, i32 argc, char **argv)
 
                     if (!is_global && !is_owned)
                     {
-                        vx_warn("Option '%s' has no effect here, skipping", arg);
+                        vx_warn("Option: '%s' requires '%s' command",
+                                arg,
+                                sk_cmd_tostr(g_sk_opts[j].owner));
                         i++;
                         match = true;
                         continue;
@@ -274,7 +272,7 @@ static vx_status parse_opts(struct sk_ctx *ctx, i32 argc, char **argv)
                         g_sk_opts[j].fn(ctx, g_sk_opts[j].owner, g_sk_opts[j].id, &i, argc, argv) !=
                             VX_OK)
                     {
-                        VX_ASSERT_LOG("Option: %s failed", arg);
+                        vx_errlog("Option: %s failed", arg);
                         return VX_ERROR;
                     }
 
@@ -298,8 +296,6 @@ static vx_status parse_opts(struct sk_ctx *ctx, i32 argc, char **argv)
 
     return VX_OK;
 }
-
-//----------------------------------------------------------------------------------------------------
 
 //----------------------------------------------------------------------------------------------------
 
@@ -341,7 +337,6 @@ static vx_status cli_execute(struct sk_ctx *ctx)
     vx_dbglog("active_cmd: 0x%08lX", ctx->active_cmd);
     vx_dbglog("active_opt: 0x%08lX", ctx->active_opt);
 
-    // version and status exits early
     if (ctx->active_opt & SK_OPT_VERSION)
     {
         vx_log("Storm-Knell version: (%s)", SK_VERSION_STRING);
@@ -695,7 +690,7 @@ static const struct sk_deep_help_entry g_sk_deep_helps[] = {
      "  If the target directory path does not exist, Storm-Knell will create it.\n\n"
      "Examples:\n"
      "  sk init                          Initializes the current directory.\n"
-     "  sk init --force                  Overwrites and resets existing Stormfile and .storm/\n"
+     "  sk init --force                  Overwrites and resets existing .storm directory\n"
      "  sk init -C <path>                Initializes inside the specified path."},
 
     {SK_CMD_PURGE,
@@ -917,6 +912,26 @@ static const char *g_sk_template_cpp =
     "    std::cout << \"Hello from Storm-Knell C++ project!\\n\";\n"
     "    return 0;\n"
     "}\n";
+
+//----------------------------------------------------------------------------------------------------
+
+static const char *g_sk_subcmds_list[] = {
+    [SK_CMD_NONE]   = "none",
+    [SK_CMD_STRIKE] = "strike",
+    [SK_CMD_SURGE]  = "surge",
+    [SK_CMD_PURGE]  = "purge",
+    [SK_CMD_CLEAN]  = "clean",
+    [SK_CMD_CONFIG] = "config",
+    [SK_CMD_CACHE]  = "cache",
+    [SK_CMD_INIT]   = "init",
+    [SK_CMD_STATUS] = "status",
+};
+
+static inline const char *sk_cmd_tostr(sk_cmd cmd)
+{
+    const char *s = g_sk_subcmds_list[cmd];
+    return s ? s : "undefined";
+}
 
 //----------------------------------------------------------------------------------------------------
 /*

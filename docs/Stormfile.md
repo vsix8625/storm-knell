@@ -98,12 +98,12 @@ target <name>
 | `out` | | Output binary name |
 | `out_dir` | | Override output directory |
 | `mode` | `debug` | Build mode: `debug` or `release` — see warning below |
-| `kind` | `exec` | Output kind: `exec`, `static`, `shared` |
+| `kind` | `exec` | Output kind: `exec`, `static`, `shared`, `pch` |
 | `sources` | | Source files or directories to compile |
 | `includes` | | Include paths |
-| `cflags::` | | Append compiler flags |
-| `lflags::` | | Append linker flags |
-| `defines::` | | Append preprocessor defines |
+| `cflags` | | Override or append compiler flags |
+| `lflags` | | Override or append linker flags |
+| `defines` | | Override or append preprocessor defines |
 | `exclude` | | Paths to exclude from directory scanner |
 | `depends` | | Target dependencies — built first, libs auto-linked |
 | `install` | | Install destination after a successful build |
@@ -180,6 +180,7 @@ exclude:
     build/
     test/
     docs/
+    src/foo.c
 ```
 
 Or append:
@@ -201,7 +202,7 @@ target mylib
     out: mylib
     kind: static
     sources:
-    lib/
+        lib/
 }
 
 target myapp
@@ -209,7 +210,7 @@ target myapp
     out: myapp
     depends: mylib
     sources:
-    src/
+        src/
 }
 ```
 

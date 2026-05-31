@@ -96,7 +96,7 @@ target sk
         -Isrc/core/util
         -Iexternal/vx/include
 
-    // Installs the binary directly to your local system binaries path
+    // Installs the binary directly to the desired path
     install: ~/.local/bin
 }
 
@@ -110,6 +110,7 @@ if(sk_debug)
         out: skdbg
         mode: debug
 
+        // defines also can be set in cflags
         cflags:: -g -DDEBUG
 
         exclude:

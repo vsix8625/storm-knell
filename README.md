@@ -61,6 +61,42 @@ sk -C myproject init strike --profile surge --main-c
 
 ---
 
+## In practice
+
+sk builds itself. Clean build with warm object cache — 41 source files, 345ms total:
+
+```
+$ sk clean strike --profile
+[log]: Cleaning workspace targets...
+[log]:   Wiping target [sk] outputs -> crater/
+[log]: [cache]: 41 hits, 0, 41 total
+====== Profiler ======
+Lexer  : 97.79 us
+Parser : 5.36 ms
+Eval   : 4.22 ms
+Compile: 60.52 ms
+Link   : 227.18 ms
+Strike : 345.81 ms
+======================
+Total: 353.25 ms
+======================
+```
+
+```
+$ sk status
+Storm-Knell Version: 0.5.3
+================================= STORM-KNELL STATUS ==================================
+  Target Name   Kind    Status Check     Total Files   Size          Age
+  --------------------------------------------------------------------------------------
+  ✔ sk          EXEC    [OPERATIONAL]    41            184.82 KB     just now
+  --------------------------------------------------------------------------------------
+  Cache Summary:  41 hits, 0 misses (Total Ops: 41)
+  Workspace Status: READY / HEALTHY (All targets verified up-to-date).
+=======================================================================================
+```
+
+---
+
 ## Basic Stormfile
 
 ```

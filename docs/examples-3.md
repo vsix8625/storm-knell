@@ -78,7 +78,6 @@ $ sk status
 
 ```
 Version: 0.5.1
-Working directory: /devenv/repos/chocolate-doom
 Cache size: 33.88 MB
 =============================== STORM-KNELL STATUS ============================================
   Target Name         Kind           Status Check        Total Files       Age

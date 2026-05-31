@@ -640,12 +640,6 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
         return VX_ERROR;
     }
 
-    if (ctx->active_opt & SK_OPT_STRIKE_REL)
-    {
-        t->build_mode = "release";
-        vx_log("Mode: %s", t->build_mode);
-    }
-
     char  final_bin_dir_buf[VX_PATH_MAX];
     char *bin_container = "lib";
 
@@ -885,6 +879,8 @@ static void *sk_worker_compile_fn(void *arg)
             }
         }
 
+        bool verbose = (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE);
+
         struct vx_proc_cfg cfg = {.flags = VX_PROCESS_FLAGS_CAPTURE};
 
         vx_mutex_lock(&g_proc_spawn_mutex);
@@ -911,7 +907,11 @@ static void *sk_worker_compile_fn(void *arg)
                 }
 
                 u32 c_idx = atomic_fetch_add(&g_cache_misses, 1) + 1;
-                vx_printf("    [%u]: %s\n", c_idx, unit->tag);
+
+                if (!verbose)
+                {
+                    vx_printf("    [%u]: %s\n", c_idx, unit->tag);
+                }
             }
             else
             {
