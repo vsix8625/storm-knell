@@ -30,8 +30,6 @@ static void load_builtin_vars(struct sk_eval_result *result);
 
 static void eval_var(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_eval_result *result);
 
-static void sk_meta_init_git(char *git_branch_out, char *git_hash_out, size_t max_len);
-
 static void
 eval_print(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_eval_result *result);
 
@@ -1250,80 +1248,6 @@ static const char *eval_lookup_var(struct sk_eval_result *result, const char *ke
     return nullptr;
 }
 
-static void sk_meta_init_git(char *git_branch_out, char *git_hash_out, size_t max_len)
-{
-    snprintf(git_branch_out, max_len, "unknown");
-    snprintf(git_hash_out, max_len, "unknown");
-
-    vx_sv head_data     = {0};
-    char *git_head_path = ".git/HEAD";
-
-    if (vx_isfile(git_head_path))
-    {
-        head_data = vx_fs_read(git_head_path, sk_arena_alloc, g_sk_global_arena);
-    }
-
-    if (head_data.data == nullptr || head_data.len == 0)
-    {
-        return;
-    }
-
-    char  *head_str = (char *) head_data.data;
-    size_t head_len = head_data.len;
-
-    while (head_len > 0 &&
-           (head_str[head_len - 1] == CHAR_NEWLINE || head_str[head_len - 1] == CHAR_CARRIAGE ||
-            head_str[head_len - 1] == CHAR_SPACE))
-    {
-        head_str[head_len - 1] = CHAR_NULTERM;
-        head_len--;
-    }
-
-    const char *ref_prefix = "ref: ";
-
-    size_t ref_prefix_len = 5;
-
-    if (head_len > ref_prefix_len && strncmp(head_str, ref_prefix, ref_prefix_len) == 0)
-    {
-        char *ref_path = head_str + ref_prefix_len;
-
-        const char *heads_dir   = "refs/heads/";
-        char       *branch_name = strstr(ref_path, heads_dir);
-
-        if (branch_name)
-        {
-            snprintf(git_branch_out, max_len, "%s", branch_name + strlen(heads_dir));
-        }
-        else
-        {
-            snprintf(git_branch_out, max_len, "%s", ref_path);
-        }
-
-        char full_ref_path[VX_PATH_MAX];
-        snprintf(full_ref_path, sizeof(full_ref_path), ".git/%s", ref_path);
-
-        vx_sv hash_data = vx_fs_read(full_ref_path, sk_arena_alloc, g_sk_global_arena);
-        if (hash_data.data && hash_data.len >= 7)
-        {
-            char  *hash_str = (char *) hash_data.data;
-            size_t hash_len = hash_data.len;
-            while (hash_len > 0 && (hash_str[hash_len - 1] == CHAR_NEWLINE ||
-                                    hash_str[hash_len - 1] == CHAR_CARRIAGE ||
-                                    hash_str[hash_len - 1] == CHAR_SPACE))
-            {
-                hash_str[hash_len - 1] = CHAR_NULTERM;
-                hash_len--;
-            }
-            snprintf(git_hash_out, max_len, "%s", hash_str);
-        }
-    }
-    else if (head_len >= 7)
-    {
-        snprintf(git_branch_out, max_len, "DETACHED");
-        snprintf(git_hash_out, max_len, "%s", head_str);
-    }
-}
-
 static void load_builtin_vars(struct sk_eval_result *result)
 {
     if (result == nullptr)
@@ -1341,17 +1265,10 @@ static void load_builtin_vars(struct sk_eval_result *result)
     char *cache_line_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_16);
     snprintf(cache_line_buf, VX_BUF_SIZE_16, "%d", vx_cpu_get_cache_line());
 
-    char *git_hash_buf   = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_256);
-    char *git_branch_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_256);
-    sk_meta_init_git(git_branch_buf, git_hash_buf, VX_BUF_SIZE_256);
-
     sk_eval_set_builtin(result, "__sk_version__", SK_VERSION_STRING);
     sk_eval_set_builtin(result, "__sk_version_major__", maj_buf);
     sk_eval_set_builtin(result, "__sk_version_minor__", min_buf);
     sk_eval_set_builtin(result, "__sk_version_patch__", pat_buf);
-
-    sk_eval_set_builtin(result, "__git_branch__", git_branch_buf);
-    sk_eval_set_builtin(result, "__git_hash__", git_hash_buf);
 
     sk_eval_set_builtin(result, "__arch__", VX_ARCH_NAME);
     sk_eval_set_builtin(result, "__os__", VX_OS_NAME);

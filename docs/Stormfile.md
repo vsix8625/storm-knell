@@ -368,13 +368,6 @@ Set automatically by sk at eval time. Available in `if()` conditions and `print`
 | `__has_sse4_2__` | CPU supports SSE 4.2 |
 | `__has_bmi__` | CPU supports BMI |
 
-### Git
-
-| Variable | Description |
-|---|---|
-| `__git_hash__` | Current git commit hash |
-| `__git_branch__` | Current git branch |
-
 ---
 
 ## Full example

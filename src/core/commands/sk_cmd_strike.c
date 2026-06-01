@@ -309,7 +309,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 unit->diagnostic_log.size   = log_size;
                 unit->diagnostic_log.offset = 0;
 
-                if (ctx->active_opt & SK_OPT_GEN_CCMDS)
+                if (ctx->active_opt & SK_OPT_GEN_CMDS)
                 {
                     unit->gen_ccmds = true;
                 }
@@ -546,7 +546,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 sk_log_time("Link", &link_time);
             }
 
-            if (ctx->active_opt & SK_OPT_GEN_CCMDS)
+            if (ctx->active_opt & SK_OPT_GEN_CMDS)
             {
                 sk_ccmds_write(ctx->rpath);
             }

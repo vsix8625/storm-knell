@@ -122,8 +122,6 @@ compilation starts. They reflect the machine, the environment, and sk itself.
 | `__sk_version_patch__`  | Patch version number                         |
 | `__os__`                | Operating system e.g. `"linux"`              |
 | `__arch__`              | CPU architecture e.g. `"x86_64"`, `"arm64"`  |
-| `__git_branch__`        | Current git branch                           |
-| `__git_hash__`          | Current git commit hash                      |
 | `__has_avx__`           | `"1"` if CPU supports AVX, else `"0"`        |
 | `__has_avx2__`          | `"1"` if CPU supports AVX2, else `"0"`       |
 | `__has_sse4_2__`        | `"1"` if CPU supports SSE4.2, else `"0"`     |
@@ -164,8 +162,6 @@ codegen include/build_info.h
     define: APP_VERSION_MINOR minor
     define: APP_VERSION_PATCH patch
     define: APP_VERSION_STRING "major.minor.patch"
-    define: GIT_BRANCH        __git_branch__
-    define: GIT_HASH          __git_hash__
 }
 
 // Hard exit if sk is too old
