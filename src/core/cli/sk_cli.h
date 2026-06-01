@@ -39,7 +39,7 @@ typedef enum sk_opt : u64
     SK_OPT_TOK_DUMP      = 1 << 11,
     SK_OPT_NODE_DUMP     = 1 << 12,
     SK_OPT_EVAL_DUMP     = 1 << 13,
-    SK_OPT_GEN_CCMDS     = 1 << 14,
+    SK_OPT_GEN_CMDS      = 1 << 14,
     SK_OPT_CACHE_NUKE    = 1 << 15,
     SK_OPT_MAIN_C        = 1 << 16,
     SK_OPT_MAIN_CPP      = 1 << 17,

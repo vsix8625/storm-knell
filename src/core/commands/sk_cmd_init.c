@@ -225,7 +225,7 @@ void sk_cmd_init_fn(struct sk_ctx *ctx)
 
     create_storm_dir(rpath, SK_PATH_STORM_DIR);
     create_storm_dir(rpath, SK_PATH_STORM_DATA_DIR);
-    create_storm_dir(rpath, SK_PATH_STORM_TRASH_DIR);
+    create_storm_dir(rpath, SK_PATH_STORM_TRASH_DIR);  // TODO: remove trash dir
     create_storm_dir(rpath, SK_PATH_STORM_CACHE_DIR);
 
     if (vx_chdir(rpath) != VX_OK)

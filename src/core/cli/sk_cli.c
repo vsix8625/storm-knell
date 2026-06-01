@@ -85,10 +85,6 @@ static struct sk_opt_entry g_sk_opts[] = {
     {"--memstat", SK_CMD_NONE, SK_OPT_MEMSTAT, opt_set_bit, "Show memory information"},
     {"--main-c", SK_CMD_NONE, SK_OPT_MAIN_C, opt_set_bit, "Generate 'Hello, from sk' main.c"},
     {"--main-cpp", SK_CMD_NONE, SK_OPT_MAIN_CPP, opt_set_bit, "Generate 'Hello, from sk' main.cpp"},
-    {"--token-dump", SK_CMD_NONE, SK_OPT_TOK_DUMP, opt_set_bit, "Show Stormfile tokens"},
-    {"--node-dump", SK_CMD_NONE, SK_OPT_NODE_DUMP, opt_set_bit, "Show Stormfile nodes"},
-    {"--eval-dump", SK_CMD_NONE, SK_OPT_EVAL_DUMP, opt_set_bit, "Show Stormfile eval"},
-    {"--set", SK_CMD_NONE, SK_OPT_SETVAR, opt_set_var, "Inject boolean variable into eval"},
 
     {"--add-cc",
      SK_CMD_CONFIG,
@@ -104,7 +100,11 @@ static struct sk_opt_entry g_sk_opts[] = {
     // ----------------------------------------------------------------------------------------------------
     // owner = SK_CMD_STRIKE
     {"--dry", SK_CMD_STRIKE, SK_OPT_STRIKE_DRY, opt_set_bit, "Dry run"},
-    {"--gen-ccmds", SK_CMD_STRIKE, SK_OPT_GEN_CCMDS, opt_set_bit, "Generate compile_commands.json"},
+    {"--gen-cmds", SK_CMD_STRIKE, SK_OPT_GEN_CMDS, opt_set_bit, "Generate compile_commands.json"},
+    {"--token-dump", SK_CMD_STRIKE, SK_OPT_TOK_DUMP, opt_set_bit, "Show Stormfile tokens"},
+    {"--node-dump", SK_CMD_STRIKE, SK_OPT_NODE_DUMP, opt_set_bit, "Show Stormfile nodes"},
+    {"--eval-dump", SK_CMD_STRIKE, SK_OPT_EVAL_DUMP, opt_set_bit, "Show Stormfile eval"},
+    {"--set", SK_CMD_STRIKE, SK_OPT_SETVAR, opt_set_var, "Inject boolean variable into eval"},
     // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
@@ -663,9 +663,8 @@ static const struct sk_deep_help_entry g_sk_deep_helps[] = {
      "  to compile targets.\n"
      "  \n\n"
      "Examples:\n"
-     "  sk strike -r          Builds the current project with optimizations turned on.(NYI)\n"
      "  sk strike -jN         Global opt: Allow N jobs at onces.\n"
-     "  sk strike --gen-ccmds Generate compile_commands.json in working directory.\n"
+     "  sk strike --gen-cmds Generate compile_commands.json in working directory.\n"
      "  sk strike --dry       Validates the Stormfile parsing without starting compilation."},
 
     {SK_CMD_SURGE,
@@ -736,7 +735,7 @@ static vx_status opt_help(struct sk_ctx *ctx, sk_cmd, sk_opt, i32 *i, i32 argc, 
 
     for (i32 k = *i + 1; k < argc; k++)
     {
-        if (argv[k][0] == '-')
+        if (argv[k][0] == CHAR_MINUS)
         {
             continue;
         }
@@ -793,7 +792,6 @@ static vx_status opt_help(struct sk_ctx *ctx, sk_cmd, sk_opt, i32 *i, i32 argc, 
 
         if ((focus == SK_CMD_NONE && is_global) || (focus != SK_CMD_NONE && matches_focus))
         {
-            // Collect all names for this ID (e.g., "-r, --release")
             char name_buf[64] = {0};
             strcat(name_buf, g_sk_opts[j].name);
 

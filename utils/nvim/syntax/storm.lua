@@ -41,6 +41,9 @@ vim.cmd([[syntax match stormPath "\<\w\+[\/\w\.]\+\>"]])
 vim.cmd([[syntax region stormString start=/"/ skip=/\\"/ end=/"/]])
 vim.cmd([[syntax region stormString start=/'/ skip=/\\'/ end=/'/]])
 
+vim.cmd([[syntax region stormComment start="/\*" end="\*/" keepend]])
+vim.cmd([[syntax match stormComment "//.*$"]])
+
 vim.cmd([[syntax match stormNumber "\<\d\+\>"]])
 
 vim.cmd([[syntax match stormBrace "[{}]"]])

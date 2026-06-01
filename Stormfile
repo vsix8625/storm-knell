@@ -75,11 +75,16 @@ target sk
         lflags::  -flto=auto -Wl,-O1 -Wl,--as-needed
     }
 
-
     exclude:
         build/
         test/
         docs/
+
+    if(__os__ == "linux")
+    {
+        exclude:: external/vx/src/win32/
+    }
+
     sources:
         src/
         external/vx/src/

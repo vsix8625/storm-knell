@@ -20,7 +20,7 @@ _sk_completion()
 				--token-dump
 				--node-dump
 				--add-cc
-				--gen-ccmds
+				--gen-cmds
 				)
 
     case "$prev" in

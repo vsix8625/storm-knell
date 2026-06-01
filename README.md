@@ -145,7 +145,7 @@ target myapp
 | `--silent` | No output |
 | `--profile` | Show pipeline timing |
 | `--set=<var>` | Inject a boolean variable into eval |
-| `--force` | Force action (see notes per command) |
+| `--force` | Force action (only for init: v0.5.3) |
 | `--version` | Show version and exit |
 | `--help, -h` | Show help and exit |
 
@@ -230,6 +230,13 @@ To get syntax highlighting, automatic file detection, and auto-formatting on sav
 3. `utils/nvim/syntax/storm.lua`   -> `~/.config/nvim/syntax/storm.lua`
 
 *(Alternatively, append the repository's `utils/nvim` directory to your Neovim `runtimepath`.)*
+
+### LSP Setup (clangd)
+To generate a `compile_commands.json` for `clangd` or other language servers, pass the `--gen-cmds` flag during a strike:
+
+```bash
+sk strike --gen-cmds
+```
 
 ---
 
