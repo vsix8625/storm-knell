@@ -415,16 +415,71 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             fclose(manifest_f);
         }
 
+        // obj manifest
         u32 record_count = atomic_load(&g_sk_cache_record_count);
         if (record_count > 0)
         {
+            u32 max_pos_entries = record_count;
+            u32 merged_count    = 0;
+
+            struct sk_cache_proj_entry *merged_entries = nullptr;
+
+            FILE *read_f = fopen(SK_PATH_STORM_PROJ_CACHE_BIN, "rb");
+            if (read_f != nullptr)
+            {
+                struct sk_cache_proj_header old_hdr = {0};
+                if (fread(&old_hdr, sizeof(old_hdr), 1, read_f) == 1 && old_hdr.count > 0)
+                {
+                    max_pos_entries += old_hdr.count;
+                    merged_entries   = mem_arena_alloc(
+                        g_sk_global_arena, sizeof(struct sk_cache_proj_entry) * max_pos_entries);
+
+                    if (fread(merged_entries,
+                              sizeof(struct sk_cache_proj_entry),
+                              old_hdr.count,
+                              read_f) == old_hdr.count)
+                    {
+                        merged_count = old_hdr.count;
+                    }
+                }
+                fclose(read_f);
+            }
+
+            if (merged_entries == nullptr)
+            {
+                merged_entries = mem_arena_alloc(g_sk_global_arena,
+                                                 sizeof(struct sk_cache_proj_entry) * record_count);
+            }
+
+            // merge/dedup
+            for (u32 i = 0; i < record_count; i++)
+            {
+                bool hash_exists = false;
+                for (u32 j = 0; j < merged_count; j++)
+                {
+                    // compare the binary hashes directly
+                    if (memcmp(merged_entries[j].hash,
+                               g_sk_cache_records[i].hash,
+                               sizeof(merged_entries[j].hash)) == 0)
+                    {
+                        hash_exists = true;
+                        break;
+                    }
+                }
+
+                // append if this specific compilation hash hasn't been tracked yet
+                if (!hash_exists)
+                {
+                    merged_entries[merged_count++] = g_sk_cache_records[i];
+                }
+            }
+
             FILE *cache_f = fopen(SK_PATH_STORM_PROJ_CACHE_BIN, "wb");
             if (cache_f != nullptr)
             {
-                struct sk_cache_proj_header hdr = {.count = record_count};
+                struct sk_cache_proj_header hdr = {.count = merged_count};
                 fwrite(&hdr, sizeof(hdr), 1, cache_f);
-                fwrite(
-                    g_sk_cache_records, sizeof(struct sk_cache_proj_entry), record_count, cache_f);
+                fwrite(merged_entries, sizeof(struct sk_cache_proj_entry), merged_count, cache_f);
                 fclose(cache_f);
             }
         }

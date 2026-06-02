@@ -34,7 +34,7 @@ vx_status sk_global_config_resolve_path(char *out_buf, size_t buf_len)
 vx_status sk_cache_config_write(const char *config_path, const struct sk_cache_config *cfg)
 {
     return vx_fwrite(config_path,
-                     "max_size_mb=%u\nprune_threshold_mb=%u\n",
+                     "cache_max_size_mb=%u\ncache_prune_threshold_mb=%u\n",
                      cfg->max_size_mb,
                      cfg->prune_threshold_mb);
 }
@@ -68,11 +68,11 @@ vx_status sk_cache_config_load(const char *config_path, struct sk_cache_config *
             continue;
         }
 
-        if (strcmp(key, "max_size_mb") == 0)
+        if (strcmp(key, "cache_max_size_mb") == 0)
         {
             cfg->max_size_mb = (u32) atoi(val);
         }
-        else if (strcmp(key, "prune_threshold_mb") == 0)
+        else if (strcmp(key, "cache_prune_threshold_mb") == 0)
         {
             cfg->prune_threshold_mb = (u32) atoi(val);
         }

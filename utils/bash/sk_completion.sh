@@ -15,12 +15,16 @@ _sk_completion()
 				--profile 
 				--memstat
 				--dry
-				-j
 				--eval-dump
 				--token-dump
 				--node-dump
 				--add-cc
 				--gen-cmds
+				--full
+				--nuke
+				--set
+				-j
+				-C
 				)
 
     case "$prev" in
