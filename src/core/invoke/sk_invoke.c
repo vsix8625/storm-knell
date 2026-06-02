@@ -88,7 +88,10 @@ char *sk_invoke_compile(struct sk_target *t, u32 source_idx)
     return buf;
 }
 
-char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx, struct mem_arena *arena)
+char **sk_invoke_compile_nularr(struct sk_target *t,
+                                u32               source_idx,
+                                struct mem_arena *arena,
+                                u32              *out_count)
 {
     if (t == nullptr || arena == nullptr)
     {
@@ -186,6 +189,11 @@ char **sk_invoke_compile_nularr(struct sk_target *t, u32 source_idx, struct mem_
     argv[idx++] = obj_path;
 
     argv[idx] = nullptr;
+
+    if (out_count)
+    {
+        *out_count = idx;
+    }
 
     verbose_argv_log(argv, idx);
     return argv;
@@ -317,7 +325,10 @@ char **sk_invoke_ar_nularr(struct sk_target *t, struct sk_meta *meta, struct mem
     return argv;
 }
 
-char **sk_invoke_syntax_check_nularr(struct sk_target *t, u32 source_idx, struct mem_arena *arena)
+char **sk_invoke_syntax_check_nularr(struct sk_target *t,
+                                     u32               source_idx,
+                                     struct mem_arena *arena,
+                                     u32              *out_count)
 {
     if (t == nullptr || arena == nullptr)
     {
@@ -363,6 +374,11 @@ char **sk_invoke_syntax_check_nularr(struct sk_target *t, u32 source_idx, struct
     argv[idx++] = "-fsyntax-only";
     argv[idx++] = (char *) t->sources->items[source_idx];
     argv[idx]   = nullptr;
+
+    if (out_count)
+    {
+        *out_count = idx;
+    }
 
     verbose_argv_log(argv, idx);
     return argv;

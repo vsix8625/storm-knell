@@ -251,7 +251,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             {
                 for (u32 s = 0; s < t->sources->count; s++)
                 {
-                    char **argv = sk_invoke_compile_nularr(t, s, g_sk_global_arena);
+                    char **argv = sk_invoke_compile_nularr(t, s, g_sk_global_arena, nullptr);
 
                     if (argv == nullptr)
                     {
@@ -564,8 +564,8 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                         break;
                     }
 
-                    vx_printf("[test]: Running:  '%s'\n", t->name);
-                    vx_printf("--------------------------------------------------\n");
+                    vx_log("Running: '%s'", t->name);
+                    vx_printf("--------------------------------------------------\n\n");
 
                     struct vx_process  run_proc = {0};
                     struct vx_proc_cfg run_cfg  = {0};
@@ -581,11 +581,11 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                     }
 
                     vx_process_wait(&run_proc);
-                    vx_printf("--------------------------------------------------\n");
+                    vx_printf("\n--------------------------------------------------\n");
 
                     if (run_proc.exit_code != 0)
                     {
-                        vx_errlog("FAIL: Target '%s' crashed or exited with code %d",
+                        vx_errlog("Target '%s' crashed or exited with code %d",
                                   t->name,
                                   run_proc.exit_code);
                         strike_status = VX_ERROR;
@@ -593,7 +593,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                     }
 
                     tests_passed++;
-                    vx_printf("[PASS]: '%s' completed successfully.\n\n", t->name);
+                    vx_log("Test '%s' completed successfully.\n\n", t->name);
                 }
             }
 
@@ -606,7 +606,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 }
                 else
                 {
-                    vx_printf("[summary]: All %u test targets passed successfully.\n", tests_run);
+                    vx_log("All %u test targets passed successfully.", tests_run);
                 }
                 vx_printf("==================================================\n\n");
             }
@@ -1019,16 +1019,13 @@ static void *sk_worker_compile_fn(void *arg)
                  file_name,
                  out_ext);
 
-        char **argv = (unit->dry_run) ? sk_invoke_syntax_check_nularr(t, unit->source_idx, arena)
-                                      : sk_invoke_compile_nularr(t, unit->source_idx, arena);
+        u32    arg_count = 0;
+        char **argv = (unit->dry_run)
+                          ? sk_invoke_syntax_check_nularr(t, unit->source_idx, arena, &arg_count)
+                          : sk_invoke_compile_nularr(t, unit->source_idx, arena, &arg_count);
 
         if (unit->gen_ccmds && !unit->dry_run)
         {
-            u32 arg_count = 0;
-            for (size_t i = 0; argv[i] != nullptr; i++)
-            {
-                arg_count++;
-            }
             sk_ccmds_push(src_path, g_sk_global_ctx.rpath, (const char **) argv, arg_count);
         }
 
@@ -1058,9 +1055,10 @@ static void *sk_worker_compile_fn(void *arg)
 
         struct vx_proc_cfg cfg = {.flags = VX_PROCESS_FLAGS_CAPTURE};
 
-        vx_mutex_lock(&g_proc_spawn_mutex);
+        // NOTE: will probably remove the locks
+        // vx_mutex_lock(&g_proc_spawn_mutex);
         vx_status status = vx_process_spawn(&proc, argv[0], argv, &cfg);
-        vx_mutex_unlock(&g_proc_spawn_mutex);
+        // vx_mutex_unlock(&g_proc_spawn_mutex);
 
         if (status == VX_OK)
         {

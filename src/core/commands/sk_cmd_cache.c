@@ -338,7 +338,7 @@ vx_status sk_cmd_cache_fn(struct sk_ctx *ctx)
 
     struct sk_cache_info cache_info = sk_cache_calculate_size();
 
-    vx_log("Cache objects: %llu | size: %.2f MB",
+    vx_log("Cached objects: %llu | size: %.2f MB",
            (unsigned long long) cache_info.object_count,
            (f32) cache_info.total_size / 1048576.0f);
     return VX_OK;
