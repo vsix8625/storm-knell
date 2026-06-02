@@ -134,6 +134,7 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
             case SK_TARGET_KIND_STATIC: kind_str = "STATIC"; break;
             case SK_TARGET_KIND_SHARED: kind_str = "SHARED"; break;
             case SK_TARGET_KIND_PCH: kind_str = "PCH"; break;
+            case SK_TARGET_KIND_TEST: kind_str = "TEST"; break;
         }
         bool artifact_ok = vx_isfile(m->bin_path);
 

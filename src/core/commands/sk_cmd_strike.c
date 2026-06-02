@@ -169,7 +169,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         }
 
         //----------------------------------------------------------------------------------------------------
-        // Main loop
+        // MAIN LOOP
 
         struct sk_work_unit **work_units =
             mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_work_unit *) * total_sources);
@@ -498,9 +498,124 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         }
 
         //----------------------------------------------------------------------------------------------------
+        // POST-LINK: test pass
+        //----------------------------------------------------------------------------------------------------
+        if (!dry_run && g_compile_errors == 0 && strike_status != VX_ERROR)
+        {
+            u32 tests_run    = 0;
+            u32 tests_passed = 0;
+
+            for (u32 i = 0; i < sorted_count; i++)
+            {
+                struct sk_target *t = &eval_result->targets[sorted[i]];
+
+                if (t->kind == SK_TARGET_KIND_TEST)
+                {
+                    if (tests_run == 0)
+                    {
+                        vx_printf("\n==================================================\n");
+                        vx_printf("Storm-Knell Test Suite Runner\n");
+                        vx_printf("==================================================\n");
+                    }
+
+                    tests_run++;
+
+                    for (u32 d = 0; d < t->depend_count; d++)
+                    {
+                        for (u32 j = 0; j < eval_result->target_count; j++)
+                        {
+                            struct sk_target *dep = &eval_result->targets[j];
+                            if (strcmp(dep->name, t->depends[d]) == 0)
+                            {
+                                if (dep->kind == SK_TARGET_KIND_STATIC ||
+                                    dep->kind == SK_TARGET_KIND_SHARED)
+                                {
+                                    char *lflag_L = mem_arena_alloc(g_sk_global_arena, VX_PATH_MAX);
+                                    snprintf(
+                                        lflag_L, VX_PATH_MAX, "-L%s", dep->finalized_bin_dirpath);
+                                    t->cfg.lflags[t->cfg.lflags_count++] = lflag_L;
+
+                                    char *lflag_l =
+                                        mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_64);
+                                    snprintf(lflag_l, VX_BUF_SIZE_64, "-l%s", dep->out_name);
+                                    t->cfg.lflags[t->cfg.lflags_count++] = lflag_l;
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    struct vx_process proc = {0};
+
+                    char **argv = sk_invoke_link_nularr(t, g_sk_global_arena);
+
+                    if (vx_process_spawn(&proc, argv[0], argv, nullptr) != VX_OK)
+                    {
+                        vx_errlog("Could not spawn linker for test target: %s", t->name);
+                        strike_status = VX_ERROR;
+                        break;
+                    }
+
+                    vx_process_wait(&proc);
+                    if (proc.exit_code != 0)
+                    {
+                        vx_errlog("Failed to link test target: %s", t->name);
+                        strike_status = VX_ERROR;
+                        break;
+                    }
+
+                    vx_printf("[test]: Running:  '%s'\n", t->name);
+                    vx_printf("--------------------------------------------------\n");
+
+                    struct vx_process  run_proc = {0};
+                    struct vx_proc_cfg run_cfg  = {0};
+
+                    char *run_argv[] = {t->artifact_path, nullptr};
+
+                    if (vx_process_spawn(&run_proc, run_argv[0], run_argv, &run_cfg) != VX_OK)
+                    {
+                        vx_printf("--------------------------------------------------\n");
+                        vx_errlog("Could not execute test binary: %s", t->artifact_path);
+                        strike_status = VX_ERROR;
+                        break;
+                    }
+
+                    vx_process_wait(&run_proc);
+                    vx_printf("--------------------------------------------------\n");
+
+                    if (run_proc.exit_code != 0)
+                    {
+                        vx_errlog("FAIL: Target '%s' crashed or exited with code %d",
+                                  t->name,
+                                  run_proc.exit_code);
+                        strike_status = VX_ERROR;
+                        break;
+                    }
+
+                    tests_passed++;
+                    vx_printf("[PASS]: '%s' completed successfully.\n\n", t->name);
+                }
+            }
+
+            if (tests_run > 0)
+            {
+                vx_printf("==================================================\n");
+                if (strike_status == VX_ERROR)
+                {
+                    vx_errlog("TEST SUITE ABORTED: %u/%u targets passed.", tests_passed, tests_run);
+                }
+                else
+                {
+                    vx_printf("[summary]: All %u test targets passed successfully.\n", tests_run);
+                }
+                vx_printf("==================================================\n\n");
+            }
+        }
+
+        //----------------------------------------------------------------------------------------------------
         // LINK
 
-        if (!dry_run && g_compile_errors == 0)
+        if (!dry_run && g_compile_errors == 0 && strike_status != VX_ERROR)
         {
             vx_ticks link_time = {0};
             vx_ticks_start(&link_time);
@@ -544,7 +659,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
                 char **argv;
 
-                if (t->kind == SK_TARGET_KIND_PCH)
+                if (t->kind == SK_TARGET_KIND_PCH || t->kind == SK_TARGET_KIND_TEST)
                 {
                     continue;  // nothing to link
                 }
@@ -606,6 +721,11 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 sk_ccmds_write(ctx->rpath);
             }
         }
+
+        //----------------------------------------------------------------------------------------------------
+        // POST-BUILD: Runtime test pass
+
+        //----------------------------------------------------------------------------------------------------
 
         // cache check and prune if needed
         struct sk_cache_info current_cache_info = sk_cache_calculate_size();

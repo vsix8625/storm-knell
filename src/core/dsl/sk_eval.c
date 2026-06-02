@@ -261,6 +261,10 @@ static void eval_cfg(struct sk_parser *p,
                 {
                     target->kind = SK_TARGET_KIND_PCH;
                 }
+                else if (strcmp(t_kind, "test") == 0)
+                {
+                    target->kind = SK_TARGET_KIND_TEST;
+                }
             }
             break;
         }
@@ -1094,6 +1098,7 @@ static const char *sk_target_kind_to_str(sk_target_kind kind)
         case SK_TARGET_KIND_STATIC: return "static_lib";
         case SK_TARGET_KIND_SHARED: return "shared_lib";
         case SK_TARGET_KIND_PCH: return "precompiled_header";
+        case SK_TARGET_KIND_TEST: return "test_executable";
         default: return "none";
     }
 }
