@@ -108,6 +108,8 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
     //----------------------------------------------------------------------------------------------------
 
+    u32 total_tasks = 0;
+
     // skip build if parser pipeline fails
     if (!skip_build && strike_status == VX_OK)
     {
@@ -126,7 +128,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             total_sources += eval_result->targets[i].sources->count;
         }
 
-        u32 total_tasks = total_sources + (eval_result->target_count * 16);
+        total_tasks = total_sources + eval_result->target_count;
 
         g_sk_ccmds =
             mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_ccmds_entry) * total_tasks);
@@ -318,11 +320,6 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             }
 
             //----------------------------------------------------------------------------------------------------
-        }
-
-        if (ctx->active_opt & SK_OPT_VERBOSE)
-        {
-            vx_log("Total tasks: %d", total_tasks);
         }
 
         vx_thread_pool_wait(&pool);
@@ -773,6 +770,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                p.tokens->count,
                p.nodes->count,
                ((f32) p.nodes->count / p.tokens->count) * 100);
+        vx_log("Total tasks: %d", total_tasks);
         vx_log("Targets: %u | Variables: %u", eval_result->target_count, eval_result->var_count);
         vx_log("Errors: %u in tokens | %u in nodes", p.tokens->err_count, p.nodes->err_count);
         vx_log("Cores: %u | Threads: %u", ctx->cores, ctx->threads);
@@ -865,7 +863,7 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
     }
     t->finalized_obj_dirpath = mem_arena_strdup(g_sk_global_arena, abs_dir_buf);
 
-    if (t->kind == SK_TARGET_KIND_EXEC)
+    if (t->kind == SK_TARGET_KIND_EXEC || t->kind == SK_TARGET_KIND_TEST)
     {
         bin_container = "bin";
     }

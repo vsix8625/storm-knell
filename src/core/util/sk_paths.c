@@ -109,16 +109,31 @@ void sk_scan_dir_r(struct sk_arena_array *sources,
         {
             sk_scan_dir_r(sources, excludes, exclude_count, presisten_path);
         }
-        else if (entry.name_len >= 2 && (sk_has_ext(entry.name, entry.name_len, ".c") ||
-                                         sk_has_ext(entry.name, entry.name_len, ".cc") ||
-                                         sk_has_ext(entry.name, entry.name_len, ".cpp") ||
-                                         sk_has_ext(entry.name, entry.name_len, ".cxx") ||
-                                         sk_has_ext(entry.name, entry.name_len, ".s") ||
-                                         sk_has_ext(entry.name, entry.name_len, ".S")))
+        else if (entry.name_len >= 2)
         {
-            if (!sk_arena_array_contains(sources, presisten_path))
+            const char *ext = nullptr;
+
+            size_t ext_len = 0;
+
+            for (size_t i = entry.name_len; i > 0; i--)
             {
-                sk_arena_array_push(sources, presisten_path);
+                if (entry.name[i - 1] == CHAR_DOT)
+                {
+                    ext     = &entry.name[i - 1];
+                    ext_len = entry.name_len - (i - 1);
+                    break;
+                }
+            }
+
+            if (ext &&
+                (vx_strncmplit(ext, ext_len, ".c", 2) || vx_strncmplit(ext, ext_len, ".cc", 3) ||
+                 vx_strncmplit(ext, ext_len, ".cpp", 4) || vx_strncmplit(ext, ext_len, ".cxx", 4) ||
+                 vx_strncmplit(ext, ext_len, ".s", 2) || vx_strncmplit(ext, ext_len, ".S", 2)))
+            {
+                if (!sk_arena_array_contains(sources, presisten_path))
+                {
+                    sk_arena_array_push(sources, presisten_path);
+                }
             }
         }
     }
@@ -177,19 +192,23 @@ const char *sk_expand_path(struct mem_arena *ar, const char *path)
 
 void sk_path_canonicalize(char *path)
 {
+    if (path == nullptr || *path == CHAR_NULTERM)
+    {
+        return;
+    }
+
+    char is_absolute = (path[0] == CHAR_SLASH);
+
     char *parts[VX_BUF_SIZE_256];
-
-    u32 depth = 0;
-
-    char *out = path;
+    u32   depth = 0;
+    char *out   = path;
 
     char tmp[VX_PATH_MAX];
     strncpy(tmp, path, VX_PATH_MAX - 1);
     tmp[VX_PATH_MAX - 1] = CHAR_NULTERM;
 
     char *saveptr = nullptr;
-
-    char *tok = strtok_r(tmp, "/", &saveptr);
+    char *tok     = strtok_r(tmp, "/", &saveptr);
 
     while (tok)
     {
@@ -213,6 +232,12 @@ void sk_path_canonicalize(char *path)
     }
 
     u32 written = 0;
+
+    if (is_absolute)
+    {
+        out[written++] = CHAR_SLASH;
+    }
+
     for (u32 i = 0; i < depth; i++)
     {
         written +=

@@ -6,10 +6,23 @@
 
 bool sk_arena_array_contains(struct sk_arena_array *arr, const char *path)
 {
-    // O(n) for now
+    if (arr->count == 0)
+    {
+        return false;
+    }
+
+    size_t path_len = strlen(path);
+
     for (u32 i = 0; i < arr->count; i++)
     {
-        if (strcmp((char *) arr->items[i], path) == 0)
+        const char *item = (const char *) arr->items[i];
+
+        if (strlen(item) != path_len)
+        {
+            continue;
+        }
+
+        if (strcmp(item, path) == 0)
         {
             return true;
         }

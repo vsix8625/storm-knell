@@ -121,8 +121,20 @@ char **sk_invoke_compile_nularr(struct sk_target *t,
         }
     }
 
+    //--------
+
+    bool is_debug = (strcmp(t->build_mode, "debug") == 0);
+
+    //--------
+
     // cc + cflags + includes + defines + "-c" + src + "-o" + obj + NULL
     u32 extra_args = is_header ? 2 : 0;
+
+    if (is_debug)
+    {
+        extra_args += 1;
+    }
+
     u32 total_args = 2 + t->cfg.cflags_count + t->cfg.includes_count + t->cfg.defines_count +
                      extra_args + 2 + 2 + 1;
 
@@ -158,6 +170,13 @@ char **sk_invoke_compile_nularr(struct sk_target *t,
     for (u32 i = 0; i < t->cfg.cflags_count; i++)
     {
         argv[idx++] = t->cfg.cflags[i];
+    }
+
+    if (is_debug)
+    {
+        char *map_buf = mem_arena_alloc(arena, VX_PATH_MAX + 32);
+        snprintf(map_buf, VX_PATH_MAX + 32, "-ffile-prefix-map=%s=.", g_sk_global_ctx.rpath);
+        argv[idx++] = map_buf;
     }
 
     for (u32 i = 0; i < t->cfg.includes_count; i++)

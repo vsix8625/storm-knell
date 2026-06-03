@@ -165,7 +165,13 @@ static void sk_scan_inc(const char            *src_path,
         {
             for (u32 i = 0; i < cfg->includes_count; i++)
             {
-                const char *ipath = cfg->includes[i] + 2;  // skip -I
+                const char *ipath = cfg->includes[i];
+
+                if (strncmp(ipath, "-I", 2) == 0)
+                {
+                    ipath += 2;
+                }
+
                 snprintf(resolved,
                          VX_PATH_MAX,
                          "%s%s%.*s",
@@ -173,6 +179,7 @@ static void sk_scan_inc(const char            *src_path,
                          VX_PATH_SEP_STR,
                          (i32) (line - inc_start),
                          inc_start);
+
                 if (vx_isfile(resolved))
                 {
                     found = true;
@@ -225,24 +232,71 @@ vx_status sk_hash_setup(struct sk_target     *t,
     hsh_input->sk_version  = vx_sv_from_cstr(SK_VERSION_STRING);
     hsh_input->source      = vx_fs_read(src_path, sk_arena_alloc, arena);
 
-    size_t buf_stride = VX_PATH_MAX * 4;
-    char  *h_buf      = mem_arena_alloc(arena, buf_stride);
+    size_t max_expected = VX_PATH_MAX * 4;
+    size_t total_alloc  = max_expected + VX_BUF_SIZE_8192;
+    char  *h_buf        = mem_arena_alloc(arena, total_alloc);
 
-    i32 written = snprintf(h_buf, buf_stride, "[%s:%s]", meta->cc_path, meta->cc_ver);
+    size_t offset    = 0;
+    size_t rpath_len = g_sk_global_ctx.rpath ? strlen(g_sk_global_ctx.rpath) : 0;
+
+    offset += snprintf(h_buf + offset, total_alloc - offset, "[%s]", meta->cc_ver);
 
     for (u32 i = 0; i < t->cfg.cflags_count; i++)
     {
-        written += snprintf(h_buf + written, buf_stride - written, " %s", t->cfg.cflags[i]);
+        const char *flag = t->cfg.cflags[i];
+        if (rpath_len > 0 && strncmp(flag, g_sk_global_ctx.rpath, rpath_len) == 0 &&
+            flag[rpath_len] == VX_PATH_SEP)
+        {
+            offset += snprintf(h_buf + offset, total_alloc - offset, " .%s", flag + rpath_len);
+        }
+        else
+        {
+            offset += snprintf(h_buf + offset, total_alloc - offset, " %s", flag);
+        }
     }
 
     for (u32 i = 0; i < t->cfg.includes_count; i++)
     {
-        written += snprintf(h_buf + written, buf_stride - written, " %s", t->cfg.includes[i]);
+        const char *inc = t->cfg.includes[i];
+
+        // Check for "-I/absolute/project/root/path" vs system flags
+        // If it starts with "-I" followed immediately by rpath
+        if (rpath_len > 0 && strncmp(inc, "-I", 2) == 0 &&
+            strncmp(inc + 2, g_sk_global_ctx.rpath, rpath_len) == 0)
+        {
+            const char *sub_path = inc + 2 + rpath_len;
+            if (*sub_path == VX_PATH_SEP)
+            {
+                offset += snprintf(h_buf + offset, total_alloc - offset, " -I.%s", sub_path);
+            }
+            else if (*sub_path == '\0')
+            {
+                offset += snprintf(h_buf + offset, total_alloc - offset, " -I.");
+            }
+            else
+            {
+                offset += snprintf(h_buf + offset, total_alloc - offset, " %s", inc);
+            }
+        }
+        else if (rpath_len > 0 && strncmp(inc, g_sk_global_ctx.rpath, rpath_len) == 0 &&
+                 inc[rpath_len] == VX_PATH_SEP)
+        {
+            offset += snprintf(h_buf + offset, total_alloc - offset, " .%s", inc + rpath_len);
+        }
+        else
+        {
+            offset += snprintf(h_buf + offset, total_alloc - offset, " %s", inc);
+        }
     }
 
     for (u32 i = 0; i < t->cfg.defines_count; i++)
     {
-        written += snprintf(h_buf + written, buf_stride - written, " %s", t->cfg.defines[i]);
+        offset += snprintf(h_buf + offset, total_alloc - offset, " %s", t->cfg.defines[i]);
+    }
+
+    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
+    {
+        vx_log("Injected hash: %s", h_buf);
     }
 
     hsh_input->cmd = vx_sv_from_cstr(h_buf);
