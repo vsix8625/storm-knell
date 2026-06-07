@@ -679,11 +679,18 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                     }
                     else
                     {
-                        if (t->kind == SK_TARGET_KIND_EXEC && t->install_dir != nullptr)
-                        {
-                            char *dest_path =
-                                sk_path_join(g_sk_global_arena, t->install_dir, t->out_name);
+                        char *dest_path =
+                            sk_path_join(g_sk_global_arena, t->install_dir, t->out_name);
+                        bool needs_install = true;
 
+                        if (g_cache_hits == total_sources && vx_isfile(dest_path))
+                        {
+                            needs_install = false;
+                        }
+
+                        if (t->kind == SK_TARGET_KIND_EXEC && t->install_dir != nullptr &&
+                            needs_install)
+                        {
                             if (vx_isfile(dest_path))
                             {
                                 vx_fs_rmrf(dest_path);
@@ -947,13 +954,24 @@ static vx_status topo_visit(struct sk_eval_result *result,
     visited[idx]  = true;
     in_stack[idx] = true;
 
+    // for 256 max targets and 32 depends per target this should be fine
+
     struct sk_target *t = &result->targets[idx];
+
     for (u32 d = 0; d < t->depend_count; d++)
     {
         for (u32 j = 0; j < result->target_count; j++)
         {
             if (strcmp(result->targets[j].name, t->depends[d]) == 0)
             {
+                if (result->targets[j].kind == SK_TARGET_KIND_TEST)
+                {
+                    vx_errlog("Target '%s' cannot depend on test target '%s'",
+                              t->name,
+                              result->targets[j].name);
+                    return VX_ERROR;
+                }
+
                 if (topo_visit(result, j, sorted, sorted_count, visited, in_stack) != VX_OK)
                 {
                     return VX_ERROR;
@@ -963,7 +981,8 @@ static vx_status topo_visit(struct sk_eval_result *result,
         }
     }
 
-    in_stack[idx]             = false;
+    in_stack[idx] = false;
+
     sorted[(*sorted_count)++] = idx;
     return VX_OK;
 }

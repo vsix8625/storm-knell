@@ -148,7 +148,7 @@ static void create_storm_dir(const char *root, const char *subdir)
 
     if (vx_mkdir_p(path) != VX_OK)
     {
-        VX_ASSERT_LOG("Failed to create: %s", path);
+        vx_errlog("Failed to create: %s", path);
         return;
     }
 

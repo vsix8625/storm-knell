@@ -35,6 +35,9 @@ struct sk_ctx
     struct sk_arena_array *setvars;
 
     vx_mutex console_lock;
+
+    char sk_server_ssname[16];
+    char sk_server_sskey[16];
 };
 
 void sk_shutdown(void);

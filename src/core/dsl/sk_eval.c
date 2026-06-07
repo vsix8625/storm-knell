@@ -243,6 +243,8 @@ static void eval_cfg(struct sk_parser *p,
         {
             vx_sv sv     = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
             char *t_kind = sv_to_arena(g_sk_global_arena, sv);
+
+            // NOTE: all of kinds should be keywords in lexer and here we just enum match
             if (target)
             {
                 if (strcmp(t_kind, "exec") == 0)
@@ -748,6 +750,17 @@ static void eval_var(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_e
     }
 }
 
+static bool sv_equals_cstr(vx_sv sv, const char *cstr)
+{
+    if (cstr == nullptr)
+    {
+        return false;
+    }
+
+    size_t cstr_len = strlen(cstr);
+    return sv.len == cstr_len && strncmp(sv.data, cstr, cstr_len) == 0;
+}
+
 static bool eval_expr(struct sk_parser *p,
                       vx_sv             stormfile,
                       u32               node,
@@ -762,16 +775,16 @@ static bool eval_expr(struct sk_parser *p,
 
     sk_ast_node_kind kind = p->nodes->kinds[node];
 
+    // handle raw bool identifiers
     if (kind == SK_NODE_IDENT)
     {
         vx_sv key = tok_to_sv(p, stormfile, p->nodes->token_idxs[node]);
 
         for (u32 i = 0; i < var_count; i++)
         {
-            if (strncmp(var_keys[i], key.data, key.len) == 0 &&
-                var_keys[i][key.len] == CHAR_NULTERM)
+            if (sv_equals_cstr(key, var_keys[i]))
             {
-                return strcmp(var_vals[i], "1") == 0;
+                return var_vals[i] && strcmp(var_vals[i], "1") == 0;
             }
         }
         return false;
@@ -790,14 +803,12 @@ static bool eval_expr(struct sk_parser *p,
         if (p->nodes->kinds[left] == SK_NODE_IDENT)
         {
             vx_sv key = tok_to_sv(p, stormfile, p->nodes->token_idxs[left]);
-
             for (u32 i = 0; i < var_count; i++)
             {
-                if (strncmp(var_keys[i], key.data, key.len) == 0 &&
-                    var_keys[i][key.len] == CHAR_NULTERM)
+                if (sv_equals_cstr(key, var_keys[i]))
                 {
                     lhs.data = var_vals[i];
-                    lhs.len  = strlen(var_vals[i]);
+                    lhs.len  = var_vals[i] ? strlen(var_vals[i]) : 0;
                     break;
                 }
             }
@@ -817,41 +828,41 @@ static bool eval_expr(struct sk_parser *p,
             rhs.len -= 2;
         }
 
+        bool strings_match = (lhs.len == rhs.len && strncmp(lhs.data, rhs.data, rhs.len) == 0);
+
         switch (op_kind)
         {
-            case SK_TOKEN_DOUBLE_EQUAL:
-            {
-                return lhs.len == rhs.len && strncmp(lhs.data, rhs.data, rhs.len) == 0;
-            }
-
-            case SK_TOKEN_NOT_EQUAL:
-            {
-                return !(lhs.len == rhs.len && strncmp(lhs.data, rhs.data, rhs.len) == 0);
-            }
+            case SK_TOKEN_DOUBLE_EQUAL: return strings_match;
+            case SK_TOKEN_NOT_EQUAL: return !strings_match;
 
             case SK_TOKEN_LT:
             case SK_TOKEN_GT:
             case SK_TOKEN_LE:
             case SK_TOKEN_GE:
             {
-                i32 l = atoi(lhs.data ? lhs.data : "0");
-                i32 r = atoi(rhs.data ? rhs.data : "0");
+                i32 l = lhs.data ? (i32) strtol(lhs.data, NULL, 10) : 0;
+                i32 r = rhs.data ? (i32) strtol(rhs.data, NULL, 10) : 0;
+
                 if (op_kind == SK_TOKEN_LT)
                 {
                     return l < r;
                 }
+
                 if (op_kind == SK_TOKEN_GT)
                 {
                     return l > r;
                 }
+
                 if (op_kind == SK_TOKEN_LE)
                 {
                     return l <= r;
                 }
+
                 if (op_kind == SK_TOKEN_GE)
                 {
                     return l >= r;
                 }
+
                 return false;
             }
 

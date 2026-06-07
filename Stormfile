@@ -28,7 +28,7 @@ if(__os__ == "linux")
 
 major: 0
 minor: 7
-patch: 1
+patch: 2
 
 
 codegen src/core/sk_config.h {
@@ -79,6 +79,7 @@ target sk
         build/
         test/
         docs/
+        src/remote/
 
     if(__os__ == "linux")
     {
@@ -122,6 +123,7 @@ if(sk_debug)
             build/
             test/
             docs/
+            src/remote/
         sources:
             src/
             external/vx/src/
