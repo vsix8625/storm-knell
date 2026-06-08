@@ -1061,10 +1061,6 @@ static void *sk_worker_compile_fn(void *arg)
                     mem_arena_soft_reset(arena);
                     return nullptr;
                 }
-                else
-                {
-                    vx_warn("Cache restore failed for '%s', recompiling", src_path);
-                }
             }
         }
 
@@ -1089,10 +1085,6 @@ static void *sk_worker_compile_fn(void *arg)
                     if (sk_cache_store(&cache_entry, obj_path) == VX_OK)
                     {
                         sk_cache_record(out_hash, src_path, obj_path, t->name);
-                    }
-                    else
-                    {
-                        vx_errlog("Failed to store '%s' to cache", obj_path);
                     }
                 }
 
