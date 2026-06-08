@@ -22,7 +22,7 @@ Before running the bootstrap script, ensure the following are installed:
 ### From source (recommended)
 
 ```bash
-git clone --recurse-submodules https://github.com/vsix8625/storm-knell
+git clone --recurse-submodules https://github.com/vsix8625/storm-knell.git
 cd storm-knell
 python3 ./scripts/build.py
 ```
