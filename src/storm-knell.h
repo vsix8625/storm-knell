@@ -36,6 +36,7 @@ struct sk_ctx
 
     vx_mutex console_lock;
 
+    // NYI
     char sk_server_ssname[16];
     char sk_server_sskey[16];
 };

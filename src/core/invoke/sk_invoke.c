@@ -100,6 +100,11 @@ char **sk_invoke_compile_nularr(struct sk_target *t,
 
     const char *src_path = (const char *) t->sources->items[source_idx];
 
+    if (src_path == nullptr || src_path[0] == CHAR_NULTERM)
+    {
+        return nullptr;
+    }
+
     bool is_header = false;
 
     const char *ext = strrchr(src_path, CHAR_DOT);

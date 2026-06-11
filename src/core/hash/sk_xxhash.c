@@ -227,10 +227,24 @@ vx_status sk_hash_setup(struct sk_target     *t,
 
     const char *src_path = (const char *) t->sources->items[source_idx];
 
+    if (src_path == nullptr || src_path[0] == CHAR_NULTERM)
+    {
+        if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
+        {
+            vx_errlog("Source file path at index %u is null or empty", source_idx);
+        }
+        return VX_ERROR;
+    }
+
     hsh_input->source_path = src_path;
     hsh_input->cfg         = &t->cfg;
     hsh_input->sk_version  = vx_sv_from_cstr(SK_VERSION_STRING);
     hsh_input->source      = vx_fs_read(src_path, sk_arena_alloc, arena);
+
+    if (hsh_input->source.data == nullptr)
+    {
+        return VX_ERROR;
+    }
 
     size_t max_expected = VX_PATH_MAX * 4;
     size_t total_alloc  = max_expected + VX_BUF_SIZE_8192;

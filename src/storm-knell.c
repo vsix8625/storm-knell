@@ -24,10 +24,7 @@ i32 main(i32 argc, char **argv)
 
     switch (init_result)
     {
-        case VX_OK:
-        {
-            break;
-        }
+        case VX_OK: break;
 
         case VX_ERROR:
         case VX_FATAL:
@@ -57,6 +54,9 @@ static vx_status sk_init(i32 argc, char **argv)
         return VX_LIB_NOT_INITIALIZED;
     }
     vx_set_debug(sk_is_debug());
+
+    vx_io_set_prefix(VX_LOG_LEVEL_INFO, "[storm-knell]: ", VX_COLOR_GREEN);
+    vx_io_set_prefix(VX_LOG_LEVEL_DEBUG, "[DEBUG]: ", VX_COLOR_BLUE);
 
     if (!mem_init())
     {
