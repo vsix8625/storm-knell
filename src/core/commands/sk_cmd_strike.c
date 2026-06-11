@@ -133,7 +133,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         g_sk_ccmds =
             mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_ccmds_entry) * total_tasks);
 
-        if (eval_result->target_count == 0)
+        if (eval_result->target_count == 0 || total_sources == 0)
         {
             vx_log("Nothing to build");
             return VX_OK;
@@ -1117,6 +1117,11 @@ static void *sk_worker_compile_fn(void *arg)
 
         atomic_store(&g_compile_end_ns, vx_time_ns());
         mem_arena_soft_reset(arena);
+    }
+    else
+    {
+        atomic_fetch_add(&g_compile_errors, 1);
+        atomic_store(&g_compile_end_ns, vx_time_ns());
     }
 
     return nullptr;

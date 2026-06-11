@@ -79,7 +79,6 @@ target sk
         build/
         test/
         docs/
-        src/remote/
 
     if(__os__ == "linux")
     {
@@ -123,7 +122,6 @@ if(sk_debug)
             build/
             test/
             docs/
-            src/remote/
         sources:
             src/
             external/vx/src/

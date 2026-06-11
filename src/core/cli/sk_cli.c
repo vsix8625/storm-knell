@@ -27,6 +27,8 @@ static const char *g_sk_template_cpp;
 // static bool is_subcmd(const char *arg);
 static inline const char *sk_cmd_tostr(sk_cmd cmd);
 
+static vx_status sk_opt_gen_vscode(struct sk_ctx *ctx);
+
 // ----------------------------------------------------------------------------------------------------
 
 static inline vx_status
@@ -85,6 +87,7 @@ static struct sk_opt_entry g_sk_opts[] = {
     {"--memstat", SK_CMD_NONE, SK_OPT_MEMSTAT, opt_set_bit, "Show memory information"},
     {"--main-c", SK_CMD_NONE, SK_OPT_MAIN_C, opt_set_bit, "Generate 'Hello, from sk' main.c"},
     {"--main-cpp", SK_CMD_NONE, SK_OPT_MAIN_CPP, opt_set_bit, "Generate 'Hello, from sk' main.cpp"},
+    {"--vscode", SK_CMD_NONE, SK_OPT_VSCODE, opt_set_bit, "Generate .vscode tasks.json"},
 
     {"--add-cc",
      SK_CMD_CONFIG,
@@ -263,6 +266,7 @@ static vx_status parse_opts(struct sk_ctx *ctx, i32 argc, char **argv)
                         vx_warn("Option: '%s' requires '%s' command",
                                 arg,
                                 sk_cmd_tostr(g_sk_opts[j].owner));
+
                         i++;
                         match = true;
                         continue;
@@ -317,6 +321,14 @@ static vx_status cli_execute(struct sk_ctx *ctx)
     if (ctx->active_opt & SK_OPT_SILENT)
     {
         vx_log_set_level(VX_LOG_QUIET);
+    }
+
+    if (ctx->active_opt & SK_OPT_VSCODE)
+    {
+        if (sk_opt_gen_vscode(ctx) != VX_OK)
+        {
+            vx_warn("Failed to generate .vscode");
+        }
     }
 
     vx_ticks total_time = {0};
@@ -457,7 +469,9 @@ vx_status sk_cli_driver(struct sk_ctx *ctx, i32 argc, char **argv)
         return VX_ERROR;
     }
 
-    ctx->cores   = vx_cpu_get_nproc();
+    ctx->cores = vx_cpu_get_nproc();
+
+    // --set=
     ctx->setvars = sk_arena_array_create(g_sk_global_arena, 16);
 
     if (parse_subcmds(ctx, argc, argv) != VX_OK)
@@ -932,6 +946,94 @@ static inline const char *sk_cmd_tostr(sk_cmd cmd)
 }
 
 //----------------------------------------------------------------------------------------------------
+
+static vx_status sk_opt_gen_vscode(struct sk_ctx *ctx)
+{
+    char exe_path[VX_PATH_MAX];
+
+    if (vx_platform_get_self_exe(exe_path, sizeof(exe_path)) != VX_OK)
+    {
+        VX_ASSERT_LOG("failed to resolve absolute binary path");
+        return VX_ERROR;
+    }
+
+    const char *rpath      = ctx->rpath ? ctx->rpath : vx_getcwd_fn();
+    const char *vscode_dir = sk_path_join(g_sk_global_arena, rpath, ".vscode");
+    const char *tasks_json = sk_path_join(g_sk_global_arena, vscode_dir, "tasks.json");
+
+    if (vx_mkdir_p(vscode_dir) != VX_OK)
+    {
+        vx_errlog("Could not create .vscode directory");
+        return VX_ERROR;
+    }
+
+    FILE *f = fopen(tasks_json, "w");
+
+    if (f == nullptr)
+    {
+        vx_errlog("could not create file: %s", tasks_json);
+        return VX_ERROR;
+    }
+
+    fprintf(f, "{\n");
+    fprintf(f, "    \"version\": \"2.0.0\",\n");
+    fprintf(f, "    \"tasks\": [\n");
+
+    fprintf(f, "        {\n");
+    fprintf(f, "            \"label\": \"Storm-Knell: Strike\",\n");
+    fprintf(f, "            \"type\": \"shell\",\n");
+    fprintf(f, "            \"command\": \"%s strike\",\n", exe_path);
+    fprintf(f, "            \"options\": {\n");
+    fprintf(f, "                \"cwd\": \"${workspaceFolder}\"\n");
+    fprintf(f, "            },\n");
+    fprintf(f, "            \"group\": {\n");
+    fprintf(f, "                \"kind\": \"build\",\n");
+    fprintf(f, "                \"isDefault\": true\n");
+    fprintf(f, "            },\n");
+    fprintf(f, "            \"presentation\": {\n");
+    fprintf(f, "                \"echo\": true,\n");
+    fprintf(f, "                \"reveal\": \"always\",\n");
+    fprintf(f, "                \"focus\": true,\n");
+    fprintf(f, "                \"panel\": \"shared\",\n");
+    fprintf(f, "                \"showReuseMessage\": false,\n");
+    fprintf(f, "                \"clear\": true\n");
+    fprintf(f, "            },\n");
+    fprintf(f, "            \"problemMatcher\": \"$gcc\"\n");
+    fprintf(f, "        },\n");  // Comma separates objects inside the array
+
+    fprintf(f, "        {\n");
+    fprintf(f, "            \"label\": \"Storm-Knell: Surge\",\n");
+    fprintf(f, "            \"type\": \"shell\",\n");
+    fprintf(f, "            \"command\": \"%s surge\",\n", exe_path);
+    fprintf(f, "            \"options\": {\n");
+    fprintf(f, "                \"cwd\": \"${workspaceFolder}\"\n");
+    fprintf(f, "            },\n");
+    fprintf(f, "            \"group\": {\n");
+    fprintf(f, "                \"kind\": \"test\",\n");
+    fprintf(f, "                \"isDefault\": true\n");
+    fprintf(f, "            },\n");
+    fprintf(f, "            \"presentation\": {\n");
+    fprintf(f, "                \"echo\": true,\n");
+    fprintf(f, "                \"reveal\": \"always\",\n");
+    fprintf(f, "                \"focus\": true,\n");
+    fprintf(f, "                \"panel\": \"shared\",\n");
+    fprintf(f, "                \"showReuseMessage\": false,\n");
+    fprintf(f, "                \"clear\": true\n");
+    fprintf(f, "            },\n");
+    fprintf(f, "            \"problemMatcher\": \"$gcc\"\n");
+    fprintf(f, "        }\n");
+
+    fprintf(f, "    ]\n");
+    fprintf(f, "}\n");
+
+    fclose(f);
+
+    vx_log("Generated workspace build task successfully.");
+    return VX_OK;
+}
+
+//----------------------------------------------------------------------------------------------------
+
 /*
  * STORM-KNELL CLI PARSER ARCHITECTURE
  * -----------------------------------

@@ -244,7 +244,6 @@ static void eval_cfg(struct sk_parser *p,
             vx_sv sv     = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
             char *t_kind = sv_to_arena(g_sk_global_arena, sv);
 
-            // NOTE: all of kinds should be keywords in lexer and here we just enum match
             if (target)
             {
                 if (strcmp(t_kind, "exec") == 0)
@@ -697,12 +696,12 @@ eval_print(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_eval_result
 
     if (kind == SK_TOKEN_LIT_STRING)
     {
-        vx_printf("[sk]: %.*s\n", (i32) key.len - 2, key.data + 1);
+        vx_printf("[Stormfile]: %.*s\n", (i32) key.len - 2, key.data + 1);
     }
     else
     {
         const char *val = eval_lookup_var(result, key.data, key.len);
-        vx_printf("[sk]: %.*s = %s\n", (i32) key.len, key.data, val ? val : "(unset)");
+        vx_printf("[Stormfile]: %.*s = %s\n", (i32) key.len, key.data, val ? val : "(unset)");
     }
 }
 
