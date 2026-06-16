@@ -182,6 +182,13 @@ static void eval_cfg(struct sk_parser *p,
             break;
         }
 
+        case SK_TOKEN_KWORD_RPATH:
+        {
+            vx_sv sv   = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
+            cfg->rpath = sv_to_arena(g_sk_global_arena, sv);
+            break;
+        }
+
         case SK_TOKEN_KWORD_CFLAGS:
         {
             u32 key_tok = p->nodes->token_idxs[node];

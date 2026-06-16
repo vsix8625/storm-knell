@@ -1001,7 +1001,7 @@ static void *sk_worker_compile_fn(void *arg)
 {
     if (tls_worker_arena == nullptr)
     {
-        tls_worker_arena = mem_arena_create("worker-scratch", 4 * 1024 * 1024);
+        tls_worker_arena = mem_arena_create("worker-scratch", (size_t) VX_MiB(4));
     }
 
     struct mem_arena *arena = tls_worker_arena;
@@ -1051,7 +1051,6 @@ static void *sk_worker_compile_fn(void *arg)
 
         if (!unit->dry_run)
         {
-            // TODO: add sk strike --fresh to skip cache checks and compile full
             if (sk_cache_exists(&cache_entry))
             {
                 if (sk_cache_restore(&cache_entry, obj_path) == VX_OK)

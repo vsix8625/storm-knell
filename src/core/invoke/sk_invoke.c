@@ -236,6 +236,7 @@ char **sk_invoke_link_nularr(struct sk_target *t, struct mem_arena *arena)
                      + ((t->cfg.linker != nullptr) ? 1 : 0) +
                      ((t->kind == SK_TARGET_KIND_SHARED) ? 1 : 0) + obj_count  // all .o files
                      + t->cfg.lflags_count + t->cfg.lib_paths_count + t->cfg.libs_count +
+                     +((t->cfg.rpath && t->cfg.rpath[0] != CHAR_NULTERM) ? 1 : 0) +
                      2     // -o <output>
                      + 1;  // nullptr sentinel
 
@@ -286,6 +287,16 @@ char **sk_invoke_link_nularr(struct sk_target *t, struct mem_arena *arena)
     for (u32 j = 0; j < t->cfg.libs_count; j++)
     {
         argv[idx++] = t->cfg.libs[j];
+    }
+
+    if (t->cfg.rpath && t->cfg.rpath[0] != CHAR_NULTERM)
+    {
+        char *rpath_flag = mem_arena_alloc(arena, VX_BUF_SIZE_1024);
+        if (rpath_flag != nullptr)
+        {
+            snprintf(rpath_flag, VX_BUF_SIZE_1024, "-Wl,-rpath,%s", t->cfg.rpath);
+            argv[idx++] = rpath_flag;
+        }
     }
 
     // output path

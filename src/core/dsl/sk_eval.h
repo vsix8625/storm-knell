@@ -15,6 +15,7 @@ struct sk_cfg
 {
     char *cc;
     char *linker;
+    char *rpath;
 
     char **cflags;
     char **lflags;

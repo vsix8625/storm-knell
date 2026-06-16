@@ -199,8 +199,6 @@ vx_status sk_top_level_parse(struct sk_parser *p)
             return VX_ERROR;
         }
 
-        // we might need re-peek
-
         if (node != SK_NODE_INVALID)
         {
             if (last == SK_NODE_INVALID)
@@ -220,7 +218,6 @@ vx_status sk_top_level_parse(struct sk_parser *p)
         vx_warn("Parse completed with %u errors", p->nodes->err_count);
     }
 
-    // return p->nodes->err_count == 0 ? VX_OK : VX_ERROR;
     return VX_OK;
 }
 
@@ -368,6 +365,7 @@ static void parse_codegen_body(struct sk_parser *p, u32 *first_child)
     }
 }
 
+// NOTE: allow codegen in if blocks
 static u32 parse_codegen(struct sk_parser *p)
 {
     u32 tok_idx = advance(p);
@@ -425,6 +423,7 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
             case SK_TOKEN_KWORD_KIND:
             case SK_TOKEN_KWORD_MODE:
             case SK_TOKEN_KWORD_DEFINES:
+            case SK_TOKEN_KWORD_RPATH:
             case SK_TOKEN_IDENT:
             {
                 if (t2 == SK_TOKEN_COLON || t2 == SK_TOKEN_DOUBLE_COLON)

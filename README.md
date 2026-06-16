@@ -145,7 +145,7 @@ target myapp
 | `--silent` | No output |
 | `--profile` | Show pipeline timing |
 | `--set=<var>` | Inject a boolean variable into eval |
-| `--force` | Force action (only for init: v0.5.3) |
+| `--force` | Force action (only for init) |
 | `--version` | Show version and exit |
 | `--help, -h` | Show help and exit |
 
@@ -237,6 +237,13 @@ To generate a `compile_commands.json` for `clangd` or other language servers, pa
 ```bash
 sk strike --gen-cmds
 ```
+
+### Visual Studio Code
+To generate `.vscode/tasks.json` with **Strike** (Ctrl+Shift+B) and **Surge** tasks:
+```bash
+sk --vscode
+```
+Errors from the compiler will be highlighted inline via the `$gcc` problem matcher.
 
 ---
 

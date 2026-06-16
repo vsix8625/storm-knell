@@ -229,10 +229,7 @@ vx_status sk_hash_setup(struct sk_target     *t,
 
     if (src_path == nullptr || src_path[0] == CHAR_NULTERM)
     {
-        if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
-        {
-            vx_errlog("Source file path at index %u is null or empty", source_idx);
-        }
+        vx_errlog("Source file path at index %u is null or empty", source_idx);
         return VX_ERROR;
     }
 
@@ -243,6 +240,7 @@ vx_status sk_hash_setup(struct sk_target     *t,
 
     if (hsh_input->source.data == nullptr)
     {
+        vx_errlog("Source file is empty or unreadable: %s", src_path);
         return VX_ERROR;
     }
 

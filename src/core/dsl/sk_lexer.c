@@ -859,6 +859,15 @@ static sk_token_kind check_keywords(struct sk_lexer *lx)
             break;
         }
 
+        case 'r':
+        {
+            if (len == 5 && vx_strncmplit(s, len, "rpath", 5))
+            {
+                return SK_TOKEN_KWORD_RPATH;
+            }
+            break;
+        }
+
         case 'e':
         {
             if (len == 4 && vx_strncmplit(s, len, "else", 4))
