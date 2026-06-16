@@ -66,38 +66,38 @@ static inline vx_status subcmd_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i3
 
 static struct sk_subcmd_entry g_sk_subcmds[] = {
     {"strike", SK_CMD_STRIKE, subcmd_handler, "Parse Stormfile and build project (alias: build)"},
-    {"surge", SK_CMD_SURGE, subcmd_surge_handler, "Run target (manifest-aware) (alias: run)"},
-    {"clean", SK_CMD_CLEAN, subcmd_handler, "Clean artifacts (manifest-aware)"},
-    {"init", SK_CMD_INIT, subcmd_handler, "Initialize Storm-Knell in working directory"},
-    {"purge", SK_CMD_PURGE, subcmd_handler, "De-initialize Storm-Knell from working directory"},
+    {"surge", SK_CMD_SURGE, subcmd_surge_handler, "Run target (alias: run)"},
+    {"clean", SK_CMD_CLEAN, subcmd_handler, "Remove build artifacts"},
+    {"init", SK_CMD_INIT, subcmd_handler, "Initialize Storm-Knell in current directory"},
+    {"purge", SK_CMD_PURGE, subcmd_handler, "Remove Storm-Knell from current directory"},
     {"cache", SK_CMD_CACHE, subcmd_handler, "View global cache size, or nuke"},
-    {"status", SK_CMD_STATUS, subcmd_handler, "View status"},
-    {"config", SK_CMD_CONFIG, subcmd_handler, "Config"},
+    {"status", SK_CMD_STATUS, subcmd_handler, "View project status"},
+    {"config", SK_CMD_CONFIG, subcmd_handler, "Manage configuration"},
     {nullptr, SK_CMD_NONE, nullptr, nullptr},
 };
 
 static struct sk_opt_entry g_sk_opts[] = {
     // globals - owner = SK_CMD_NONE
-    {"--verbose", SK_CMD_NONE, SK_OPT_VERBOSE, opt_toggle_logging, "Verbose output"},
-    {"--silent", SK_CMD_NONE, SK_OPT_SILENT, opt_toggle_logging, "No output"},
-    {"--version", SK_CMD_NONE, SK_OPT_VERSION, opt_set_bit, "Show version information and exit"},
-    {"--help", SK_CMD_NONE, SK_OPT_HELP, opt_help, "Show help information and exit"},
+    {"--verbose", SK_CMD_NONE, SK_OPT_VERBOSE, opt_toggle_logging, "Enable verbose logging"},
+    {"--silent", SK_CMD_NONE, SK_OPT_SILENT, opt_toggle_logging, "Suppress stdout logs"},
+    {"--version", SK_CMD_NONE, SK_OPT_VERSION, opt_set_bit, "Print version and exit"},
+    {"--help", SK_CMD_NONE, SK_OPT_HELP, opt_help, "Print help and exit"},
     {"--force", SK_CMD_NONE, SK_OPT_FORCE, opt_set_bit, "Force action"},
     {"--profile", SK_CMD_NONE, SK_OPT_PROFILE, opt_set_bit, "Enable profiling"},
-    {"--memstat", SK_CMD_NONE, SK_OPT_MEMSTAT, opt_set_bit, "Show memory information"},
+    {"--memstat", SK_CMD_NONE, SK_OPT_MEMSTAT, opt_set_bit, "Print memory statistics"},
     {"--main-c", SK_CMD_NONE, SK_OPT_MAIN_C, opt_set_bit, "Generate 'Hello, from sk' main.c"},
     {"--main-cpp", SK_CMD_NONE, SK_OPT_MAIN_CPP, opt_set_bit, "Generate 'Hello, from sk' main.cpp"},
-    {"--vscode", SK_CMD_NONE, SK_OPT_VSCODE, opt_set_bit, "Generate .vscode tasks.json"},
+    {"--vscode", SK_CMD_NONE, SK_OPT_VSCODE, opt_set_bit, "Generate VS Code tasks.json"},
 
     {"--add-cc",
      SK_CMD_CONFIG,
      SK_OPT_CONFIG_ADD_CC,
      opt_config_add_cc,
-     "Add compiler path to config (e.g. --add-cc=/usr/bin/clang)"},
+     "Add compiler path to configuration"},
 
-    {"-C", SK_CMD_NONE, SK_OPT_RUN_FROM_PATH, opt_set_rpath, "Run from path"},
-    {"-j", SK_CMD_NONE, SK_OPT_THREADS, opt_set_jobs, "Allow N jobs at once"},
-    {"-h", SK_CMD_NONE, SK_OPT_HELP, opt_help, "Show help information and exit"},
+    {"-C", SK_CMD_NONE, SK_OPT_RUN_FROM_PATH, opt_set_rpath, "Change working directory"},
+    {"-j", SK_CMD_NONE, SK_OPT_THREADS, opt_set_jobs, "Set max parallel jobs"},
+    {"-h", SK_CMD_NONE, SK_OPT_HELP, opt_help, "Print help and exit"},
     // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
@@ -112,7 +112,7 @@ static struct sk_opt_entry g_sk_opts[] = {
 
     // ----------------------------------------------------------------------------------------------------
     // owner = SK_CMD_SURGE
-    {"--with", SK_CMD_SURGE, SK_OPT_SURGE_WITH, opt_set_bit, "Run under tool"},
+    {"--with", SK_CMD_SURGE, SK_OPT_SURGE_WITH, opt_set_bit, "Run under tool (NYI)"},
     // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
@@ -121,7 +121,7 @@ static struct sk_opt_entry g_sk_opts[] = {
     // ----------------------------------------------------------------------------------------------------
 
     // owner = SK_CMD_CLEAN
-    {"--full", SK_CMD_CLEAN, SK_OPT_CLEAN_FULL, opt_set_bit, "Clean also cached project objects"},
+    {"--full", SK_CMD_CLEAN, SK_OPT_CLEAN_FULL, opt_set_bit, "Include cached project objects"},
 
     // ----------------------------------------------------------------------------------------------------
     {"(init)", SK_CMD_INIT, SK_OPT_NONE, nullptr, "sk init"},
@@ -351,7 +351,7 @@ static vx_status cli_execute(struct sk_ctx *ctx)
 
     if (ctx->active_opt & SK_OPT_VERSION)
     {
-        vx_log("Storm-Knell version: (%s)", SK_VERSION_STRING);
+        vx_log("Version: (%s)", SK_VERSION_STRING);
 
         sk_shutdown();
         exit(VX_EXIT_SUCCESS);
@@ -763,7 +763,7 @@ static vx_status opt_help(struct sk_ctx *ctx, sk_cmd, sk_opt, i32 *i, i32 argc, 
     }
 
     vx_printf("==================================================\n");
-    vx_printf("Storm-Knell Help: v.%s\n", SK_VERSION_STRING);
+    vx_printf("Storm-Knell: v.%s\n", SK_VERSION_STRING);
     vx_printf("==================================================\n");
 
     if (focus == SK_CMD_NONE)

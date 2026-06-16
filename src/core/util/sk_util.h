@@ -75,8 +75,9 @@
 
 static inline bool sk_util_is_ident(char c)
 {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$';
 }
+
 static inline bool sk_util_is_digit(char c)
 {
     return c >= '0' && c <= '9';

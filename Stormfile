@@ -27,7 +27,7 @@ if(__os__ == "linux")
 // defines: -DSK_ARENA_SIZE_MB=256
 
 major: 0
-minor: 7
+minor: 8
 patch: 2
 
 
@@ -56,17 +56,10 @@ target sk
         cflags:: -Wloop-analysis -Wthread-safety-pointer -Wdocumentation -Wunicode-whitespace
     }
 
-    if(__has_mbmi__){
+    if(__has_mbmi__)
+    {
         cflags:: -mbmi
     }
-
-    cflags::
-        -O2 -march=native
-        -mlzcnt -Wvla -Wcast-align
-        -Wredundant-decls
-        -Wmissing-noreturn
-        -fvisibility=hidden
-        -DNDEBUG
 
     if(full_opt)
     {
@@ -74,6 +67,18 @@ target sk
         cflags::  -O3 -flto=auto
         lflags::  -flto=auto -Wl,-O1 -Wl,--as-needed
     }
+    else
+    {
+        cflags:: -O2
+    }
+
+    cflags::
+        -march=native
+        -mlzcnt -Wvla -Wcast-align
+        -Wredundant-decls
+        -Wmissing-noreturn
+        -fvisibility=hidden
+        -DNDEBUG
 
     exclude:
         build/
@@ -82,7 +87,9 @@ target sk
 
     if(__os__ == "linux")
     {
-        exclude:: external/vx/src/win32/
+        exclude::
+            external/vx/src/win32/
+            external/vx/src/macos/
     }
 
     sources:
@@ -122,6 +129,14 @@ if(sk_debug)
             build/
             test/
             docs/
+
+        if(__os__ == "linux")
+        {
+            exclude::
+                external/vx/src/win32/
+                external/vx/src/macos/
+        }
+
         sources:
             src/
             external/vx/src/
