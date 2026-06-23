@@ -169,6 +169,33 @@ const char *sk_expand_path(struct mem_arena *ar, const char *path)
         return nullptr;
     }
 
+    const char *rpath_var = "__sk_rpath__";
+    const char *found     = strstr(path, rpath_var);
+
+    if (found != nullptr)
+    {
+        if (found != path)
+        {
+            vx_warn("__sk_rpath__ must appear at the start of the path: %s", path);
+            return path;
+        }
+
+        const char *rpath     = g_sk_global_ctx.rpath;
+        size_t      rpath_len = strlen(rpath);
+        size_t      var_len   = strlen(rpath_var);
+
+        size_t prefix_len = (size_t) (found - path);
+        size_t suffix_len = strlen(found + var_len);
+        size_t total      = prefix_len + rpath_len + suffix_len + 1;
+
+        char *result = mem_arena_alloc(ar, total);
+        memcpy(result, path, prefix_len);
+        memcpy(result + prefix_len, rpath, rpath_len);
+        memcpy(result + prefix_len + rpath_len, found + var_len, suffix_len + 1);
+
+        path = result;
+    }
+
     if (path[0] == CHAR_TILDE)
     {
         const char *home = vx_platform_get_home_dir();

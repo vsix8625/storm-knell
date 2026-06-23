@@ -70,9 +70,9 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
         return VX_ERROR;
     }
 
-    ctx->stormfile = vx_fs_read(SK_PATH_STORMFILE, sk_arena_alloc, g_sk_global_arena);
+    ctx->sk_source = vx_fs_read(SK_PATH_STORMFILE, sk_arena_alloc, g_sk_global_arena);
 
-    if (ctx->stormfile.data == nullptr)
+    if (ctx->sk_source.data == nullptr)
     {
         return VX_ERROR;
     }
@@ -174,7 +174,7 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
         {
             u32 codegen_node_idx = ev_result->codegen_node_idxs[i];
 
-            if (sk_pipeline_codegen(p, ctx->stormfile, codegen_node_idx, ev_result) != VX_OK)
+            if (sk_pipeline_codegen(p, ctx->sk_source, codegen_node_idx, ev_result) != VX_OK)
             {
                 pipeline_status = VX_ERROR;
             }

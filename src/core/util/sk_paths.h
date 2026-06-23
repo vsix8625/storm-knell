@@ -21,6 +21,8 @@ struct mem_arena;
 #define SK_PATH_STORM_KNELL_COMPILER_CONF_FILE                                                     \
     (SK_PATH_STORM_KNELL VX_PATH_SEP_STR "compilers.conf")
 
+#define SK_PATH_STORM_KNELL_PACKAGES_FILE (SK_PATH_STORM_KNELL VX_PATH_SEP_STR "packages.sk")
+
 void sk_scan_dir_r(struct sk_arena_array *sources,
                    char                 **excludes,
                    u32                    exclude_count,

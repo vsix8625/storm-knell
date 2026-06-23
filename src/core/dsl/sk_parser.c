@@ -269,7 +269,7 @@ static sk_ast_node_kind literal_kind(sk_token_kind t)
 
 static u32 parse_codegen_entry(struct sk_parser *p)
 {
-    vx_sv directive = tok_to_sv(p, g_sk_global_ctx.stormfile, p->current);
+    vx_sv directive = tok_to_sv(p, g_sk_global_ctx.sk_source, p->current);
 
     if (vx_sv_strcmp(directive, "define") == 0)
     {
@@ -424,6 +424,7 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
             case SK_TOKEN_KWORD_MODE:
             case SK_TOKEN_KWORD_DEFINES:
             case SK_TOKEN_KWORD_RPATH:
+            case SK_TOKEN_KWORD_DEPLOY:
             case SK_TOKEN_IDENT:
             {
                 if (t2 == SK_TOKEN_COLON || t2 == SK_TOKEN_DOUBLE_COLON)
