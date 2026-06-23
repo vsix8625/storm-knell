@@ -311,6 +311,25 @@ static void eval_cfg(struct sk_parser *p,
             break;
         }
 
+        case SK_TOKEN_KWORD_DEPLOY:
+        {
+            if (target == nullptr)
+            {
+                VX_ASSERT_LOG("Keyword 'deploy' is not allowed in global scope");
+                break;
+            }
+
+            u32 key_tok = p->nodes->token_idxs[node];
+            cfg_push_paths(p,
+                           stormfile,
+                           val_node,
+                           key_tok,
+                           target->deploys,
+                           &target->deploy_count,
+                           SK_MAX_DEPLOYS);
+            break;
+        }
+
         case SK_TOKEN_KWORD_EXCLUDE:
         {
             if (target == nullptr)
@@ -899,6 +918,7 @@ target_init(struct mem_arena *ar, struct sk_eval_result *result, vx_sv name_sv)
 
     t->exclude_count = 0;
     t->depend_count  = 0;
+    t->deploy_count  = 0;
     t->cfg.cflags    = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_FLAGS);
     t->cfg.lflags    = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_FLAGS);
     t->cfg.defines   = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_DEFINES);
@@ -908,6 +928,7 @@ target_init(struct mem_arena *ar, struct sk_eval_result *result, vx_sv name_sv)
 
     t->excludes = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_EXCLUDES);
     t->depends  = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_DEPS);
+    t->deploys  = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_DEPLOYS);
 
     t->cfg.cflags_count = result->global.cflags_count;
     memcpy(t->cfg.cflags, result->global.cflags, sizeof(char *) * t->cfg.cflags_count);
@@ -971,7 +992,7 @@ vx_status sk_top_level_eval(struct sk_parser *p, struct sk_eval_result *result)
         return VX_ERROR;
     }
 
-    vx_sv stormfile = g_sk_global_ctx.stormfile;
+    vx_sv stormfile = g_sk_global_ctx.sk_source;
 
     u32 node = p->nodes->data_a[1];  // program first child
 
@@ -1291,6 +1312,7 @@ static void load_builtin_vars(struct sk_eval_result *result)
     sk_eval_set_builtin(result, "__sk_version_major__", maj_buf);
     sk_eval_set_builtin(result, "__sk_version_minor__", min_buf);
     sk_eval_set_builtin(result, "__sk_version_patch__", pat_buf);
+    sk_eval_set_builtin(result, "__sk_rpath__", (char *) g_sk_global_ctx.rpath);
 
     sk_eval_set_builtin(result, "__arch__", VX_ARCH_NAME);
     sk_eval_set_builtin(result, "__os__", VX_OS_NAME);

@@ -11,7 +11,7 @@ struct sk_ctx
     // initialized in sk_parser.c
     struct sk_ast_nodes *nodes;
 
-    vx_sv stormfile;
+    vx_sv sk_source;
 
     sk_cmd active_cmd;
     sk_opt active_opt;

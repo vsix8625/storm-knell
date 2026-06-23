@@ -60,11 +60,13 @@ struct sk_target
 
     char **excludes;
     char **depends;
+    char **deploys;
 
     struct sk_cfg cfg;
 
     u32 exclude_count;
     u32 depend_count;
+    u32 deploy_count;
 
     sk_target_kind kind;
 

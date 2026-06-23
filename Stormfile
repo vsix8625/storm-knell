@@ -27,8 +27,8 @@ if(__os__ == "linux")
 // defines: -DSK_ARENA_SIZE_MB=256
 
 major: 0
-minor: 8
-patch: 2
+minor: 9
+patch: 0
 
 
 codegen src/core/sk_config.h {

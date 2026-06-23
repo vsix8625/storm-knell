@@ -40,7 +40,7 @@ vx_status sk_lx_init(struct sk_ctx *ctx, struct sk_lexer *lx)
         return VX_FATAL;
     }
 
-    lx->source = ctx->stormfile;
+    lx->source = ctx->sk_source;
 
     lx->lex_start = 0;
     lx->current   = 0;
@@ -847,6 +847,11 @@ static sk_token_kind check_keywords(struct sk_lexer *lx)
 
         case 'd':
         {
+            if (len == 6 && vx_strncmplit(s, len, "deploy", 6))
+            {
+                return SK_TOKEN_KWORD_DEPLOY;
+            }
+
             if (len == 7 && vx_strncmplit(s, len, "defines", 7))
             {
                 return SK_TOKEN_KWORD_DEFINES;

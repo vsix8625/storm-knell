@@ -495,7 +495,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         }
 
         //----------------------------------------------------------------------------------------------------
-        // POST-LINK: test pass
+        // PRE-LINK: test pass
         //----------------------------------------------------------------------------------------------------
         if (!dry_run && g_compile_errors == 0 && strike_status != VX_ERROR)
         {
@@ -679,17 +679,16 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                     }
                     else
                     {
+                        // TODO: organize install paths
+                        // what we get from deploy: goes to
+                        // libs to prefix/lib, executables to prefix/bin everything else to
+                        // prefix/share/target,
+                        // written on a manifest for unistalls
+
                         char *dest_path =
                             sk_path_join(g_sk_global_arena, t->install_dir, t->out_name);
-                        bool needs_install = true;
 
-                        if (g_cache_hits == total_sources && vx_isfile(dest_path))
-                        {
-                            needs_install = false;
-                        }
-
-                        if (t->kind == SK_TARGET_KIND_EXEC && t->install_dir != nullptr &&
-                            needs_install)
+                        if (t->kind == SK_TARGET_KIND_EXEC && t->install_dir != nullptr)
                         {
                             if (vx_isfile(dest_path))
                             {
@@ -727,7 +726,36 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         }
 
         //----------------------------------------------------------------------------------------------------
-        // POST-BUILD: Runtime test pass
+        // POST-LINK:
+
+        for (u32 i = 0; i < sorted_count; i++)
+        {
+            struct sk_target *t = &eval_result->targets[sorted[i]];
+
+            if (t->deploy_count > 0)
+            {
+                vx_log("Deploying assets for taget '%s'", t->name);
+
+                for (u32 j = 0; j < t->deploy_count; j++)
+                {
+                    const char *src = t->deploys[j];
+
+                    const char *filename = strrchr(src, VX_PATH_SEP);
+                    filename             = filename ? filename + 1 : src;
+
+                    char *dst = sk_path_join(g_sk_global_arena, t->finalized_bin_dirpath, filename);
+
+                    if (!vx_fs_cp(src, dst))
+                    {
+                        vx_errlog("Failed to deploy: %s -> %s", src, dst);
+                    }
+                    else if (ctx->active_opt & SK_OPT_VERBOSE)
+                    {
+                        vx_printf("                   -> %s\n", filename);
+                    }
+                }
+            }
+        }
 
         //----------------------------------------------------------------------------------------------------
 

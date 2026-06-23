@@ -136,5 +136,6 @@ void sk_log_time(const char *phase, vx_ticks *t);
 
 #define SK_MAX_DEPS     32
 #define SK_MAX_EXCLUDES 32
+#define SK_MAX_DEPLOYS  64
 
 #endif  // SK_UTIL_H_
