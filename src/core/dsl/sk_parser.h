@@ -30,6 +30,7 @@ typedef enum sk_ast_node_kind : u32
     SK_NODE_CODEGEN,
     SK_NODE_CODEGEN_DEFINE,
     SK_NODE_CODEGEN_LITERAL,
+    SK_NODE_PACKAGE,
     SK_NODE_PRINT,
     SK_NODE_INSTALL,
     SK_NODE_EXIT,

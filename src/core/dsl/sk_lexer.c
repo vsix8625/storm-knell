@@ -777,6 +777,11 @@ static sk_token_kind check_keywords(struct sk_lexer *lx)
                 return SK_TOKEN_KWORD_BIND;
             }
 
+            if (len == 6 && vx_strncmplit(s, len, "bundle", 6))
+            {
+                return SK_TOKEN_KWORD_BUNDLE;
+            }
+
             break;
         }
 

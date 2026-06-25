@@ -782,6 +782,10 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             VX_CAST(void, prune_target_b);
         }
     }
+    else
+    {
+        vx_errlog("Strike aborted...");
+    }
 
     //----------------------------------------------------------------------------------------------------
     // Logs

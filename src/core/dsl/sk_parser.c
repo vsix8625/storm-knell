@@ -39,6 +39,7 @@ static u32  parse_target(struct sk_parser *p);
 static u32  parse_if(struct sk_parser *p);
 static u32  parse_expr(struct sk_parser *p);
 static void parse_body(struct sk_parser *p, u32 *first_child);
+static u32  parse_bundle(struct sk_parser *p);
 
 //----------------------------------------------------------------------------------------------------
 
@@ -148,6 +149,13 @@ vx_status sk_top_level_parse(struct sk_parser *p)
                 break;
             }
 
+            case SK_TOKEN_KWORD_BUNDLE:
+            {
+                // TODO:
+                node = parse_bundle(p);
+                break;
+            }
+
             case SK_TOKEN_KWORD_IF:
             {
                 node = parse_if(p);
@@ -157,7 +165,11 @@ vx_status sk_top_level_parse(struct sk_parser *p)
             case SK_TOKEN_KWORD_PRINT:
             {
                 u32 tok_idx = advance(p);
-                expect(p, SK_TOKEN_COLON);
+                if (!expect(p, SK_TOKEN_COLON))
+                {
+                    syntax_error(p, "Expected SK_TOKEN_COLON");
+                    break;
+                }
 
                 u32 print_node = emit(SK_NODE_PRINT, tok_idx);
                 u32 val        = emit(SK_NODE_IDENT, advance(p));
@@ -171,7 +183,11 @@ vx_status sk_top_level_parse(struct sk_parser *p)
             case SK_TOKEN_KWORD_EXIT:
             {
                 u32 tok_idx = advance(p);
-                expect(p, SK_TOKEN_COLON);
+                if (!expect(p, SK_TOKEN_COLON))
+                {
+                    syntax_error(p, "Expected SK_TOKEN_COLON");
+                    break;
+                }
 
                 u32 exit_node = emit(SK_NODE_EXIT, tok_idx);
                 u32 val       = emit(SK_NODE_LIT_STRING, advance(p));
@@ -215,7 +231,7 @@ vx_status sk_top_level_parse(struct sk_parser *p)
 
     if (p->nodes->err_count > 0)
     {
-        vx_warn("Parse completed with %u errors", p->nodes->err_count);
+        vx_errlog("Parse completed with %u errors", p->nodes->err_count);
     }
 
     return VX_OK;
@@ -278,11 +294,13 @@ static u32 parse_codegen_entry(struct sk_parser *p)
 
         if (!expect(p, SK_TOKEN_COLON))
         {
+            syntax_error(p, "Expected SK_TOKEN_COLON");
             return SK_NODE_INVALID;
         }
 
         if (!expect(p, SK_TOKEN_IDENT))
         {
+            syntax_error(p, "Expected SK_TOKEN_IDENT");
             return SK_NODE_INVALID;
         }
         p->nodes->data_a[node] = p->current - 1;
@@ -309,11 +327,13 @@ static u32 parse_codegen_entry(struct sk_parser *p)
 
         if (!expect(p, SK_TOKEN_COLON))
         {
+            syntax_error(p, "Expected SK_TOKEN_COLON");
             return SK_NODE_INVALID;
         }
 
         if (!expect(p, SK_TOKEN_LIT_STRING))
         {
+            syntax_error(p, "Expected SK_TOKEN_LIT_STRING");
             return SK_NODE_INVALID;
         }
         p->nodes->data_a[node] = p->current - 1;
@@ -365,14 +385,15 @@ static void parse_codegen_body(struct sk_parser *p, u32 *first_child)
     }
 }
 
-// NOTE: allow codegen in if blocks
-static u32 parse_codegen(struct sk_parser *p)
+static u32 parse_bundle(struct sk_parser *p)
 {
     u32 tok_idx = advance(p);
-    u32 node    = emit(SK_NODE_CODEGEN, tok_idx);
+
+    u32 node = emit(SK_NODE_PACKAGE, tok_idx);
 
     if (!expect(p, SK_TOKEN_PATH))
     {
+        syntax_error(p, "Expected SK_TOKEN_PATH");
         return SK_NODE_INVALID;
     }
 
@@ -380,6 +401,38 @@ static u32 parse_codegen(struct sk_parser *p)
 
     if (!expect(p, SK_TOKEN_LBRACE))
     {
+        syntax_error(p, "Expected SK_TOKEN_LBRACE");
+        return SK_NODE_INVALID;
+    }
+
+    // TODO: name, targets
+    // parse package block
+
+    if (!expect(p, SK_TOKEN_RBRACE))
+    {
+        syntax_error(p, "Expected SK_TOKEN_RBRACE");
+        return SK_NODE_INVALID;
+    }
+
+    return node;
+}
+
+static u32 parse_codegen(struct sk_parser *p)
+{
+    u32 tok_idx = advance(p);
+    u32 node    = emit(SK_NODE_CODEGEN, tok_idx);
+
+    if (!expect(p, SK_TOKEN_PATH))
+    {
+        syntax_error(p, "Expected SK_TOKEN_PATH");
+        return SK_NODE_INVALID;
+    }
+
+    p->nodes->data_a[node] = p->current - 1;  // path token
+
+    if (!expect(p, SK_TOKEN_LBRACE))
+    {
+        syntax_error(p, "Expected SK_TOKEN_LBRACE");
         return SK_NODE_INVALID;
     }
 
@@ -387,6 +440,7 @@ static u32 parse_codegen(struct sk_parser *p)
 
     if (!expect(p, SK_TOKEN_RBRACE))
     {
+        syntax_error(p, "Expected SK_TOKEN_RBRACE");
         return SK_NODE_INVALID;
     }
 
@@ -437,7 +491,11 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
             case SK_TOKEN_KWORD_PRINT:
             {
                 u32 tok_idx = advance(p);
-                expect(p, SK_TOKEN_COLON);
+                if (!expect(p, SK_TOKEN_COLON))
+                {
+                    syntax_error(p, "Expected SK_TOKEN_COLON");
+                    break;
+                }
 
                 u32 node = emit(SK_NODE_PRINT, tok_idx);
                 u32 val  = emit(SK_NODE_IDENT, advance(p));
@@ -451,7 +509,11 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
             case SK_TOKEN_KWORD_EXIT:
             {
                 u32 tok_idx = advance(p);
-                expect(p, SK_TOKEN_COLON);
+                if (!expect(p, SK_TOKEN_COLON))
+                {
+                    syntax_error(p, "Expected SK_TOKEN_COLON");
+                    break;
+                }
 
                 u32 node = emit(SK_NODE_EXIT, tok_idx);
                 u32 val  = emit(SK_NODE_LIT_STRING, advance(p));
@@ -471,7 +533,11 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
             case SK_TOKEN_KWORD_INSTALL:
             {
                 u32 tok_idx = advance(p);
-                expect(p, SK_TOKEN_COLON);
+                if (!expect(p, SK_TOKEN_COLON))
+                {
+                    syntax_error(p, "Expected SK_TOKEN_COLON");
+                    break;
+                }
 
                 u32 node = emit(SK_NODE_INSTALL, tok_idx);
                 u32 val  = emit(SK_NODE_PATH, advance(p));
@@ -492,7 +558,11 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
             case SK_TOKEN_KWORD_DEPENDS:
             {
                 u32 tok_idx = advance(p);
-                expect(p, SK_TOKEN_COLON);
+                if (!expect(p, SK_TOKEN_COLON))
+                {
+                    syntax_error(p, "Expected SK_TOKEN_COLON");
+                    break;
+                }
 
                 u32 node     = emit(SK_NODE_DEPENDS, tok_idx);
                 u32 last_dep = SK_NODE_INVALID;
@@ -596,7 +666,7 @@ static u32 parse_expr(struct sk_parser *p)
 
     if (rkind == SK_NODE_INVALID)
     {
-        p->nodes->err_count++;
+        syntax_error(p, "invalid_token");
         return SK_NODE_INVALID;
     }
 
@@ -615,6 +685,7 @@ static u32 parse_if(struct sk_parser *p)
 
     if (!expect(p, SK_TOKEN_LPAREN))
     {
+        syntax_error(p, "Expected SK_TOKEN_LPAREN");
         return SK_NODE_INVALID;
     }
 
@@ -622,17 +693,19 @@ static u32 parse_if(struct sk_parser *p)
 
     if (cond == SK_NODE_INVALID)
     {
-        p->nodes->err_count++;
+        syntax_error(p, "invalid_token");
         return SK_NODE_INVALID;
     }
     p->nodes->data_a[node] = cond;
 
     if (!expect(p, SK_TOKEN_RPAREN))
     {
+        syntax_error(p, "Expected SK_TOKEN_RPAREN");
         return SK_NODE_INVALID;
     }
     if (!expect(p, SK_TOKEN_LBRACE))
     {
+        syntax_error(p, "Expected SK_TOKEN_LBRACE");
         return SK_NODE_INVALID;
     }
 
@@ -640,6 +713,7 @@ static u32 parse_if(struct sk_parser *p)
 
     if (!expect(p, SK_TOKEN_RBRACE))
     {
+        syntax_error(p, "Expected SK_TOKEN_RBRACE");
         return SK_NODE_INVALID;
     }
 
@@ -656,6 +730,7 @@ static u32 parse_if(struct sk_parser *p)
         {
             if (!expect(p, SK_TOKEN_LBRACE))
             {
+                syntax_error(p, "Expected SK_TOKEN_LBRACE");
                 return SK_NODE_INVALID;
             }
 
@@ -663,6 +738,7 @@ static u32 parse_if(struct sk_parser *p)
 
             if (!expect(p, SK_TOKEN_RBRACE))
             {
+                syntax_error(p, "Expected SK_TOKEN_RBRACE");
                 return SK_NODE_INVALID;
             }
         }
@@ -691,6 +767,7 @@ static u32 parse_target(struct sk_parser *p)
     // expect {
     if (!expect(p, SK_TOKEN_LBRACE))
     {
+        syntax_error(p, "Expected SK_TOKEN_LBRACE");
         return SK_NODE_INVALID;
     }
 
@@ -700,6 +777,7 @@ static u32 parse_target(struct sk_parser *p)
     if (!expect(p, SK_TOKEN_RBRACE))
     {
         syntax_error(p, "Expected closing brace");
+        return SK_NODE_INVALID;
     }
 
     return node;
@@ -766,7 +844,7 @@ static u32 parse_global(struct sk_parser *p)
     }
     else
     {
-        p->nodes->err_count++;
+        syntax_error(p, "invalid_token");
         return SK_NODE_INVALID;
     }
 
@@ -824,8 +902,6 @@ static inline bool expect(struct sk_parser *p, sk_token_kind kind)
         advance(p);
         return true;
     }
-
-    g_sk_global_ctx.nodes->err_count++;
     return false;
 }
 
