@@ -847,6 +847,11 @@ static sk_token_kind check_keywords(struct sk_lexer *lx)
                 return SK_TOKEN_KWORD_PRINT;
             }
 
+            if (len == 7 && vx_strncmplit(s, len, "package", 7))
+            {
+                return SK_TOKEN_KWORD_PACKAGE;
+            }
+
             break;
         }
 

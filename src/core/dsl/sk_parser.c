@@ -149,6 +149,13 @@ vx_status sk_top_level_parse(struct sk_parser *p)
                 break;
             }
 
+            case SK_TOKEN_KWORD_PACKAGE:
+            {
+                // TODO: add pkg-config support
+                // node = parse_bundle(p);
+                break;
+            }
+
             case SK_TOKEN_KWORD_BUNDLE:
             {
                 // TODO:
