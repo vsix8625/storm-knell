@@ -24,11 +24,11 @@ if(__os__ == "linux")
 
 // You can set the desired global arena size by uncommenting this define and re-building
 // Default size is 128 MB, reserverd not allocated.
-// defines: -DSK_ARENA_SIZE_MB=256
+// defines:: -DSK_ARENA_SIZE_MB=256
 
 major: 0
 minor: 9
-patch: 0
+patch: 1
 
 
 codegen src/core/sk_config.h {

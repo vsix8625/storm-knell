@@ -782,6 +782,10 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             VX_CAST(void, prune_target_b);
         }
     }
+    else
+    {
+        vx_errlog("Strike aborted...");
+    }
 
     //----------------------------------------------------------------------------------------------------
     // Logs
@@ -1029,7 +1033,7 @@ static void *sk_worker_compile_fn(void *arg)
 {
     if (tls_worker_arena == nullptr)
     {
-        tls_worker_arena = mem_arena_create("worker-scratch", (size_t) VX_MiB(4));
+        tls_worker_arena = mem_arena_create("worker-scratch", (size_t) VX_MiB(8));
     }
 
     struct mem_arena *arena = tls_worker_arena;

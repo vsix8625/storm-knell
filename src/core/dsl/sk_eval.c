@@ -491,6 +491,18 @@ static void eval_if(struct sk_parser      *p,
                     break;
                 }
 
+                case SK_NODE_INSTALL:
+                {
+                    u32 val_node    = p->nodes->data_a[child];
+                    u32 path_to_idx = p->nodes->token_idxs[val_node];
+
+                    vx_sv sv = tok_to_sv(p, stormfile, path_to_idx);
+
+                    const char *raw     = sv_to_arena(g_sk_global_arena, sv);
+                    target->install_dir = (char *) sk_expand_path(g_sk_global_arena, raw);
+                    break;
+                }
+
                 default:
                 {
                     break;
@@ -597,6 +609,18 @@ static void eval_if(struct sk_parser      *p,
                         break;
                     }
 
+                    case SK_NODE_INSTALL:
+                    {
+                        u32 val_node    = p->nodes->data_a[child];
+                        u32 path_to_idx = p->nodes->token_idxs[val_node];
+
+                        vx_sv sv = tok_to_sv(p, stormfile, path_to_idx);
+
+                        const char *raw     = sv_to_arena(g_sk_global_arena, sv);
+                        target->install_dir = (char *) sk_expand_path(g_sk_global_arena, raw);
+                        break;
+                    }
+
                     default:
                     {
                         break;
@@ -690,8 +714,9 @@ static void eval_target(struct sk_parser      *p,
 
                 while (dep_node != 0)
                 {
-                    u32   dep_tok_idx = p->nodes->token_idxs[dep_node];
-                    vx_sv sv          = tok_to_sv(p, stormfile, dep_tok_idx);
+                    u32 dep_tok_idx = p->nodes->token_idxs[dep_node];
+
+                    vx_sv sv = tok_to_sv(p, stormfile, dep_tok_idx);
 
                     target->depends[target->depend_count++] = sv_to_arena(g_sk_global_arena, sv);
 
@@ -1312,7 +1337,6 @@ static void load_builtin_vars(struct sk_eval_result *result)
     sk_eval_set_builtin(result, "__sk_version_major__", maj_buf);
     sk_eval_set_builtin(result, "__sk_version_minor__", min_buf);
     sk_eval_set_builtin(result, "__sk_version_patch__", pat_buf);
-    sk_eval_set_builtin(result, "__sk_rpath__", (char *) g_sk_global_ctx.rpath);
 
     sk_eval_set_builtin(result, "__arch__", VX_ARCH_NAME);
     sk_eval_set_builtin(result, "__os__", VX_OS_NAME);
