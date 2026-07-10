@@ -158,7 +158,7 @@ vx_status sk_top_level_parse(struct sk_parser *p)
 
             case SK_TOKEN_KWORD_BUNDLE:
             {
-                // TODO:
+                // TODO: remove bundle
                 node = parse_bundle(p);
                 break;
             }
@@ -412,7 +412,7 @@ static u32 parse_bundle(struct sk_parser *p)
         return SK_NODE_INVALID;
     }
 
-    // TODO: name, targets
+    // NOTE:
     // parse package block
 
     if (!expect(p, SK_TOKEN_RBRACE))
