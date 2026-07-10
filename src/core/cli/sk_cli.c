@@ -170,11 +170,6 @@ static void strip_trailing_sep(char *path)
 
 static vx_status parse_subcmds(struct sk_ctx *ctx, i32 argc, char **argv)
 {
-    if (ctx == nullptr || argv == nullptr)
-    {
-        return VX_ERROR;
-    }
-
     if (argc == 1)
     {
         vx_log("Usage: sk <subcmd> [opt] (sk --help for more information)");
@@ -231,12 +226,6 @@ static vx_status parse_subcmds(struct sk_ctx *ctx, i32 argc, char **argv)
 
 static vx_status parse_opts(struct sk_ctx *ctx, i32 argc, char **argv)
 {
-    if (ctx == nullptr || argv == nullptr)
-    {
-        // VX_ASSERT_LOG("nullptr args");
-        return VX_ERROR;
-    }
-
     for (i32 i = 1; i < argc;)
     {
         if (ctx->surge_passthrough_argv != nullptr && &argv[i] >= ctx->surge_passthrough_argv)
@@ -318,11 +307,6 @@ static vx_status parse_opts(struct sk_ctx *ctx, i32 argc, char **argv)
 
 static vx_status cli_execute(struct sk_ctx *ctx)
 {
-    if (ctx == nullptr)
-    {
-        return VX_ERROR;
-    }
-
     // ----------------------------------------------------------------------------------------------------
     // global config
 
@@ -988,15 +972,16 @@ static const char *g_sk_template_cpp =
 //----------------------------------------------------------------------------------------------------
 
 static const char *g_sk_subcmds_list[] = {
-    [SK_CMD_NONE]   = "none",
-    [SK_CMD_STRIKE] = "strike",
-    [SK_CMD_SURGE]  = "surge",
-    [SK_CMD_PURGE]  = "purge",
-    [SK_CMD_CLEAN]  = "clean",
-    [SK_CMD_CONFIG] = "config",
-    [SK_CMD_CACHE]  = "cache",
-    [SK_CMD_INIT]   = "init",
-    [SK_CMD_STATUS] = "status",
+    [SK_CMD_NONE]    = "none",
+    [SK_CMD_STRIKE]  = "strike",
+    [SK_CMD_SURGE]   = "surge",
+    [SK_CMD_PURGE]   = "purge",
+    [SK_CMD_CLEAN]   = "clean",
+    [SK_CMD_CONFIG]  = "config",
+    [SK_CMD_CACHE]   = "cache",
+    [SK_CMD_INIT]    = "init",
+    [SK_CMD_STATUS]  = "status",
+    [SK_CMD_AUTORUN] = "autorun",
 };
 
 static inline const char *sk_cmd_tostr(sk_cmd cmd)
