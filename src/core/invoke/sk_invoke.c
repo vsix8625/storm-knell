@@ -316,11 +316,6 @@ char **sk_invoke_ar_nularr(struct sk_target *t, struct sk_meta *meta, struct mem
         return nullptr;
     }
 
-    if (t->cfg.lflags_count > 0)
-    {
-        vx_warn("target '%s' is kind:static — lflags are ignored (ar has no link step)", t->name);
-    }
-
     // ar + rcs + output.a + objs + NULL
     u32 total_args = 1 + 1 + 1 + t->sources->count + 1;
 

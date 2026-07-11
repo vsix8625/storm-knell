@@ -493,6 +493,10 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             vx_errlog("Build failed: %u file(s) failed to compile", g_compile_errors);
             strike_status = VX_ERROR;
         }
+        else if (g_cache_hits == g_cache_hits + g_cache_misses)
+        {
+            vx_log("\033[35;1mNothing to compile, cache and files up-to-date\033[0m");
+        }
 
         //----------------------------------------------------------------------------------------------------
         // PRE-LINK: test pass
@@ -524,8 +528,10 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                             struct sk_target *dep = &eval_result->targets[j];
                             if (strcmp(dep->name, t->depends[d]) == 0)
                             {
-                                if (dep->kind == SK_TARGET_KIND_STATIC ||
-                                    dep->kind == SK_TARGET_KIND_SHARED)
+                                if ((t->kind == SK_TARGET_KIND_EXEC ||
+                                     t->kind == SK_TARGET_KIND_SHARED) &&
+                                    (dep->kind == SK_TARGET_KIND_STATIC ||
+                                     dep->kind == SK_TARGET_KIND_SHARED))
                                 {
                                     char *lflag_L = mem_arena_alloc(g_sk_global_arena, VX_PATH_MAX);
                                     snprintf(
@@ -536,6 +542,8 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                                         mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_64);
                                     snprintf(lflag_l, VX_BUF_SIZE_64, "-l%s", dep->out_name);
                                     t->cfg.lflags[t->cfg.lflags_count++] = lflag_l;
+
+                                    vx_dbglog("Target '%s' kind is %d", t->name, t->kind);
                                 }
                                 break;
                             }

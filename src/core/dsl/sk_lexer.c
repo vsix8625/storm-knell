@@ -425,11 +425,6 @@ vx_status sk_lex(struct sk_ctx *ctx, struct sk_lexer *lx)
 
 static void record(struct sk_lexer *lx, sk_token_kind kind, u32 start_col)
 {
-    if (lx == nullptr)
-    {
-        return;
-    }
-
     struct sk_ctx *ctx = &g_sk_global_ctx;
 
     struct sk_tokens *pts = ctx->tokens;
