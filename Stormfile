@@ -28,7 +28,7 @@ if(__os__ == "linux")
 
 major: 0
 minor: 9
-patch: 6
+patch: 7
 
 
 codegen src/core/sk_config.h {

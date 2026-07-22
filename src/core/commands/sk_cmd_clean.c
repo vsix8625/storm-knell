@@ -26,7 +26,6 @@ vx_status sk_cmd_clean_fn(struct sk_ctx *ctx)
         vx_errlog("Failed to change dir to project root: %s", ctx->rpath);
         return VX_ERROR;
     }
-    vx_log("Working directory: %s", ctx->rpath);
 
     if (ctx->active_opt & SK_OPT_CLEAN_FULL)
     {

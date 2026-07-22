@@ -80,7 +80,6 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         vx_errlog("Failed to change dir to project root: %s", ctx->rpath);
         return VX_ERROR;
     }
-    vx_log("Working directory: %s", ctx->rpath);
 
     bool is_tty = vx_isatty(STDOUT_FILENO);
 
@@ -391,7 +390,14 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                                                      .total_files    = t->sources->count,
                                                      .last_strike_ts = vx_time_epoch_s()};
 
-                sk_strncpy_safe(out_meta.name, t->name, sizeof(out_meta.name));
+                if (t->out_name)
+                {
+                    sk_strncpy_safe(out_meta.name, t->out_name, sizeof(out_meta.name));
+                }
+                else
+                {
+                    sk_strncpy_safe(out_meta.name, t->name, sizeof(out_meta.name));
+                }
                 sk_strncpy_safe(out_meta.out_dir, t->out_dir, sizeof(out_meta.out_dir));
 
                 if (t->finalized_bin_dirpath && t->out_name)

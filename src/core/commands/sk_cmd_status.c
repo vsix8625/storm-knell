@@ -60,7 +60,6 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
         vx_errlog("Failed to change dir to project root: %s", ctx->rpath);
         return;
     }
-    vx_dbglog("Working directory: %s", ctx->rpath);
 
     const char *manifest_path =
         sk_path_join(g_sk_global_arena, ctx->rpath, SK_PATH_STORM_MANIFEST_BIN);
@@ -95,14 +94,6 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
     }
 
     fclose(f);
-
-    vx_printf("Storm-Knell Version: %s\n", SK_VERSION_STRING);
-    vx_printf("Working directory: %s\n", ctx->rpath ? ctx->rpath : vx_getcwd_fn());
-
-    struct sk_cache_info cache_info = sk_cache_calculate_size();
-
-    u64 cache_size = cache_info.total_size;
-    vx_printf("Global Cache Size: %.2f MB\n", (f32) cache_size / 1048576.0f);
 
     vx_printf(ANSI_BOLD ANSI_CYAN "================================= STORM-KNELL STATUS "
                                   "==============================================\n" ANSI_RESET);
