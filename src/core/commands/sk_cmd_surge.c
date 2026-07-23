@@ -103,7 +103,7 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
         }
     }
 
-    if (run_target->kind != SK_TARGET_KIND_EXEC)
+    if (run_target->kind != SK_TARGET_KIND_EXEC && run_target->kind != SK_TARGET_KIND_TEST)
     {
         vx_errlog("Target '%s' is not an executable.", run_target->name);
         return VX_ERROR;
