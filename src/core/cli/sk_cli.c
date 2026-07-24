@@ -54,6 +54,9 @@ static vx_status opt_help(struct sk_ctx *ctx, sk_cmd, sk_opt, i32 *i, i32 argc, 
 static inline vx_status
 subcmd_surge_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i32 argc, char **argv);
 
+static inline vx_status
+opt_show_tips(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **argv);
+
 // ----------------------------------------------------------------------------------------------------
 
 static inline vx_status subcmd_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i32, char **)
@@ -95,6 +98,8 @@ static struct sk_opt_entry g_sk_opts[] = {
      SK_OPT_CONFIG_ADD_CC,
      opt_config_add_cc,
      "Add compiler path to configuration"},
+
+    {"--show-tips", SK_CMD_CONFIG, SK_OPT_CONFIG_SHOW_TIPS, opt_show_tips, "Show tips"},
 
     {"-C", SK_CMD_NONE, SK_OPT_RUN_FROM_PATH, opt_set_rpath, "Change working directory"},
     {"-j", SK_CMD_NONE, SK_OPT_THREADS, opt_set_jobs, "Set max parallel jobs"},
@@ -405,6 +410,12 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         if (vx_mkdir_p(rpath) == VX_OK)
         {
             vx_fwrite(path, "%s", g_sk_template_c);
+            vx_log("Created '%s'", path);
+        }
+
+        if (sk_util_is_show_tips_on())
+        {
+            vx_printf(SK_ANSI_GRAY "[TIP]: To compile run: sk strike\n" SK_ANSI_RESET);
         }
     }
 
@@ -560,6 +571,35 @@ static inline bool sk_is_path_valid(const char *path)
     }
 
     return true;
+}
+
+static inline vx_status
+opt_show_tips(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32, char **argv)
+{
+    ctx->active_cmd |= owner;
+    ctx->active_opt |= opt;
+
+    char *arg = argv[*i];
+    char *eq  = strchr(arg, CHAR_EQUAL);
+
+    if (eq == nullptr || eq[1] == CHAR_NULTERM)
+    {
+        return VX_ERROR;
+    }
+
+    (*i)++;
+    if (strcmp(eq + 1, "true") == 0 || strcmp(eq + 1, "1") == 0)
+    {
+        sk_util_show_tips(true);
+        vx_log("Tips turned on");
+    }
+    else
+    {
+        sk_util_show_tips(false);
+        vx_log("Tips turned off");
+    }
+
+    return VX_OK;
 }
 
 static inline vx_status

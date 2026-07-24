@@ -851,6 +851,13 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         sk_log_time("Strike", &profile);
     }
 
+    if (g_compile_errors == 0 && sk_util_is_show_tips_on())
+    {
+        vx_printf(SK_ANSI_GRAY "[TIP]: To run a target executable: sk surge or sk surge "
+                               "[target_name]\n" SK_ANSI_RESET);
+        vx_printf(SK_ANSI_GRAY "[TIP]: For more info: sk -h surge\n" SK_ANSI_RESET);
+    }
+
     vx_mutex_destroy(&g_proc_spawn_mutex);
     vx_mutex_destroy(&ctx->console_lock);
     return strike_status;
@@ -858,7 +865,6 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
 //----------------------------------------------------------------------------------------------------
 
-// NOTE: keep an eye on paths
 static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
 {
     if (ctx == nullptr || t == nullptr)

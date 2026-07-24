@@ -202,8 +202,7 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
     }
     else
     {
-        vx_printf(ANSI_BOLD "  Workspace Status: " ANSI_GREEN "READY / HEALTHY" ANSI_RESET
-                            " (All targets verified up-to-date).\n");
+        vx_printf(ANSI_BOLD "  Workspace Status: " ANSI_GREEN "READY / HEALTHY" ANSI_RESET "\n");
     }
     vx_printf(ANSI_BOLD ANSI_CYAN "================================================================"
                                   "===================================\n" ANSI_RESET);

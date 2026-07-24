@@ -128,6 +128,9 @@ static inline void sk_strncpy_safe(char *dest, const char *src, size_t dest_size
 void sk_fmt_relative_time(u64 target_epoch, char *out_buf, size_t buf_size);
 void sk_log_time(const char *phase, vx_ticks *t);
 
+void sk_util_show_tips(bool show);
+bool sk_util_is_show_tips_on(void);
+
 #define SK_MAX_TARGETS 256
 #define SK_MAX_FLAGS   256
 #define SK_MAX_DEFINES 512
@@ -137,5 +140,8 @@ void sk_log_time(const char *phase, vx_ticks *t);
 #define SK_MAX_DEPS     32
 #define SK_MAX_EXCLUDES 32
 #define SK_MAX_DEPLOYS  64
+
+#define SK_ANSI_GRAY  "\x1b[90m"
+#define SK_ANSI_RESET "\x1b[0m"
 
 #endif  // SK_UTIL_H_

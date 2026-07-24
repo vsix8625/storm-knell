@@ -248,6 +248,11 @@ void sk_cmd_init_fn(struct sk_ctx *ctx)
     init_from_config(rpath);
 
     vx_log("Storm-Knell initialized in: %s", rpath);
+    if (sk_util_is_show_tips_on())
+    {
+        vx_printf(SK_ANSI_GRAY "[TIP]: You can now 'cd %s' and build your project\n" SK_ANSI_RESET,
+                  rpath);
+    }
 }
 
 void sk_meta_init_git(char *git_branch_out, char *git_hash_out, size_t max_len)

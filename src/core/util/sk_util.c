@@ -6,6 +6,7 @@
 #include "vx_fs.h"
 #include "vx_string.h"
 #include "vx_time.h"
+#include "vx_util.h"
 
 bool sk_is_initialized_at(const char *dir)
 {
@@ -135,4 +136,64 @@ void sk_log_time(const char *phase, vx_ticks *t)
 
     vx_ticks_format(t, elapsed, sizeof(elapsed));
     vx_sbuf_append(&g_sk_profile_sbuf, "%-7s: %s\n", phase != nullptr ? phase : "n/a", elapsed);
+}
+
+void sk_util_show_tips(bool show)
+{
+    const char *cache = vx_platform_get_cache_dir();
+
+    char path_buf[VX_PATH_MAX];
+
+    char misc_dir[VX_BUF_SIZE_2048];
+
+    snprintf(misc_dir,
+             sizeof(misc_dir),
+             "%s%s%s%s%s",
+             cache,
+             VX_PATH_SEP_STR,
+             SK_PATH_STORM_KNELL,
+             VX_PATH_SEP_STR,
+             "misc");
+
+    if (vx_mkdir_p(misc_dir) != VX_OK)
+    {
+        return;
+    }
+
+    snprintf(path_buf, sizeof(path_buf), "%s%s%s", misc_dir, VX_PATH_SEP_STR, "show_tips.lock");
+
+    if (show)
+    {
+        if (!vx_isfile(path_buf))
+        {
+            vx_fwrite(path_buf, "%lu", vx_time_epoch_s());
+        }
+    }
+    else
+    {
+        if (vx_isfile(path_buf))
+        {
+            vx_fs_rmrf(path_buf);
+        }
+    }
+}
+
+bool sk_util_is_show_tips_on(void)
+{
+    const char *cache = vx_platform_get_cache_dir();
+
+    char path_buf[VX_BUF_SIZE_2048];
+
+    snprintf(path_buf,
+             sizeof(path_buf),
+             "%s%s%s%s%s%s%s",
+             cache,
+             VX_PATH_SEP_STR,
+             SK_PATH_STORM_KNELL,
+             VX_PATH_SEP_STR,
+             "misc",
+             VX_PATH_SEP_STR,
+             "show_tips.lock");
+
+    return vx_isfile(path_buf);
 }
