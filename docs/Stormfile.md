@@ -123,17 +123,17 @@ Sources can be a directory (scanner mode) or an explicit file list (manual mode)
 
 ```
 sources:
-src/
-external/lib/src/
+    src/
+    external/lib/src/
 ```
 
 **Manual mode** — only the listed files are compiled, newlines are ignored:
 
 ```
 sources:
-main.c util.c
-src/math.c
-src/platform/linux.c
+    main.c util.c
+    src/math.c
+    src/platform/linux.c
 ```
 
 **Mixed** — combine both with `::`:

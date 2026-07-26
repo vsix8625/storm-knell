@@ -853,9 +853,11 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
     if (g_compile_errors == 0 && sk_util_is_show_tips_on())
     {
-        vx_printf(SK_ANSI_GRAY "[TIP]: To run a target executable: sk surge or sk surge "
+        vx_printf(SK_ANSI_GRAY "[TIP]: To run a target: sk surge or sk surge "
                                "[target_name]\n" SK_ANSI_RESET);
-        vx_printf(SK_ANSI_GRAY "[TIP]: For more info: sk -h surge\n" SK_ANSI_RESET);
+        vx_printf(SK_ANSI_GRAY "[TIP]: To view all targets run 'sk status'\n" SK_ANSI_RESET);
+        vx_printf(SK_ANSI_GRAY
+                  "[TIP]: For more info on surge command:  sk -h surge\n" SK_ANSI_RESET);
     }
 
     vx_mutex_destroy(&g_proc_spawn_mutex);

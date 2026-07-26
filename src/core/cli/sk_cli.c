@@ -99,7 +99,12 @@ static struct sk_opt_entry g_sk_opts[] = {
      opt_config_add_cc,
      "Add compiler path to configuration"},
 
-    {"--show-tips", SK_CMD_CONFIG, SK_OPT_CONFIG_SHOW_TIPS, opt_show_tips, "Show tips"},
+    {"--show-tips",
+     SK_CMD_CONFIG,
+     SK_OPT_CONFIG_SHOW_TIPS,
+     opt_show_tips,
+     "Toogle tips, anything other than (true or 1) will default to false (eg: sk config "
+     "--show-tips=1)"},
 
     {"-C", SK_CMD_NONE, SK_OPT_RUN_FROM_PATH, opt_set_rpath, "Change working directory"},
     {"-j", SK_CMD_NONE, SK_OPT_THREADS, opt_set_jobs, "Set max parallel jobs"},
@@ -719,7 +724,7 @@ struct sk_deep_help_entry
 static const struct sk_deep_help_entry g_sk_deep_helps[] = {
     {SK_CMD_STRIKE,
      "Usage: sk strike [options]\n\n"
-     "Detailed Information:\n"
+     "Details:\n"
      "  Parses the Stormfile in the current directory and executes the dependency graph\n"
      "  to compile targets.\n"
      "  \n\n"
@@ -730,7 +735,7 @@ static const struct sk_deep_help_entry g_sk_deep_helps[] = {
 
     {SK_CMD_SURGE,
      "Usage: sk surge [target] [::: arguments...]\n\n"
-     "Detailed Information:\n"
+     "Details:\n"
      "  Executes a compiled binary target. It reads 'manifest.bin' (generated\n"
      "  by 'strike' inside the .storm directory) to locate valid outputs.\n\n"
      "  If no target is specified, surge spawns the most recently compiled executable.\n\n"
@@ -745,7 +750,7 @@ static const struct sk_deep_help_entry g_sk_deep_helps[] = {
 
     {SK_CMD_INIT,
      "Usage: sk init [options]\n\n"
-     "Detailed Information:\n"
+     "Details:\n"
      "  Creates a base 'Stormfile' and the local '.storm/' tracking directory.\n"
      "  If the target directory path does not exist, Storm-Knell will create it.\n\n"
      "Examples:\n"
@@ -755,7 +760,7 @@ static const struct sk_deep_help_entry g_sk_deep_helps[] = {
 
     {SK_CMD_PURGE,
      "Usage: sk purge [options]\n\n"
-     "Detailed Information:\n"
+     "Details:\n"
      "  Removes 'Stormfile' and deletes the '.storm/' directory completely.\n"
      "  NOTE: This only removes files owned by sk; it will never delete your parent\n"
      "  project directories.\n\n"
@@ -765,7 +770,7 @@ static const struct sk_deep_help_entry g_sk_deep_helps[] = {
 
     {SK_CMD_CACHE,
      "Usage: sk cache [options]\n\n"
-     "Detailed Information:\n"
+     "Details:\n"
      "  Displays the total disk space used by the global object cache.\n"
      "  Use '--nuke' to clear out the cached objects and reset the directory size.\n\n"
      "Examples:\n"
@@ -774,7 +779,7 @@ static const struct sk_deep_help_entry g_sk_deep_helps[] = {
 
     {SK_CMD_STATUS,
      "Usage: sk status\n\n"
-     "Detailed Information:\n"
+     "Details:\n"
      "  Reads 'manifest.bin' to show the state of the last build.\n"
      "  Displays which targets are compiled, up to date, or missing.\n\n"
      "Examples:\n"
@@ -782,7 +787,7 @@ static const struct sk_deep_help_entry g_sk_deep_helps[] = {
 
     {SK_CMD_CLEAN,
      "Usage: sk clean\n\n"
-     "Detailed Information:\n"
+     "Details:\n"
      "  Deletes local build artifacts (object files and binaries) tracked in 'manifest.bin'.\n"
      "  Unlike 'cache --nuke', this only affects the current project's outputs.\n\n"
      "Examples:\n"

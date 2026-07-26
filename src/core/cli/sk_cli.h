@@ -58,23 +58,17 @@ typedef vx_status (
 struct sk_subcmd_entry
 {
     const char *name;
-
-    sk_cmd id;
-
-    sk_cmd_fn fn;
-
+    sk_cmd      id;
+    sk_cmd_fn   fn;
     const char *desc;
 };
 
 struct sk_opt_entry
 {
     const char *name;
-
-    sk_cmd owner;
-    sk_opt id;
-
-    sk_opt_fn fn;
-
+    sk_cmd      owner;
+    sk_opt      id;
+    sk_opt_fn   fn;
     const char *desc;
 };
 

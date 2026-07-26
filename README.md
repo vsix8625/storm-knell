@@ -56,7 +56,7 @@ sk strike
 Commands and flags can be mixed freely. The only positional rule is that `-C <path>` must be followed immediately by its directory. `init` should come before `strike` when setting up a new project.
 
 ```bash
-sk -C myproject init strike --profile surge --main-c
+sk -C myproject init strike --profile --main-c surge 
 ```
 
 ---
