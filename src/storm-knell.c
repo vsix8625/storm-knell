@@ -75,7 +75,10 @@ static vx_status sk_init(i32 argc, char **argv)
         return VX_FATAL;
     }
 
-    vx_dbglog("Using VX library version: (%s)", VX_VERSION_STRING);
+    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
+    {
+        vx_log("Using VX library version: (%s)", VX_VERSION_STRING);
+    }
     return VX_OK;
 }
 

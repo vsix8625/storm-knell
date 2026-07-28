@@ -64,18 +64,16 @@ project/
 ```
 cc: /usr/bin/clang
 cflags: -Wall -Wextra -Werror
-lflags:
-defines: -DDEBUG
 
 target foo_app
 {
-    out:     foo_app  // output binary name       — default: <target_name>
-    out_dir: foo      // output directory name    — default: crater
-    mode:    beta     // build mode               — default: debug
-    cflags:: -O2      // appends to top-level cflags
-    defines: -DNDEBUG // overrides top-level defines
-    sources: main.c   // exact file path
-    includes: -I.     // include paths
+    out:     foo_app      // output binary name       — default: <target_name>
+    out_dir: foo          // output directory name    — default: crater
+    mode:    beta         // build mode               — default: debug
+    cflags:: -O2          // appends to top-level cflags
+    defines: -DNDEBUG     // overrides top-level defines
+    sources: main.c       // exact file path
+    includes: -I.         // include paths
     install: ~/.local/bin // copies binary to $HOME/.local/bin on every strike
 }
 ```
