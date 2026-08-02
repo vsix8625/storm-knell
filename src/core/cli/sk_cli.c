@@ -76,6 +76,8 @@ static struct sk_subcmd_entry g_sk_subcmds[] = {
     {"cache", SK_CMD_CACHE, subcmd_handler, "View global cache size, or nuke"},
     {"status", SK_CMD_STATUS, subcmd_handler, "View project status"},
     {"config", SK_CMD_CONFIG, subcmd_handler, "Manage configuration"},
+    {"autorun", SK_CMD_AUTORUN, subcmd_handler, "Run: strike(build) and surge(run)"},
+    {"ss", SK_CMD_AUTORUN, subcmd_handler, "Alias for autorun"},
     {"k", SK_CMD_K, subcmd_handler, "Run: clean --full strike --profile status surge"},
     {nullptr, SK_CMD_NONE, nullptr, nullptr},
 };
@@ -346,6 +348,12 @@ static vx_status cli_execute(struct sk_ctx *ctx)
     {
         ctx->active_cmd |= (SK_CMD_STRIKE | SK_CMD_CLEAN | SK_CMD_STATUS | SK_CMD_SURGE);
         ctx->active_opt |= (SK_OPT_CLEAN_FULL | SK_OPT_PROFILE);
+    }
+
+    if (ctx->active_cmd & SK_CMD_AUTORUN)
+    {
+        ctx->active_cmd |= (SK_CMD_STRIKE | SK_CMD_SURGE);
+        ctx->active_opt |= SK_OPT_PROFILE;
     }
 
     vx_ticks total_time = {0};

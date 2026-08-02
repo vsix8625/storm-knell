@@ -11,15 +11,16 @@ typedef enum sk_cmd : u64
 {
     SK_CMD_NONE = 0,
 
-    SK_CMD_STRIKE = 1 << 0,
-    SK_CMD_SURGE  = 1 << 1,
-    SK_CMD_CLEAN  = 1 << 2,
-    SK_CMD_INIT   = 1 << 3,
-    SK_CMD_PURGE  = 1 << 4,
-    SK_CMD_CACHE  = 1 << 5,
-    SK_CMD_STATUS = 1 << 6,
-    SK_CMD_CONFIG = 1 << 7,
-    SK_CMD_K      = 1 << 8,
+    SK_CMD_STRIKE  = 1 << 0,
+    SK_CMD_SURGE   = 1 << 1,
+    SK_CMD_CLEAN   = 1 << 2,
+    SK_CMD_INIT    = 1 << 3,
+    SK_CMD_PURGE   = 1 << 4,
+    SK_CMD_CACHE   = 1 << 5,
+    SK_CMD_STATUS  = 1 << 6,
+    SK_CMD_CONFIG  = 1 << 7,
+    SK_CMD_K       = 1 << 8,
+    SK_CMD_AUTORUN = 1 << 9,
 } sk_cmd;
 
 typedef enum sk_opt : u64
