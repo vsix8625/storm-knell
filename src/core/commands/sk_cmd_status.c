@@ -47,11 +47,51 @@ static void fmt_file_size(u64 bytes, bool fexists, char *buf, size_t buf_size)
     }
 }
 
+// ----------------------------------------------------------------------------------------------------
+
+struct sk_theme
+{
+    const char *check;
+    const char *warn;
+    const char *arrow;
+    const char *reset;
+    const char *cyan;
+    const char *green;
+    const char *yellow;
+    const char *red;
+    const char *gray;
+    const char *bold;
+};
+
+static const struct sk_theme THEME_UTF8 = {.check  = "✔",
+                                           .warn   = "⚠",
+                                           .arrow  = "↳",
+                                           .reset  = ANSI_RESET,
+                                           .cyan   = ANSI_CYAN,
+                                           .green  = ANSI_GREEN,
+                                           .yellow = ANSI_YELLOW,
+                                           .red    = ANSI_RED,
+                                           .gray   = SK_ANSI_GRAY,
+                                           .bold   = ANSI_BOLD};
+
+static const struct sk_theme THEME_ASCII = {.check  = "[OK]",
+                                            .warn   = "[!]",
+                                            .arrow  = "->",
+                                            .reset  = "",
+                                            .cyan   = "",
+                                            .green  = "",
+                                            .yellow = "",
+                                            .red    = "",
+                                            .gray   = "",
+                                            .bold   = ""};
+
 void sk_cmd_status_fn(struct sk_ctx *ctx)
 {
+    const struct sk_theme *t = vx_isatty(STDOUT_FILENO) ? &THEME_UTF8 : &THEME_ASCII;
+
     if (sk_resolve_project_root(ctx) != VX_OK)
     {
-        vx_errlog("Storm-knell is not initialized in '%s'  directory or any parent",
+        vx_errlog("Storm-knell is not initialized in '%s' directory or any parent",
                   ctx->rpath ? ctx->rpath : vx_getcwd_fn());
         return;
     }
@@ -68,8 +108,8 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
 
     if (f == nullptr)
     {
-        vx_printf(ANSI_YELLOW
-                  "Workspace status: PRISTINE / UNBUILT (No manifest found).\n" ANSI_RESET);
+        vx_printf(
+            "%sWorkspace status: PRISTINE / UNBUILT (No manifest found).%s\n", t->yellow, t->reset);
         return;
     }
 
@@ -77,7 +117,7 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
     if (fread(&header, sizeof(struct sk_manifest_header), 1, f) != 1 || header.target_count == 0)
     {
         fclose(f);
-        vx_printf(ANSI_RED "Workspace manifest is empty or corrupted.\n" ANSI_RESET);
+        vx_printf("%sWorkspace manifest is empty or corrupted.%s\n", t->red, t->reset);
         return;
     }
 
@@ -95,20 +135,26 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
 
     fclose(f);
 
-    vx_printf(ANSI_BOLD ANSI_CYAN "================================= STORM-KNELL STATUS "
-                                  "==============================================\n" ANSI_RESET);
-    vx_printf(ANSI_BOLD "  %-24s%-10s%-22s%-16s%-14s%-12s\n",
+    vx_printf("%s%s================================= STORM-KNELL STATUS "
+              "==============================================%s\n",
+              t->bold,
+              t->cyan,
+              t->reset);
+    vx_printf("%s  %-24s%-10s%-22s%-16s%-14s%-12s%s\n",
+              t->bold,
               "Target Name",
               "Kind",
               "Status Check",
               "Total Files",
               "Size",
-              "Age" ANSI_RESET);
+              "Age",
+              t->reset);
     vx_printf("  "
               "------------------------------------------------------------------------------------"
               "------------\n");
 
     u32 total_missing_artifacts = 0;
+    u64 total_workspace_bytes   = 0;
 
     for (u32 i = 0; i < header.target_count; i++)
     {
@@ -120,13 +166,14 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
         const char *kind_str = "UNKNOWN";
         switch (m->kind)
         {
-            case SK_TARGET_KIND_NONE: kind_str = "UNKNOWN  "; break;
-            case SK_TARGET_KIND_EXEC: kind_str = "EXEC  "; break;
+            case SK_TARGET_KIND_NONE: kind_str = "UNKNOWN"; break;
+            case SK_TARGET_KIND_EXEC: kind_str = "EXEC"; break;
             case SK_TARGET_KIND_STATIC: kind_str = "STATIC"; break;
             case SK_TARGET_KIND_SHARED: kind_str = "SHARED"; break;
             case SK_TARGET_KIND_PCH: kind_str = "PCH"; break;
             case SK_TARGET_KIND_TEST: kind_str = "TEST"; break;
         }
+
         bool artifact_ok = vx_isfile(m->bin_path);
 
         u64 file_size = 0;
@@ -135,7 +182,8 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
             vx_stat_struct st;
             if (vx_stat(m->bin_path, &st) == 0)
             {
-                file_size = (u64) st.st_size;
+                file_size              = (u64) st.st_size;
+                total_workspace_bytes += file_size;
             }
         }
 
@@ -151,59 +199,89 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
         const char *status_color;
         if (header.global_compile_errors > 0)
         {
-            status_str   = "[COMPILE ERROR] ";
-            status_color = ANSI_RED;
+            status_str   = "[COMPILE ERROR]";
+            status_color = t->red;
         }
         else if (!artifact_ok)
         {
             status_str =
                 (m->kind == SK_TARGET_KIND_EXEC) ? "[MISSING BINARY]" : "[MISSING LIBRARY]";
-            status_color = ANSI_YELLOW;
+            status_color = t->yellow;
         }
         else
         {
-            status_str   = "[OPERATIONAL]   ";
-            status_color = ANSI_GREEN;
+            status_str   = "[OPERATIONAL]";
+            status_color = t->green;
         }
 
-        vx_printf("  %s%s %-22s" ANSI_RESET "%-10s%s%-22s" ANSI_RESET "%-16u%-14s%-12s\n",
+        vx_printf("  %s%s %-22s%s%-10s%s%-22s%s%-16u%-14s%-12s\n",
                   status_color,
-                  artifact_ok ? "✔" : "⚠",
+                  artifact_ok ? t->check : t->warn,
                   m->name,
+                  t->reset,
                   kind_str,
                   status_color,
                   status_str,
+                  t->reset,
                   m->total_files,
                   size_buf,
                   time_buf);
+
+        if ((ctx->active_opt & SK_OPT_VERBOSE) && m->bin_path[0] != '\0')
+        {
+            vx_printf("%s    %s Out Path:%s %s\n", t->gray, t->arrow, t->reset, m->bin_path);
+        }
     }
 
     vx_printf("  "
               "------------------------------------------------------------------------------------"
               "------------\n");
 
-    vx_printf(ANSI_BOLD "  Cache Summary:" ANSI_RESET "  %u hits, %u misses (Total Ops: %u)\n",
+    u32   total_ops = header.global_cache_hits + header.global_cache_misses;
+    float hit_rate = total_ops > 0 ? ((float) header.global_cache_hits / total_ops) * 100.0f : 0.0f;
+
+    char total_size_buf[VX_BUF_SIZE_32];
+    fmt_file_size(total_workspace_bytes, true, total_size_buf, sizeof(total_size_buf));
+
+    vx_printf("%s  Cache Summary    :%s  %u hits, %u misses (Total Ops: %u, %.1f%% cached)\n",
+              t->bold,
+              t->reset,
               header.global_cache_hits,
               header.global_cache_misses,
-              (header.global_cache_hits + header.global_cache_misses));
+              total_ops,
+              hit_rate);
+
+    vx_printf("%s  Total Footprint  :%s  %s\n", t->bold, t->reset, total_size_buf);
 
     if (header.global_compile_errors > 0)
     {
-        vx_printf(ANSI_BOLD "  Workspace Status: " ANSI_RED "BROKEN" ANSI_RESET
-                            " (%u compile errors detected. Run 'sk strike' to debug).\n",
+        vx_printf("%s  Workspace Status : %sBROKEN%s (%u compile errors detected. Run 'sk strike' "
+                  "to debug).\n",
+                  t->bold,
+                  t->red,
+                  t->reset,
                   header.global_compile_errors);
     }
     else if (total_missing_artifacts > 0)
     {
-        vx_printf(ANSI_BOLD "  Workspace Status: " ANSI_YELLOW "DEGRADED" ANSI_RESET
-                            " (%u/%u outputs missing. Run 'sk strike' to rebuild).\n",
+        vx_printf("%s  Workspace Status : %sDEGRADED%s (%u/%u outputs missing. Run 'sk strike' to "
+                  "rebuild).\n",
+                  t->bold,
+                  t->yellow,
+                  t->reset,
                   total_missing_artifacts,
                   header.target_count);
     }
     else
     {
-        vx_printf(ANSI_BOLD "  Workspace Status: " ANSI_GREEN "READY / HEALTHY" ANSI_RESET "\n");
+        vx_printf("%s  Workspace Status : %sREADY / HEALTHY%s\n", t->bold, t->green, t->reset);
     }
-    vx_printf(ANSI_BOLD ANSI_CYAN "================================================================"
-                                  "===================================\n" ANSI_RESET);
+
+    vx_printf("%s%s================================================================================"
+              "==================%s\n",
+              t->bold,
+              t->cyan,
+              t->reset);
 }
+
+// ----------------------------------------------------------------------------------------------------

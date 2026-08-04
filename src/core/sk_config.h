@@ -2,7 +2,7 @@
 #pragma once
 #define SK_VERSION_MAJOR 0
 #define SK_VERSION_MINOR 10
-#define SK_VERSION_PATCH 4
-#define SK_VERSION_STRING "0.10.4"
+#define SK_VERSION_PATCH 5
+#define SK_VERSION_STRING "0.10.5"
 #define SK_COMPILED_GCC 1
 #define SK_COMPILED_CLANG 0
