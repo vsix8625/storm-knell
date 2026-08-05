@@ -32,8 +32,6 @@ _Atomic u64 g_compile_end_ns   = 0;
 // NOTE: No worker cleanup atm but OS reclaims the allocation when process exits
 static _Thread_local struct mem_arena *tls_worker_arena = nullptr;
 
-vx_mutex g_proc_spawn_mutex;
-
 struct sk_work_unit
 {
     struct sk_target *target;
@@ -114,7 +112,6 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
     {
         struct vx_thread_pool pool;
 
-        vx_mutex_init(&g_proc_spawn_mutex);
         vx_mutex_init(&ctx->console_lock);
 
         u32 thread_count = (ctx->threads > 0) ? ctx->threads : ctx->cores;
@@ -354,7 +351,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                         tty_reset = "\033[0m";
                     }
 
-                    vx_printf("\n[%sERROR LOG FOR %s %s%s]:\n%s\n",
+                    vx_printf("\n[%sCOMPILER ERROR %s %s%s]:\n%s\n",
                               tty_color,
                               tty_bold,
                               unit->tag,
@@ -856,7 +853,6 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                   "[TIP]: For more info on surge command:  sk -h surge\n" SK_ANSI_RESET);
     }
 
-    vx_mutex_destroy(&g_proc_spawn_mutex);
     vx_mutex_destroy(&ctx->console_lock);
     return strike_status;
 }
@@ -1117,10 +1113,7 @@ static void *sk_worker_compile_fn(void *arg)
 
         struct vx_proc_cfg cfg = {.flags = VX_PROCESS_FLAGS_CAPTURE};
 
-        // NOTE: will probably remove the locks
-        // vx_mutex_lock(&g_proc_spawn_mutex);
         vx_status status = vx_process_spawn(&proc, argv[0], argv, &cfg);
-        // vx_mutex_unlock(&g_proc_spawn_mutex);
 
         if (status == VX_OK)
         {

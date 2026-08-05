@@ -30,8 +30,6 @@ struct sk_ctx
     char **surge_passthrough_argv;
     i32    surge_passthrough_argc;
 
-    i32 pad;
-
     struct sk_arena_array *setvars;
 
     vx_mutex console_lock;

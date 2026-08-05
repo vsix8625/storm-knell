@@ -20,13 +20,12 @@
 
 static_assert(SK_XXHASH_LEN == sizeof(u64));
 
-static void sk_scan_inc(const char            *src_path,
-                        vx_sv                  src,
-                        struct sk_arena_array *seen,
-                        struct sk_cfg         *cfg,
-                        XXH3_state_t          *state,
-                        struct mem_arena      *arena);
-
+static vx_status sk_scan_inc(const char            *src_path,
+                             vx_sv                  src,
+                             struct sk_arena_array *seen,
+                             struct sk_cfg         *cfg,
+                             XXH3_state_t          *state,
+                             struct mem_arena      *arena);
 vx_status
 sk_xxh3_hash(struct sk_hash_input *input, u8 out_hash[SK_XXHASH_LEN], struct mem_arena *arena)
 {
@@ -58,7 +57,10 @@ sk_xxh3_hash(struct sk_hash_input *input, u8 out_hash[SK_XXHASH_LEN], struct mem
     }
 
     struct sk_arena_array *seen = sk_arena_array_create(arena, SK_MAX_SEEN_INCLUDES);
-    sk_scan_inc(input->source_path, input->source, seen, input->cfg, &state, arena);
+    if (sk_scan_inc(input->source_path, input->source, seen, input->cfg, &state, arena) != VX_OK)
+    {
+        return VX_ERROR;
+    }
 
     XXH64_hash_t hash = XXH3_64bits_digest(&state);
     memcpy(out_hash, &hash, SK_XXHASH_LEN);
@@ -92,16 +94,16 @@ void sk_xxh3_hash_merge(u8 h1[SK_XXHASH_LEN], u8 h2[SK_XXHASH_LEN], u8 out[SK_XX
 //----------------------------------------------------------------------------------------------------
 // hash includes
 
-static void sk_scan_inc(const char            *src_path,
-                        vx_sv                  src,
-                        struct sk_arena_array *seen,
-                        struct sk_cfg         *cfg,
-                        XXH3_state_t          *state,
-                        struct mem_arena      *arena)
+static vx_status sk_scan_inc(const char            *src_path,
+                             vx_sv                  src,
+                             struct sk_arena_array *seen,
+                             struct sk_cfg         *cfg,
+                             XXH3_state_t          *state,
+                             struct mem_arena      *arena)
 {
     if (src_path == nullptr || seen == nullptr || cfg == nullptr || state == nullptr)
     {
-        return;
+        return VX_ERROR;
     }
 
     const char *p   = src.data;
@@ -127,7 +129,7 @@ static void sk_scan_inc(const char            *src_path,
         {
             continue;
         }
-
+        // found the #include line if reach here
         line += 10;
 
         const char *inc_start = line;
@@ -137,6 +139,13 @@ static void sk_scan_inc(const char            *src_path,
             line++;
         }
 
+        if (line == p)
+        {
+            vx_errlog("Missing terminating quote in file: %s", src_path);
+            return VX_ERROR;
+        }
+
+        // if #include ""
         if (line == inc_start)
         {
             continue;
@@ -207,8 +216,13 @@ static void sk_scan_inc(const char            *src_path,
 
         XXH3_64bits_update(state, inc_sv.data, inc_sv.len);
 
-        sk_scan_inc(resolved, inc_sv, seen, cfg, state, arena);
+        if (sk_scan_inc(resolved, inc_sv, seen, cfg, state, arena) != VX_OK)
+        {
+            return VX_ERROR;
+        }
     }
+
+    return VX_OK;
 }
 
 //----------------------------------------------------------------------------------------------------
