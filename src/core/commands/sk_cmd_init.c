@@ -57,10 +57,9 @@ bool sk_meta_load(struct sk_meta *meta, const char *target_cc)
         return false;
     }
 
-    char *full_meta_path =
-        sk_path_join(g_sk_global_arena, g_sk_global_ctx.rpath, SK_PATH_STORM_META_FILE);
+    char *full_meta_path = sk_path_join(g_sk_arena, g_sk_ctx.rpath, SK_PATH_STORM_META_FILE);
 
-    vx_sv file = vx_fs_read(full_meta_path, sk_arena_alloc, g_sk_global_arena);
+    vx_sv file = vx_fs_read(full_meta_path, sk_arena_alloc, g_sk_arena);
     if (file.data == nullptr)
     {
         return false;
@@ -142,7 +141,7 @@ static void create_storm_dir(const char *root, const char *subdir)
         return;
     }
 
-    char *path = sk_path_join(g_sk_global_arena, root, subdir);
+    char *path = sk_path_join(g_sk_arena, root, subdir);
 
     if (vx_mkdir_p(path) != VX_OK)
     {
@@ -150,7 +149,7 @@ static void create_storm_dir(const char *root, const char *subdir)
         return;
     }
 
-    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
+    if (g_sk_ctx.active_opt & SK_OPT_VERBOSE)
     {
         vx_log("Created: %s", path);
     }
@@ -160,8 +159,7 @@ static void init_from_config(const char *rpath)
 {
     const char *conf_dir = vx_platform_get_config_dir();
 
-    char *conf_path =
-        sk_path_join(g_sk_global_arena, conf_dir, SK_PATH_STORM_KNELL_COMPILER_CONF_FILE);
+    char *conf_path = sk_path_join(g_sk_arena, conf_dir, SK_PATH_STORM_KNELL_COMPILER_CONF_FILE);
 
     if (!vx_isfile(conf_path))
     {
@@ -177,7 +175,7 @@ static void init_from_config(const char *rpath)
         }
     }
 
-    char *meta_path = sk_path_join(g_sk_global_arena, rpath, SK_PATH_STORM_META_FILE);
+    char *meta_path = sk_path_join(g_sk_arena, rpath, SK_PATH_STORM_META_FILE);
     vx_fwrite(meta_path, "# Storm-Knell Compiler Metadata\n\n");
 
     FILE *f = fopen(conf_path, "r");
@@ -213,11 +211,11 @@ void sk_cmd_init_fn(struct sk_ctx *ctx)
         return;
     }
 
-    char *stormfile = sk_path_join(g_sk_global_arena, rpath, SK_PATH_STORMFILE);
+    char *stormfile = sk_path_join(g_sk_arena, rpath, SK_PATH_STORMFILE);
 
     if (force)
     {
-        char *meta_path = sk_path_join(g_sk_global_arena, rpath, SK_PATH_STORM_DIR);
+        char *meta_path = sk_path_join(g_sk_arena, rpath, SK_PATH_STORM_DIR);
         vx_fs_rmrf(meta_path);
     }
 
@@ -264,7 +262,7 @@ void sk_meta_init_git(char *git_branch_out, char *git_hash_out, size_t max_len)
     vx_sv head_data = {0};
     if (vx_fs_exists(".git/HEAD"))
     {
-        head_data = vx_fs_read(".git/HEAD", sk_arena_alloc, g_sk_global_arena);
+        head_data = vx_fs_read(".git/HEAD", sk_arena_alloc, g_sk_arena);
         if (head_data.data == nullptr || head_data.len == 0)
         {
             return;
@@ -302,9 +300,9 @@ void sk_meta_init_git(char *git_branch_out, char *git_hash_out, size_t max_len)
             snprintf(git_branch_out, max_len, "%s", ref_path);
         }
 
-        char *full_ref_path = sk_path_join(g_sk_global_arena, ".git", ref_path);
+        char *full_ref_path = sk_path_join(g_sk_arena, ".git", ref_path);
 
-        vx_sv hash_data = vx_fs_read(full_ref_path, sk_arena_alloc, g_sk_global_arena);
+        vx_sv hash_data = vx_fs_read(full_ref_path, sk_arena_alloc, g_sk_arena);
         if (hash_data.data && hash_data.len >= 7)
         {
             char  *hash_str = (char *) hash_data.data;
@@ -329,7 +327,7 @@ void sk_meta_init_git(char *git_branch_out, char *git_hash_out, size_t max_len)
 static void
 sk_meta_write_cc_entry(const char *resolved_path, const char *short_name, const char *rpath)
 {
-    char *meta_path = sk_path_join(g_sk_global_arena, rpath, SK_PATH_STORM_META_FILE);
+    char *meta_path = sk_path_join(g_sk_arena, rpath, SK_PATH_STORM_META_FILE);
 
     char tmp_buf[VX_PATH_MAX];
     snprintf(tmp_buf,
@@ -359,7 +357,7 @@ sk_meta_write_cc_entry(const char *resolved_path, const char *short_name, const 
 
         if (proc.exit_code == 0)
         {
-            vx_sv ver_data = vx_fs_read(tmp_ver_file, sk_arena_alloc, g_sk_global_arena);
+            vx_sv ver_data = vx_fs_read(tmp_ver_file, sk_arena_alloc, g_sk_arena);
 
             if (ver_data.data)
             {

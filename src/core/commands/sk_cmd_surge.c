@@ -49,7 +49,7 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
     }
 
     struct sk_target_persist *targets =
-        mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_target_persist) * header.target_count);
+        mem_arena_alloc(g_sk_arena, sizeof(struct sk_target_persist) * header.target_count);
 
     size_t elements_read = fread(targets, sizeof(struct sk_target_persist), header.target_count, f);
     fclose(f);
@@ -118,7 +118,7 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
     // build argv: [bin_path, ...passthrough_args, nullptr]
     i32 extra_argc = ctx->surge_passthrough_argc;
 
-    char **argv = mem_arena_alloc(g_sk_global_arena, sizeof(char *) * (extra_argc + 2));
+    char **argv = mem_arena_alloc(g_sk_arena, sizeof(char *) * (extra_argc + 2));
 
     argv[0] = run_target->bin_path;
     for (i32 i = 0; i < extra_argc; i++)

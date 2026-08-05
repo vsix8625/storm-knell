@@ -19,11 +19,11 @@ void sk_cmd_purge_fn(struct sk_ctx *ctx)
 
     const char *target = ctx->rpath ? ctx->rpath : vx_getcwd_fn();
 
-    char *stormfile = sk_path_join(g_sk_global_arena, target, SK_PATH_STORMFILE);
+    char *stormfile = sk_path_join(g_sk_arena, target, SK_PATH_STORMFILE);
     vx_fs_rmrf(stormfile);
     vx_log("Removed: %s", stormfile);
 
-    char *storm_dir = sk_path_join(g_sk_global_arena, target, SK_PATH_STORM_DIR);
+    char *storm_dir = sk_path_join(g_sk_arena, target, SK_PATH_STORM_DIR);
     vx_fs_rmrf(storm_dir);
     vx_log("Removed: %s", storm_dir);
 

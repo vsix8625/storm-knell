@@ -15,7 +15,7 @@ bool sk_is_initialized_at(const char *dir)
         return false;
     }
 
-    char *storm = sk_path_join(g_sk_global_arena, dir, SK_PATH_STORM_DIR);
+    char *storm = sk_path_join(g_sk_arena, dir, SK_PATH_STORM_DIR);
 
     return vx_isdir(storm);
 }
@@ -82,7 +82,7 @@ vx_status sk_resolve_project_root(struct sk_ctx *ctx)
     char discovered[VX_PATH_MAX];
     if (sk_discover_root(discovered, sizeof(discovered)))
     {
-        ctx->rpath = mem_arena_strdup(g_sk_global_arena, discovered);
+        ctx->rpath = mem_arena_strdup(g_sk_arena, discovered);
         return VX_OK;
     }
 

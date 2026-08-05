@@ -93,7 +93,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
     struct sk_parser p  = {0};
 
     struct sk_eval_result *eval_result =
-        mem_arena_zalloc(g_sk_global_arena, sizeof(struct sk_eval_result));
+        mem_arena_zalloc(g_sk_arena, sizeof(struct sk_eval_result));
 
     vx_status strike_status = VX_OK;
 
@@ -129,8 +129,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         total_tasks = total_sources + eval_result->target_count;
 
-        g_sk_ccmds =
-            mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_ccmds_entry) * total_tasks);
+        g_sk_ccmds = mem_arena_alloc(g_sk_arena, sizeof(struct sk_ccmds_entry) * total_tasks);
 
         if (eval_result->target_count == 0 || total_sources == 0)
         {
@@ -140,7 +139,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         // cache record
         g_sk_cache_records =
-            mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_cache_proj_entry) * total_sources);
+            mem_arena_alloc(g_sk_arena, sizeof(struct sk_cache_proj_entry) * total_sources);
         atomic_store(&g_sk_cache_record_count, 0);
 
         if (vx_thread_pool_create(&pool, thread_count, total_tasks) != VX_OK)
@@ -154,9 +153,9 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         //----------------------------------------------------------------------------------------------------
         // topo_visit
 
-        u32  *sorted   = mem_arena_zalloc(g_sk_global_arena, sizeof(u32) * SK_MAX_TARGETS);
-        bool *visited  = mem_arena_zalloc(g_sk_global_arena, sizeof(bool) * SK_MAX_TARGETS);
-        bool *in_stack = mem_arena_zalloc(g_sk_global_arena, sizeof(bool) * SK_MAX_TARGETS);
+        u32  *sorted   = mem_arena_zalloc(g_sk_arena, sizeof(u32) * SK_MAX_TARGETS);
+        bool *visited  = mem_arena_zalloc(g_sk_arena, sizeof(bool) * SK_MAX_TARGETS);
+        bool *in_stack = mem_arena_zalloc(g_sk_arena, sizeof(bool) * SK_MAX_TARGETS);
 
         u32 sorted_count = 0;
         // ----------------------------------------------------------
@@ -173,7 +172,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         // MAIN LOOP
 
         struct sk_work_unit **work_units =
-            mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_work_unit *) * total_sources);
+            mem_arena_alloc(g_sk_arena, sizeof(struct sk_work_unit *) * total_sources);
 
         u32 unit_idx = 0;
 
@@ -197,7 +196,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 continue;
             }
 
-            t->cfg.cc = mem_arena_strdup(g_sk_global_arena, abs_cc);
+            t->cfg.cc = mem_arena_strdup(g_sk_arena, abs_cc);
 
             if (sk_target_prepare_dirs(ctx, t) != VX_OK)
             {
@@ -217,7 +216,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                     {
                         if (dep->kind == SK_TARGET_KIND_PCH)
                         {
-                            char *pch_include_dir = mem_arena_alloc(g_sk_global_arena, VX_PATH_MAX);
+                            char *pch_include_dir = mem_arena_alloc(g_sk_arena, VX_PATH_MAX);
                             snprintf(
                                 pch_include_dir, VX_PATH_MAX, "-I%s", dep->finalized_obj_dirpath);
 
@@ -237,8 +236,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
                                 t->cfg.cflags[t->cfg.cflags_count++] = "-include";
 
-                                char *pch_file_arg =
-                                    mem_arena_alloc(g_sk_global_arena, VX_PATH_MAX);
+                                char *pch_file_arg = mem_arena_alloc(g_sk_arena, VX_PATH_MAX);
                                 snprintf(pch_file_arg, VX_PATH_MAX, "%s", file_name);
                                 t->cfg.cflags[t->cfg.cflags_count++] = pch_file_arg;
                             }
@@ -252,7 +250,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             {
                 for (u32 s = 0; s < t->sources->count; s++)
                 {
-                    char **argv = sk_invoke_compile_nularr(t, s, g_sk_global_arena, nullptr);
+                    char **argv = sk_invoke_compile_nularr(t, s, g_sk_arena, nullptr);
 
                     if (argv == nullptr)
                     {
@@ -291,7 +289,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             for (u32 j = 0; j < t->sources->count; j++)
             {
                 struct sk_work_unit *unit =
-                    mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_work_unit));
+                    mem_arena_alloc(g_sk_arena, sizeof(struct sk_work_unit));
 
                 work_units[unit_idx++] = unit;
 
@@ -303,7 +301,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
                 u32 log_size = VX_BUF_SIZE_4096;
 
-                char *log_mem = mem_arena_alloc(g_sk_global_arena, log_size);
+                char *log_mem = mem_arena_alloc(g_sk_arena, log_size);
                 log_mem[0]    = CHAR_NULTERM;
 
                 unit->diagnostic_log.data   = log_mem;
@@ -435,7 +433,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 {
                     max_pos_entries += old_hdr.count;
                     merged_entries   = mem_arena_alloc(
-                        g_sk_global_arena, sizeof(struct sk_cache_proj_entry) * max_pos_entries);
+                        g_sk_arena, sizeof(struct sk_cache_proj_entry) * max_pos_entries);
 
                     if (fread(merged_entries,
                               sizeof(struct sk_cache_proj_entry),
@@ -450,8 +448,8 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
             if (merged_entries == nullptr)
             {
-                merged_entries = mem_arena_alloc(g_sk_global_arena,
-                                                 sizeof(struct sk_cache_proj_entry) * record_count);
+                merged_entries =
+                    mem_arena_alloc(g_sk_arena, sizeof(struct sk_cache_proj_entry) * record_count);
             }
 
             // merge/dedup
@@ -539,13 +537,12 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                                     (dep->kind == SK_TARGET_KIND_STATIC ||
                                      dep->kind == SK_TARGET_KIND_SHARED))
                                 {
-                                    char *lflag_L = mem_arena_alloc(g_sk_global_arena, VX_PATH_MAX);
+                                    char *lflag_L = mem_arena_alloc(g_sk_arena, VX_PATH_MAX);
                                     snprintf(
                                         lflag_L, VX_PATH_MAX, "-L%s", dep->finalized_bin_dirpath);
                                     t->cfg.lflags[t->cfg.lflags_count++] = lflag_L;
 
-                                    char *lflag_l =
-                                        mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_64);
+                                    char *lflag_l = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_64);
                                     snprintf(lflag_l, VX_BUF_SIZE_64, "-l%s", dep->out_name);
                                     t->cfg.lflags[t->cfg.lflags_count++] = lflag_l;
 
@@ -558,7 +555,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
                     struct vx_process proc = {0};
 
-                    char **argv = sk_invoke_link_nularr(t, g_sk_global_arena);
+                    char **argv = sk_invoke_link_nularr(t, g_sk_arena);
 
                     if (vx_process_spawn(&proc, argv[0], argv, nullptr) != VX_OK)
                     {
@@ -651,11 +648,11 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                             if (dep->kind == SK_TARGET_KIND_STATIC ||
                                 dep->kind == SK_TARGET_KIND_SHARED)
                             {
-                                char *lflag_L = mem_arena_alloc(g_sk_global_arena, VX_PATH_MAX);
+                                char *lflag_L = mem_arena_alloc(g_sk_arena, VX_PATH_MAX);
                                 snprintf(lflag_L, VX_PATH_MAX, "-L%s", dep->finalized_bin_dirpath);
                                 t->cfg.lflags[t->cfg.lflags_count++] = lflag_L;
 
-                                char *lflag_l = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_64);
+                                char *lflag_l = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_64);
                                 snprintf(lflag_l, VX_BUF_SIZE_64, "-l%s", dep->out_name);
                                 t->cfg.lflags[t->cfg.lflags_count++] = lflag_l;
                             }
@@ -677,11 +674,11 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
                 if (t->kind == SK_TARGET_KIND_STATIC)
                 {
-                    argv = sk_invoke_ar_nularr(t, &meta, g_sk_global_arena);
+                    argv = sk_invoke_ar_nularr(t, &meta, g_sk_arena);
                 }
                 else
                 {
-                    argv = sk_invoke_link_nularr(t, g_sk_global_arena);
+                    argv = sk_invoke_link_nularr(t, g_sk_arena);
                 }
 
                 if (vx_process_spawn(&proc, argv[0], argv, nullptr) == VX_OK)
@@ -699,8 +696,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                         // prefix/share/target,
                         // written on a manifest for unistalls
 
-                        char *dest_path =
-                            sk_path_join(g_sk_global_arena, t->install_dir, t->out_name);
+                        char *dest_path = sk_path_join(g_sk_arena, t->install_dir, t->out_name);
 
                         if (t->kind == SK_TARGET_KIND_EXEC && t->install_dir != nullptr)
                         {
@@ -757,7 +753,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                     const char *filename = strrchr(src, VX_PATH_SEP);
                     filename             = filename ? filename + 1 : src;
 
-                    char *dst = sk_path_join(g_sk_global_arena, t->finalized_bin_dirpath, filename);
+                    char *dst = sk_path_join(g_sk_arena, t->finalized_bin_dirpath, filename);
 
                     if (!vx_fs_cp(src, dst))
                     {
@@ -922,7 +918,7 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
         VX_ASSERT_LOG("realpath failed for: %s", object_dir_buf);
         return VX_ERROR;
     }
-    t->finalized_obj_dirpath = mem_arena_strdup(g_sk_global_arena, abs_dir_buf);
+    t->finalized_obj_dirpath = mem_arena_strdup(g_sk_arena, abs_dir_buf);
 
     if (t->kind == SK_TARGET_KIND_EXEC || t->kind == SK_TARGET_KIND_TEST)
     {
@@ -947,7 +943,7 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
     }
 
     // the final ../../bin
-    t->finalized_bin_dirpath = mem_arena_strdup(g_sk_global_arena, final_bin_dir_buf);
+    t->finalized_bin_dirpath = mem_arena_strdup(g_sk_arena, final_bin_dir_buf);
 
     t->artifact_path = nullptr;
 
@@ -974,9 +970,9 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
     char filename_buf[VX_BUF_SIZE_64];
     snprintf(filename_buf, sizeof(filename_buf), "%s%s%s", prefix, actual_out_name, ext);
 
-    t->finalized_filename = mem_arena_strdup(g_sk_global_arena, filename_buf);
+    t->finalized_filename = mem_arena_strdup(g_sk_arena, filename_buf);
 
-    t->artifact_path = sk_path_join(g_sk_global_arena, final_bin_dir_buf, t->finalized_filename);
+    t->artifact_path = sk_path_join(g_sk_arena, final_bin_dir_buf, t->finalized_filename);
 
     if (ctx->active_opt & SK_OPT_VERBOSE)
     {
@@ -1097,7 +1093,7 @@ static void *sk_worker_compile_fn(void *arg)
 
         if (unit->gen_ccmds && !unit->dry_run)
         {
-            sk_ccmds_push(src_path, g_sk_global_ctx.rpath, (const char **) argv, arg_count);
+            sk_ccmds_push(src_path, g_sk_ctx.rpath, (const char **) argv, arg_count);
         }
 
         struct sk_cache_entry cache_entry = {0};
@@ -1117,7 +1113,7 @@ static void *sk_worker_compile_fn(void *arg)
             }
         }
 
-        bool verbose = (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE);
+        bool verbose = (g_sk_ctx.active_opt & SK_OPT_VERBOSE);
 
         struct vx_proc_cfg cfg = {.flags = VX_PROCESS_FLAGS_CAPTURE};
 

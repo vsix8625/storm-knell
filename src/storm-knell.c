@@ -8,8 +8,8 @@
 
 // ----------------------------------------------------------------------------------------------------
 
-struct sk_ctx     g_sk_global_ctx   = {0};
-struct mem_arena *g_sk_global_arena = nullptr;
+struct sk_ctx     g_sk_ctx   = {0};
+struct mem_arena *g_sk_arena = nullptr;
 
 // ----------------------------------------------------------------------------------------------------
 
@@ -63,19 +63,19 @@ static vx_status sk_init(i32 argc, char **argv)
         return VX_FATAL;
     }
 
-    g_sk_global_arena = mem_arena_create("global-arena", SK_GLOBAL_ARENA_SIZE);
+    g_sk_arena = mem_arena_create("global-arena", SK_GLOBAL_ARENA_SIZE);
 
-    if (g_sk_global_arena == nullptr)
+    if (g_sk_arena == nullptr)
     {
         return VX_FATAL;
     }
 
-    if (sk_cli_driver(&g_sk_global_ctx, argc, argv) != VX_OK)
+    if (sk_cli_driver(&g_sk_ctx, argc, argv) != VX_OK)
     {
         return VX_FATAL;
     }
 
-    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
+    if (g_sk_ctx.active_opt & SK_OPT_VERBOSE)
     {
         vx_log("Using VX library version: (%s)", VX_VERSION_STRING);
     }

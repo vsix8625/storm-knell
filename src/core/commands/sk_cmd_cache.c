@@ -96,9 +96,9 @@ void sk_cache_config_init_global(struct sk_cache_config *cfg)
 
     const char *base_config_dir = vx_platform_get_config_dir();
 
-    char *global_dir = sk_path_join(g_sk_global_arena, base_config_dir, SK_PATH_STORM_KNELL);
+    char *global_dir = sk_path_join(g_sk_arena, base_config_dir, SK_PATH_STORM_KNELL);
 
-    g_sk_global_ctx.sk_global_config_dir = mem_arena_strdup(g_sk_global_arena, global_dir);
+    g_sk_ctx.sk_global_config_dir = mem_arena_strdup(g_sk_arena, global_dir);
 
     if (vx_mkdir_p(global_dir) != VX_OK)
     {
@@ -125,14 +125,14 @@ struct sk_cache_info sk_cache_calculate_size(void)
         return info;
     }
 
-    char *base_path = sk_path_join(g_sk_global_arena, cache_dir, SK_PATH_STORM_KNELL);
+    char *base_path = sk_path_join(g_sk_arena, cache_dir, SK_PATH_STORM_KNELL);
 
     u64 total_size = 0;
     u64 obj_count  = 0;
 
     for (i32 i = 0x00; i <= 0xff; i++)
     {
-        char *shard_path = sk_path_join_hex(g_sk_global_arena, base_path, i);
+        char *shard_path = sk_path_join_hex(g_sk_arena, base_path, i);
 
         vx_dir_handle dir = vx_fs_dir_open(shard_path);
 
@@ -155,7 +155,7 @@ struct sk_cache_info sk_cache_calculate_size(void)
                 continue;
             }
 
-            char *file_path = sk_path_join(g_sk_global_arena, shard_path, entry.name);
+            char *file_path = sk_path_join(g_sk_arena, shard_path, entry.name);
 
             u64 file_size   = 0;
             u64 dummy_mtime = 0;
@@ -201,7 +201,7 @@ void sk_cache_prune_to_size(u32 prune_threshold_mb)
         return;
     }
 
-    char *cache_root = sk_path_join(g_sk_global_arena, base_cache, SK_PATH_STORM_KNELL);
+    char *cache_root = sk_path_join(g_sk_arena, base_cache, SK_PATH_STORM_KNELL);
 
     vx_dir_handle root_dir = vx_fs_dir_open(cache_root);
     if (root_dir == nullptr)
@@ -214,7 +214,7 @@ void sk_cache_prune_to_size(u32 prune_threshold_mb)
     u64 total_cache_bytes = 0;
 
     struct sk_evict_item *items =
-        mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_evict_item) * max_entries);
+        mem_arena_alloc(g_sk_arena, sizeof(struct sk_evict_item) * max_entries);
 
     vx_dir_entry shard_entry;
 
@@ -229,7 +229,7 @@ void sk_cache_prune_to_size(u32 prune_threshold_mb)
 
         if (shard_entry.is_dir)
         {
-            char *shard_path = sk_path_join(g_sk_global_arena, cache_root, shard_entry.name);
+            char *shard_path = sk_path_join(g_sk_arena, cache_root, shard_entry.name);
 
             vx_dir_handle shard_dir = vx_fs_dir_open(shard_path);
             if (shard_dir == nullptr)
@@ -263,7 +263,7 @@ void sk_cache_prune_to_size(u32 prune_threshold_mb)
 
                     item->name[item->name_len] = CHAR_NULTERM;
 
-                    char *file_path = sk_path_join(g_sk_global_arena, cache_root, item->name);
+                    char *file_path = sk_path_join(g_sk_arena, cache_root, item->name);
 
                     vx_stat_struct st;
                     if (vx_stat(file_path, &st) == 0)
@@ -302,7 +302,7 @@ void sk_cache_prune_to_size(u32 prune_threshold_mb)
             break;
         }
 
-        char *target_kill_file = sk_path_join(g_sk_global_arena, cache_root, items[i].name);
+        char *target_kill_file = sk_path_join(g_sk_arena, cache_root, items[i].name);
 
         u64 freed_bytes = items[i].size_bytes;
         if (vx_fs_rmrf(target_kill_file))
@@ -325,7 +325,7 @@ vx_status sk_cmd_cache_fn(struct sk_ctx *ctx)
     {
         const char *cache_dir = vx_platform_get_cache_dir();
 
-        char *sk_cache_dir = sk_path_join(g_sk_global_arena, cache_dir, SK_PATH_STORM_KNELL);
+        char *sk_cache_dir = sk_path_join(g_sk_arena, cache_dir, SK_PATH_STORM_KNELL);
 
         if (!vx_fs_rmrf(sk_cache_dir))
         {

@@ -75,7 +75,7 @@ void sk_scan_dir_r(struct sk_arena_array *sources,
         }
 
         u32   needed = (u32) strlen(dirpath) + (u32) strlen(VX_PATH_SEP_STR) + entry.name_len + 1;
-        char *presisten_path = sk_arena_alloc(g_sk_global_arena, needed);
+        char *presisten_path = sk_arena_alloc(g_sk_arena, needed);
 
         snprintf(presisten_path, needed, "%s%s%s", dirpath, VX_PATH_SEP_STR, entry.name);
 

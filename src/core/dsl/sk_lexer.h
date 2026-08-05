@@ -100,14 +100,11 @@ struct sk_tokens
 {
     u32 *offsets;
     u32 *lens;
-    u32 *lines, *cols;
 
     sk_token_kind *kinds;
 
     u32 count;
     u32 err_count;
-
-    u8 pad[16];
 };
 
 struct sk_lexer
@@ -116,11 +113,8 @@ struct sk_lexer
 
     u32 lex_start;
     u32 current;
-    u32 line_n, col_n;
 
     sk_lx_status status;
-
-    u8 pad[31];
 };
 
 vx_status sk_lx_init(struct sk_ctx *ctx, struct sk_lexer *lx);

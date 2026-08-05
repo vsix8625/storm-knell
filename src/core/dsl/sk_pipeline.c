@@ -35,8 +35,8 @@ static vx_status finalize_evaluation(struct sk_eval_result *result)
         u32 saved_excl_count = t->exclude_count;
         u32 extra_excl_count = 2;
 
-        char **final_excludes = mem_arena_alloc(
-            g_sk_global_arena, sizeof(char *) * (saved_excl_count + extra_excl_count));
+        char **final_excludes =
+            mem_arena_alloc(g_sk_arena, sizeof(char *) * (saved_excl_count + extra_excl_count));
 
         for (u32 j = 0; j < saved_excl_count; j++)
         {
@@ -70,9 +70,9 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
         return VX_ERROR;
     }
 
-    ctx->sk_source = vx_fs_read(SK_PATH_STORMFILE, sk_arena_alloc, g_sk_global_arena);
+    ctx->stormfile = vx_fs_read(SK_PATH_STORMFILE, sk_arena_alloc, g_sk_arena);
 
-    if (ctx->sk_source.data == nullptr)
+    if (ctx->stormfile.data == nullptr)
     {
         return VX_ERROR;
     }
@@ -174,7 +174,7 @@ vx_status sk_pipeline_run(struct sk_ctx         *ctx,
         {
             u32 codegen_node_idx = ev_result->codegen_node_idxs[i];
 
-            if (sk_pipeline_codegen(p, ctx->sk_source, codegen_node_idx, ev_result) != VX_OK)
+            if (sk_pipeline_codegen(p, ctx->stormfile, codegen_node_idx, ev_result) != VX_OK)
             {
                 pipeline_status = VX_ERROR;
             }
@@ -222,7 +222,7 @@ resolve_token_or_var(struct sk_parser *p, vx_sv stormfile, struct sk_eval_result
         raw_sv.len -= 2;
     }
 
-    char *flat_str = sv_to_arena(g_sk_global_arena, raw_sv);
+    char *flat_str = sv_to_arena(g_sk_arena, raw_sv);
     for (u32 i = 0; i < r->var_count; i++)
     {
         if (strcmp(r->var_keys[i], flat_str) == 0)
@@ -245,7 +245,7 @@ resolve_token_or_var(struct sk_parser *p, vx_sv stormfile, struct sk_eval_result
 
     if (!has_delim)
     {
-        char *flat_str = sv_to_arena(g_sk_global_arena, raw_sv);
+        char *flat_str = sv_to_arena(g_sk_arena, raw_sv);
         for (u32 i = 0; i < r->var_count; i++)
         {
             if (strcmp(r->var_keys[i], flat_str) == 0)
@@ -257,7 +257,7 @@ resolve_token_or_var(struct sk_parser *p, vx_sv stormfile, struct sk_eval_result
     }
 
     u32   out_cap = VX_BUF_SIZE_512;
-    char *out_str = mem_arena_alloc(g_sk_global_arena, out_cap);
+    char *out_str = mem_arena_alloc(g_sk_arena, out_cap);
     u32   out_len = 0;
 
     char token_buf[VX_BUF_SIZE_64];
@@ -347,7 +347,7 @@ sk_pipeline_codegen(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_ev
 {
     vx_sv path_sv = tok_to_sv(p, stormfile, p->nodes->data_a[node]);
 
-    char *path = sv_to_arena(g_sk_global_arena, path_sv);
+    char *path = sv_to_arena(g_sk_arena, path_sv);
 
     FILE *f = fopen(path, "w");
     if (f == nullptr)

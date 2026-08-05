@@ -101,8 +101,7 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
         return;
     }
 
-    const char *manifest_path =
-        sk_path_join(g_sk_global_arena, ctx->rpath, SK_PATH_STORM_MANIFEST_BIN);
+    const char *manifest_path = sk_path_join(g_sk_arena, ctx->rpath, SK_PATH_STORM_MANIFEST_BIN);
 
     FILE *f = fopen(manifest_path, "rb");
 
@@ -122,7 +121,7 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
     }
 
     struct sk_target_persist *saved_targets =
-        mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_target_persist) * header.target_count);
+        mem_arena_alloc(g_sk_arena, sizeof(struct sk_target_persist) * header.target_count);
 
     size_t bytes_read =
         fread(saved_targets, sizeof(struct sk_target_persist), header.target_count, f);

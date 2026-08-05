@@ -11,7 +11,7 @@ struct sk_ctx
     // initialized in sk_parser.c
     struct sk_ast_nodes *nodes;
 
-    vx_sv sk_source;
+    vx_sv stormfile;
 
     sk_cmd active_cmd;
     sk_opt active_opt;
@@ -37,8 +37,8 @@ struct sk_ctx
     vx_mutex console_lock;
 
     // NYI
-    char sk_server_ssname[16];
-    char sk_server_sskey[16];
+    //    char sk_server_ssname[16];
+    //    char sk_server_sskey[16];
 };
 
 void sk_shutdown(void);

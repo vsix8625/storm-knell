@@ -401,7 +401,7 @@ static vx_status cli_execute(struct sk_ctx *ctx)
     if (ctx->active_opt & SK_OPT_MAIN_C)
     {
         const char *rpath = ctx->rpath ? ctx->rpath : vx_getcwd_fn();
-        const char *path  = sk_path_join(g_sk_global_arena, rpath, "main.c");
+        const char *path  = sk_path_join(g_sk_arena, rpath, "main.c");
 
         vx_dbglog("opt: --main-c -> %s", path);
         if (vx_mkdir_p(rpath) == VX_OK)
@@ -419,7 +419,7 @@ static vx_status cli_execute(struct sk_ctx *ctx)
     if (ctx->active_opt & SK_OPT_MAIN_CPP)
     {
         const char *rpath = ctx->rpath ? ctx->rpath : vx_getcwd_fn();
-        const char *path  = sk_path_join(g_sk_global_arena, rpath, "main.cpp");
+        const char *path  = sk_path_join(g_sk_arena, rpath, "main.cpp");
 
         vx_dbglog("opt: --main-cpp -> %s", path);
         if (vx_mkdir_p(rpath) == VX_OK)
@@ -487,7 +487,7 @@ vx_status sk_cli_driver(struct sk_ctx *ctx, i32 argc, char **argv)
     ctx->cores = vx_cpu_get_nproc();
 
     // --set=
-    ctx->setvars = sk_arena_array_create(g_sk_global_arena, 16);
+    ctx->setvars = sk_arena_array_create(g_sk_arena, 16);
 
     if (parse_subcmds(ctx, argc, argv) != VX_OK)
     {
@@ -506,7 +506,7 @@ vx_status sk_cli_driver(struct sk_ctx *ctx, i32 argc, char **argv)
 
     if (ctx->active_opt & SK_OPT_MEMSTAT)
     {
-        mem_arena_log_stats(g_sk_global_arena);
+        mem_arena_log_stats(g_sk_arena);
         mem_heap_print_stats(nullptr);
     }
 
@@ -626,7 +626,7 @@ opt_set_rpath(struct sk_ctx *ctx, sk_cmd, sk_opt opt, i32 *i, i32 argc, char **a
 
     strip_trailing_sep(tmp_path);
 
-    char *abs_path = mem_arena_alloc(g_sk_global_arena, VX_PATH_MAX);
+    char *abs_path = mem_arena_alloc(g_sk_arena, VX_PATH_MAX);
 
     if (vx_fs_is_abspath(tmp_path))
     {
@@ -900,7 +900,7 @@ opt_set_var(struct sk_ctx *ctx, sk_cmd, sk_opt opt, i32 *i, i32, char **argv)
     {
         return VX_ERROR;
     }
-    char *name = mem_arena_strdup(g_sk_global_arena, eq + 1);
+    char *name = mem_arena_strdup(g_sk_arena, eq + 1);
 
     if (ctx_var_is_set(ctx, name))
     {
@@ -1003,8 +1003,8 @@ static vx_status sk_opt_gen_vscode(struct sk_ctx *ctx)
     }
 
     const char *rpath      = ctx->rpath ? ctx->rpath : vx_getcwd_fn();
-    const char *vscode_dir = sk_path_join(g_sk_global_arena, rpath, ".vscode");
-    const char *tasks_json = sk_path_join(g_sk_global_arena, vscode_dir, "tasks.json");
+    const char *vscode_dir = sk_path_join(g_sk_arena, rpath, ".vscode");
+    const char *tasks_json = sk_path_join(g_sk_arena, vscode_dir, "tasks.json");
 
     if (vx_mkdir_p(vscode_dir) != VX_OK)
     {

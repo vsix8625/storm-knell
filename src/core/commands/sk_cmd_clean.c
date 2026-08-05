@@ -37,8 +37,8 @@ vx_status sk_cmd_clean_fn(struct sk_ctx *ctx)
             struct sk_cache_proj_header hdr = {0};
             if (fread(&hdr, sizeof(hdr), 1, cache_f) == 1 && hdr.count > 0)
             {
-                struct sk_cache_proj_entry *entries = mem_arena_alloc(
-                    g_sk_global_arena, sizeof(struct sk_cache_proj_entry) * hdr.count);
+                struct sk_cache_proj_entry *entries =
+                    mem_arena_alloc(g_sk_arena, sizeof(struct sk_cache_proj_entry) * hdr.count);
 
                 if (fread(entries, sizeof(struct sk_cache_proj_entry), hdr.count, cache_f) ==
                     hdr.count)
@@ -105,7 +105,7 @@ vx_status sk_cmd_clean_fn(struct sk_ctx *ctx)
     }
 
     struct sk_target_persist *saved_targets =
-        mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_target_persist) * header.target_count);
+        mem_arena_alloc(g_sk_arena, sizeof(struct sk_target_persist) * header.target_count);
 
     size_t elements_read =
         fread(saved_targets, sizeof(struct sk_target_persist), header.target_count, f);

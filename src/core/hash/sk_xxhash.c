@@ -249,14 +249,14 @@ vx_status sk_hash_setup(struct sk_target     *t,
     char  *h_buf        = mem_arena_alloc(arena, total_alloc);
 
     size_t offset    = 0;
-    size_t rpath_len = g_sk_global_ctx.rpath ? strlen(g_sk_global_ctx.rpath) : 0;
+    size_t rpath_len = g_sk_ctx.rpath ? strlen(g_sk_ctx.rpath) : 0;
 
     offset += snprintf(h_buf + offset, total_alloc - offset, "[%s]", meta->cc_ver);
 
     for (u32 i = 0; i < t->cfg.cflags_count; i++)
     {
         const char *flag = t->cfg.cflags[i];
-        if (rpath_len > 0 && strncmp(flag, g_sk_global_ctx.rpath, rpath_len) == 0 &&
+        if (rpath_len > 0 && strncmp(flag, g_sk_ctx.rpath, rpath_len) == 0 &&
             flag[rpath_len] == VX_PATH_SEP)
         {
             offset += snprintf(h_buf + offset, total_alloc - offset, " .%s", flag + rpath_len);
@@ -274,7 +274,7 @@ vx_status sk_hash_setup(struct sk_target     *t,
         // Check for "-I/absolute/project/root/path" vs system flags
         // If it starts with "-I" followed immediately by rpath
         if (rpath_len > 0 && strncmp(inc, "-I", 2) == 0 &&
-            strncmp(inc + 2, g_sk_global_ctx.rpath, rpath_len) == 0)
+            strncmp(inc + 2, g_sk_ctx.rpath, rpath_len) == 0)
         {
             const char *sub_path = inc + 2 + rpath_len;
             if (*sub_path == VX_PATH_SEP)
@@ -290,7 +290,7 @@ vx_status sk_hash_setup(struct sk_target     *t,
                 offset += snprintf(h_buf + offset, total_alloc - offset, " %s", inc);
             }
         }
-        else if (rpath_len > 0 && strncmp(inc, g_sk_global_ctx.rpath, rpath_len) == 0 &&
+        else if (rpath_len > 0 && strncmp(inc, g_sk_ctx.rpath, rpath_len) == 0 &&
                  inc[rpath_len] == VX_PATH_SEP)
         {
             offset += snprintf(h_buf + offset, total_alloc - offset, " .%s", inc + rpath_len);
@@ -306,7 +306,7 @@ vx_status sk_hash_setup(struct sk_target     *t,
         offset += snprintf(h_buf + offset, total_alloc - offset, " %s", t->cfg.defines[i]);
     }
 
-    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
+    if (g_sk_ctx.active_opt & SK_OPT_VERBOSE)
     {
         vx_log("Injected hash: %s", h_buf);
     }

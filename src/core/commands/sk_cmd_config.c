@@ -30,13 +30,13 @@ vx_status sk_config_add_cc_path(const char *cc_realpath)
         return VX_ERROR;
     }
 
-    char *global_dir = sk_path_join(g_sk_global_arena, base_config_dir, SK_PATH_STORM_KNELL);
+    char *global_dir = sk_path_join(g_sk_arena, base_config_dir, SK_PATH_STORM_KNELL);
 
-    char *conf_path = sk_path_join(g_sk_global_arena, global_dir, "compilers.conf");
+    char *conf_path = sk_path_join(g_sk_arena, global_dir, "compilers.conf");
 
     if (vx_fs_exists(conf_path))
     {
-        vx_sv file = vx_fs_read(conf_path, sk_arena_alloc, g_sk_global_arena);
+        vx_sv file = vx_fs_read(conf_path, sk_arena_alloc, g_sk_arena);
 
         if (file.data != nullptr)
         {

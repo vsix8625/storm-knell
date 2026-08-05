@@ -50,7 +50,7 @@ vx_status sk_parser_init(struct sk_ctx *ctx, struct sk_parser *p)
         return VX_ERROR;
     }
 
-    ctx->nodes = mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_ast_nodes));
+    ctx->nodes = mem_arena_alloc(g_sk_arena, sizeof(struct sk_ast_nodes));
 
     if (ctx->nodes == nullptr)
     {
@@ -60,7 +60,7 @@ vx_status sk_parser_init(struct sk_ctx *ctx, struct sk_parser *p)
 
     size_t arr_size =
         (5 * sizeof(u32) * SK_AST_MAX_NODES) + (sizeof(sk_ast_node_kind) * SK_AST_MAX_NODES);
-    void *block = mem_arena_alloc(g_sk_global_arena, arr_size);
+    void *block = mem_arena_alloc(g_sk_arena, arr_size);
 
     if (block == nullptr)
     {
@@ -215,10 +215,7 @@ vx_status sk_top_level_parse(struct sk_parser *p)
 
         if (p->current == pos_before)
         {
-            vx_errlog("INFINITE LOOP at token %u: %s line %u",
-                      p->current,
-                      sk_token_tostr(peek(p)),
-                      p->tokens->lines[p->current]);
+            vx_errlog("INFINITE LOOP at token %u: %s", p->current, sk_token_tostr(peek(p)));
             return VX_ERROR;
         }
 
@@ -292,7 +289,7 @@ static sk_ast_node_kind literal_kind(sk_token_kind t)
 
 static u32 parse_codegen_entry(struct sk_parser *p)
 {
-    vx_sv directive = tok_to_sv(p, g_sk_global_ctx.sk_source, p->current);
+    vx_sv directive = tok_to_sv(p, g_sk_ctx.stormfile, p->current);
 
     if (vx_sv_strcmp(directive, "define") == 0)
     {
@@ -375,9 +372,8 @@ static void parse_codegen_body(struct sk_parser *p, u32 *first_child)
 
         if (p->current == pos_before)
         {
-            vx_errlog("STUCK in parse_codegen_body at token %u line %u",
-                      p->current,
-                      p->tokens->lines[p->current]);
+            vx_errlog("STUCK in parse_codegen_body at token %u", p->current);
+
             return;
         }
 
@@ -607,10 +603,7 @@ static void parse_body(struct sk_parser *p, u32 *fist_child)
 
         if (p->current == pos_before)
         {
-            vx_errlog("STUCK in parse_body at token %u: %s line %u",
-                      p->current,
-                      sk_token_tostr(peek(p)),
-                      p->tokens->lines[p->current]);
+            vx_errlog("STUCK in parse_body at token %u: %s", p->current, sk_token_tostr(peek(p)));
             return;
         }
 
@@ -914,7 +907,7 @@ static inline bool expect(struct sk_parser *p, sk_token_kind kind)
 
 static u32 emit(sk_ast_node_kind kind, u32 token_idx)
 {
-    struct sk_ast_nodes *nodes = g_sk_global_ctx.nodes;
+    struct sk_ast_nodes *nodes = g_sk_ctx.nodes;
 
     u32 i = nodes->count++;
 
@@ -928,28 +921,100 @@ static u32 emit(sk_ast_node_kind kind, u32 token_idx)
     return i;
 }
 
+struct sk_loc
+{
+    u32 line;
+    u32 col;
+};
+
+static struct sk_loc get_token_loc(vx_sv source, u32 offset)
+{
+    struct sk_loc loc = {.line = 1, .col = 1};
+
+    u32 limit = (offset < source.len) ? offset : (u32) source.len;
+    for (u32 i = 0; i < limit; i++)
+    {
+        if (source.data[i] == CHAR_NEWLINE)
+        {
+            loc.line++;
+            loc.col = 1;
+        }
+        else
+        {
+            loc.col++;
+        }
+    }
+    return loc;
+}
+
+static void parser_sync(struct sk_parser *p)
+{
+    advance(p);
+    if (p->nodes->err_count > 0)
+    {
+        sk_token_kind kind = p->tokens->kinds[p->current];
+
+        while (!is_at_end(p))
+        {
+            switch (kind)
+            {
+                case SK_TOKEN_COLON:
+                case SK_TOKEN_RBRACE:
+                case SK_TOKEN_EOF:
+                case SK_TOKEN_KWORD_IF:
+                case SK_TOKEN_KWORD_ELSE:
+                case SK_TOKEN_KWORD_CODEGEN:
+                case SK_TOKEN_KWORD_EXIT:
+                case SK_TOKEN_KWORD_PRINT:
+                case SK_TOKEN_KWORD_CC:
+                case SK_TOKEN_KWORD_INSTALL:
+                case SK_TOKEN_KWORD_DEPLOY:
+                case SK_TOKEN_KWORD_PACKAGE:
+                case SK_TOKEN_KWORD_BUNDLE:
+                case SK_TOKEN_KWORD_TARGET: return;
+
+                default: break;
+            }
+            advance(p);
+        }
+    }
+}
+
 void syntax_error(struct sk_parser *p, const char *msg)
 {
     u32 tok = p->current;
+    u32 off = p->tokens->offsets[tok];
 
-    vx_errlog("Syntax error at line %u col %u: %s (got %s)",
-              p->tokens->lines[tok],
-              p->tokens->cols[tok],
+    struct sk_ctx *ctx = &g_sk_ctx;
+
+    struct sk_loc loc = get_token_loc(ctx->stormfile, off);
+
+    vx_errlog("Syntax error: (l: %u c: %u): %s (got %s)",
+              loc.line,
+              loc.col,
               msg,
               sk_token_tostr(p->tokens->kinds[tok]));
 
     p->nodes->err_count++;
+    parser_sync(p);
 }
 
 void syntax_error_at(struct sk_parser *p, u32 tok_idx, const char *msg)
 {
+    u32 off = p->tokens->offsets[tok_idx];
+
+    struct sk_ctx *ctx = &g_sk_ctx;
+
+    struct sk_loc loc = get_token_loc(ctx->stormfile, off);
+
     vx_errlog("Syntax error at line %u col %u: %s (got %s)",
-              p->tokens->lines[tok_idx],
-              p->tokens->cols[tok_idx],
+              loc.line,
+              loc.col,
               msg,
               sk_token_tostr(p->tokens->kinds[tok_idx]));
 
     p->nodes->err_count++;
+    parser_sync(p);
 }
 
 //----------------------------------------------------------------------------------------------------

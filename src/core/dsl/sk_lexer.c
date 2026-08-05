@@ -11,7 +11,7 @@
 
 // ----------------------------------------------------------------------------------------------------
 
-static void record(struct sk_lexer *lx, sk_token_kind kind, u32 start_col);
+static void record(struct sk_lexer *lx, sk_token_kind kind);
 
 static inline bool isatend(struct sk_lexer *lx);
 static inline char peek(struct sk_lexer *lx);
@@ -22,10 +22,10 @@ static void skip_wspac_scalar(struct sk_lexer *lx);
 
 static sk_token_kind check_keywords(struct sk_lexer *lx);
 
-static void handle_ident(struct sk_lexer *lx, u32 start_col);
-static void handle_number(struct sk_lexer *lx, u32 start_col);
-static void handle_string(struct sk_lexer *lx, char quote_type, u32 start_col);
-static void handle_path(struct sk_lexer *lx, u32 start_col);
+static void handle_ident(struct sk_lexer *lx);
+static void handle_number(struct sk_lexer *lx);
+static void handle_string(struct sk_lexer *lx, char quote_type);
+static void handle_path(struct sk_lexer *lx);
 
 static void sk_lx_next_token(struct sk_lexer *lx);
 
@@ -40,14 +40,12 @@ vx_status sk_lx_init(struct sk_ctx *ctx, struct sk_lexer *lx)
         return VX_FATAL;
     }
 
-    lx->source = ctx->sk_source;
+    lx->source = ctx->stormfile;
 
     lx->lex_start = 0;
     lx->current   = 0;
-    lx->line_n    = 1;
-    lx->col_n     = 1;
 
-    ctx->tokens = mem_arena_alloc(g_sk_global_arena, sizeof(struct sk_tokens));
+    ctx->tokens = mem_arena_alloc(g_sk_arena, sizeof(struct sk_tokens));
 
     if (ctx->tokens == nullptr)
     {
@@ -55,9 +53,9 @@ vx_status sk_lx_init(struct sk_ctx *ctx, struct sk_lexer *lx)
         return VX_FATAL;
     }
 
-    size_t arr_size = (5 * sizeof(u32) * SK_LX_MAX_TOKENS);
+    size_t arr_size = (3 * sizeof(u32) * SK_LX_MAX_TOKENS);
 
-    void *block = mem_arena_alloc(g_sk_global_arena, arr_size);
+    void *block = mem_arena_alloc(g_sk_arena, arr_size);
 
     if (block == nullptr)
     {
@@ -71,9 +69,7 @@ vx_status sk_lx_init(struct sk_ctx *ctx, struct sk_lexer *lx)
 
     ctx->tokens->offsets = (u32 *) block;
     ctx->tokens->lens    = ctx->tokens->offsets + SK_LX_MAX_TOKENS;
-    ctx->tokens->lines   = ctx->tokens->lens + SK_LX_MAX_TOKENS;
-    ctx->tokens->cols    = ctx->tokens->lines + SK_LX_MAX_TOKENS;
-    ctx->tokens->kinds   = ctx->tokens->cols + SK_LX_MAX_TOKENS;
+    ctx->tokens->kinds   = ctx->tokens->lens + SK_LX_MAX_TOKENS;
 
     ctx->tokens->count     = 1;
     ctx->tokens->err_count = 0;
@@ -92,26 +88,25 @@ static void sk_lx_next_token(struct sk_lexer *lx)
     if (isatend(lx))
     {
         lx->status |= SK_LEXER_EOF;
-        record(lx, SK_TOKEN_EOF, lx->col_n);
+        record(lx, SK_TOKEN_EOF);
         return;
     }
 
     skip_wspac_scalar(lx);
 
-    lx->lex_start   = lx->current;
-    u32 token_start = lx->col_n;
+    lx->lex_start = lx->current;
 
     char c = advance(lx);
 
     if (sk_util_is_ident(c))
     {
-        handle_ident(lx, token_start);
+        handle_ident(lx);
         return;
     }
 
     if (sk_util_is_digit(c))
     {
-        handle_number(lx, token_start);
+        handle_number(lx);
         return;
     }
 
@@ -120,49 +115,49 @@ static void sk_lx_next_token(struct sk_lexer *lx)
         case CHAR_SINGLE_QUOTE:
         case CHAR_DOUBLE_QUOTE:
         {
-            handle_string(lx, c, token_start);
+            handle_string(lx, c);
             return;
         }
 
         case CHAR_NULTERM:
         {
-            record(lx, SK_TOKEN_EOF, token_start);
+            record(lx, SK_TOKEN_EOF);
             return;
         }
 
         case CHAR_LPAREN:
         {
-            record(lx, SK_TOKEN_LPAREN, token_start);
+            record(lx, SK_TOKEN_LPAREN);
             return;
         }
         case CHAR_RPAREN:
         {
-            record(lx, SK_TOKEN_RPAREN, token_start);
+            record(lx, SK_TOKEN_RPAREN);
             return;
         }
         case CHAR_LBRACE:
         {
-            record(lx, SK_TOKEN_LBRACE, token_start);
+            record(lx, SK_TOKEN_LBRACE);
             return;
         }
         case CHAR_RBRACE:
         {
-            record(lx, SK_TOKEN_RBRACE, token_start);
+            record(lx, SK_TOKEN_RBRACE);
             return;
         }
         case CHAR_LBRACKET:
         {
-            record(lx, SK_TOKEN_LBRACKET, token_start);
+            record(lx, SK_TOKEN_LBRACKET);
             return;
         }
         case CHAR_RBRACKET:
         {
-            record(lx, SK_TOKEN_RBRACKET, token_start);
+            record(lx, SK_TOKEN_RBRACKET);
             return;
         }
         case CHAR_COMMA:
         {
-            record(lx, SK_TOKEN_COMMA, token_start);
+            record(lx, SK_TOKEN_COMMA);
             return;
         }
 
@@ -171,10 +166,10 @@ static void sk_lx_next_token(struct sk_lexer *lx)
             if (peek(lx) == CHAR_COLON)
             {
                 advance(lx);
-                record(lx, SK_TOKEN_DOUBLE_COLON, token_start);
+                record(lx, SK_TOKEN_DOUBLE_COLON);
                 return;
             }
-            record(lx, SK_TOKEN_COLON, token_start);
+            record(lx, SK_TOKEN_COLON);
             return;
         }
 
@@ -183,17 +178,17 @@ static void sk_lx_next_token(struct sk_lexer *lx)
             if (peek(lx) == CHAR_EQUAL)
             {
                 advance(lx);
-                record(lx, SK_TOKEN_NOT_EQUAL, token_start);
+                record(lx, SK_TOKEN_NOT_EQUAL);
                 return;
             }
-            record(lx, SK_TOKEN_BANG, token_start);
+            record(lx, SK_TOKEN_BANG);
             return;
         }
 
         case CHAR_DOT:
         case CHAR_SLASH:
         {
-            handle_path(lx, token_start);
+            handle_path(lx);
             return;
         }
 
@@ -202,10 +197,10 @@ static void sk_lx_next_token(struct sk_lexer *lx)
             if (peek(lx) == CHAR_EQUAL)
             {
                 advance(lx);
-                record(lx, SK_TOKEN_DOUBLE_EQUAL, token_start);
+                record(lx, SK_TOKEN_DOUBLE_EQUAL);
                 return;
             }
-            record(lx, SK_TOKEN_EQUAL, token_start);
+            record(lx, SK_TOKEN_EQUAL);
             return;
         }
 
@@ -214,11 +209,11 @@ static void sk_lx_next_token(struct sk_lexer *lx)
             if (peek(lx) == CHAR_EQUAL)
             {
                 advance(lx);
-                record(lx, SK_TOKEN_GE, token_start);
+                record(lx, SK_TOKEN_GE);
                 return;
             }
 
-            record(lx, SK_TOKEN_GT, token_start);
+            record(lx, SK_TOKEN_GT);
             return;
         }
 
@@ -227,11 +222,11 @@ static void sk_lx_next_token(struct sk_lexer *lx)
             if (peek(lx) == CHAR_EQUAL)
             {
                 advance(lx);
-                record(lx, SK_TOKEN_LE, token_start);
+                record(lx, SK_TOKEN_LE);
                 return;
             }
 
-            record(lx, SK_TOKEN_LT, token_start);
+            record(lx, SK_TOKEN_LT);
             return;
         }
 
@@ -266,14 +261,14 @@ static void sk_lx_next_token(struct sk_lexer *lx)
                                 {
                                     case CHAR_NEWLINE:
                                     {
-                                        record(lx, SK_TOKEN_ERROR, token_start);
+                                        record(lx, SK_TOKEN_ERROR);
                                         return;
                                     }
 
                                     case CHAR_NULTERM:
                                     {
                                         lx->status |= SK_LEXER_EOF;
-                                        record(lx, SK_TOKEN_EOF, token_start);
+                                        record(lx, SK_TOKEN_EOF);
                                         return;
                                     }
 
@@ -290,7 +285,7 @@ static void sk_lx_next_token(struct sk_lexer *lx)
                             if (isatend(lx))
                             {
                                 lx->status |= SK_LEXER_EOF;
-                                record(lx, SK_TOKEN_EOF, token_start);
+                                record(lx, SK_TOKEN_EOF);
                                 return;
                             }
 
@@ -316,18 +311,18 @@ static void sk_lx_next_token(struct sk_lexer *lx)
                         break;
                     }
                 }
-                record(lx, SK_TOKEN_FLAG, token_start);
+                record(lx, SK_TOKEN_FLAG);
                 return;
             }
 
             if (peek(lx) == CHAR_GT)
             {
                 advance(lx);
-                record(lx, SK_TOKEN_ARROW, token_start);
+                record(lx, SK_TOKEN_ARROW);
                 return;
             }
 
-            record(lx, SK_TOKEN_MINUS, token_start);
+            record(lx, SK_TOKEN_MINUS);
             return;
         }
 
@@ -336,7 +331,7 @@ static void sk_lx_next_token(struct sk_lexer *lx)
             if (peek(lx) == CHAR_AMPERSAND)
             {
                 advance(lx);
-                record(lx, SK_TOKEN_AND, token_start);  // &&
+                record(lx, SK_TOKEN_AND);  // &&
                 return;
             }
             return;
@@ -347,40 +342,40 @@ static void sk_lx_next_token(struct sk_lexer *lx)
             if (peek(lx) == CHAR_PIPE)
             {
                 advance(lx);
-                record(lx, SK_TOKEN_OR, token_start);  // ||
+                record(lx, SK_TOKEN_OR);  // ||
                 return;
             }
 
-            record(lx, SK_TOKEN_PIPE, token_start);  // |
+            record(lx, SK_TOKEN_PIPE);  // |
             return;
         }
 
         case CHAR_PLUS:
         {
-            record(lx, SK_TOKEN_PLUS, token_start);
+            record(lx, SK_TOKEN_PLUS);
             return;
         }
 
         case CHAR_PERCENT:
         {
-            record(lx, SK_TOKEN_PERCENT, token_start);
+            record(lx, SK_TOKEN_PERCENT);
             return;
         }
 
         case CHAR_CARET:
         {
-            record(lx, SK_TOKEN_CARET, token_start);
+            record(lx, SK_TOKEN_CARET);
             return;
         }
         case CHAR_TILDE:
         {
-            handle_path(lx, token_start);
+            handle_path(lx);
             return;
         }
 
         default:
         {
-            record(lx, SK_TOKEN_ERROR, token_start);
+            record(lx, SK_TOKEN_ERROR);
             return;
         }
     }
@@ -423,9 +418,9 @@ vx_status sk_lex(struct sk_ctx *ctx, struct sk_lexer *lx)
 
 // ---------------------------------------------------------------------------------------------------
 
-static void record(struct sk_lexer *lx, sk_token_kind kind, u32 start_col)
+static void record(struct sk_lexer *lx, sk_token_kind kind)
 {
-    struct sk_ctx *ctx = &g_sk_global_ctx;
+    struct sk_ctx *ctx = &g_sk_ctx;
 
     struct sk_tokens *pts = ctx->tokens;
 
@@ -433,8 +428,6 @@ static void record(struct sk_lexer *lx, sk_token_kind kind, u32 start_col)
 
     pts->offsets[i] = lx->lex_start;
     pts->lens[i]    = lx->current - lx->lex_start;
-    pts->lines[i]   = lx->line_n;
-    pts->cols[i]    = start_col;
     pts->kinds[i]   = kind;
 
     pts->count++;
@@ -475,16 +468,6 @@ static inline char advance(struct sk_lexer *lx)
     }
 
     char c = lx->source.data[lx->current++];
-
-    if (c == CHAR_NEWLINE)
-    {
-        lx->line_n++;
-        lx->col_n = 1;
-    }
-    else
-    {
-        lx->col_n++;
-    }
 
     return c;
 }
@@ -569,7 +552,7 @@ static void skip_wspac_scalar(struct sk_lexer *lx)
 
 // ---------------------------------------------------------------------------------------------------
 
-static void handle_path(struct sk_lexer *lx, u32 start_col)
+static void handle_path(struct sk_lexer *lx)
 {
     while (!isatend(lx))
     {
@@ -595,10 +578,10 @@ static void handle_path(struct sk_lexer *lx, u32 start_col)
             break;
         }
     }
-    record(lx, SK_TOKEN_PATH, start_col);
+    record(lx, SK_TOKEN_PATH);
 }
 
-static void handle_ident(struct sk_lexer *lx, u32 start_col)
+static void handle_ident(struct sk_lexer *lx)
 {
     const char *p = lx->source.data + lx->current;
 
@@ -619,20 +602,19 @@ static void handle_ident(struct sk_lexer *lx, u32 start_col)
     size_t len = p - (lx->source.data + lx->current);
 
     lx->current += len;
-    lx->col_n   += len;
 
     char next = peek(lx);
     if (!isatend(lx) && (next == CHAR_SLASH || next == CHAR_DOT))
     {
-        handle_path(lx, start_col);
+        handle_path(lx);
         return;
     }
 
     sk_token_kind kind = check_keywords(lx);
-    record(lx, kind, start_col);
+    record(lx, kind);
 }
 
-static void handle_number(struct sk_lexer *lx, u32 start_col)
+static void handle_number(struct sk_lexer *lx)
 {
     sk_token_kind kind = SK_TOKEN_LIT_INT;
 
@@ -646,10 +628,10 @@ static void handle_number(struct sk_lexer *lx, u32 start_col)
         advance(lx);
     }
 
-    record(lx, kind, start_col);
+    record(lx, kind);
 }
 
-static void handle_string(struct sk_lexer *lx, char quote_type, u32 start_col)
+static void handle_string(struct sk_lexer *lx, char quote_type)
 {
     while (true)
     {
@@ -664,14 +646,14 @@ static void handle_string(struct sk_lexer *lx, char quote_type, u32 start_col)
         {
             case CHAR_NEWLINE:
             {
-                record(lx, SK_TOKEN_ERROR, start_col);
+                record(lx, SK_TOKEN_ERROR);
                 return;
             }
 
             case CHAR_NULTERM:
             {
                 lx->status |= SK_LEXER_EOF;
-                record(lx, SK_TOKEN_EOF, start_col);
+                record(lx, SK_TOKEN_EOF);
                 return;
             }
 
@@ -688,13 +670,13 @@ static void handle_string(struct sk_lexer *lx, char quote_type, u32 start_col)
     if (isatend(lx))
     {
         lx->status |= SK_LEXER_EOF;
-        record(lx, SK_TOKEN_EOF, start_col);
+        record(lx, SK_TOKEN_EOF);
         return;
     }
 
     advance(lx);
 
-    record(lx, SK_TOKEN_LIT_STRING, start_col);
+    record(lx, SK_TOKEN_LIT_STRING);
 }
 
 static sk_token_kind check_keywords(struct sk_lexer *lx)
@@ -960,13 +942,11 @@ void sk_lx_dbg_dump_tokens(struct sk_ctx *ctx)
     vx_printf("=== TOKEN DUMP (%u tokens) ===\n", t->count);
     for (u32 i = 1; i < t->count; i++)
     {
-        vx_printf("[%u] %-30s offset: %u  len: %u  line: %u  col: %u\n",
+        vx_printf("[%u] %-30s offset: %u  len: %u\n",
                   i,
                   sk_token_tostr(t->kinds[i]),
                   t->offsets[i],
-                  t->lens[i],
-                  t->lines[i],
-                  t->cols[i]);
+                  t->lens[i]);
     }
 }
 

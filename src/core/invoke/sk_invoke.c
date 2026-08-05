@@ -18,12 +18,12 @@ struct sk_ccmds_entry *g_sk_ccmds = {0};
 
 static void verbose_argv_log(char **argv, u32 idx)
 {
-    if (g_sk_global_ctx.active_opt & SK_OPT_VERBOSE)
+    if (g_sk_ctx.active_opt & SK_OPT_VERBOSE)
     {
         static _Thread_local char t_log_buf[VX_BUF_SIZE_16K];
         vx_sbuf sbuf = {.data = t_log_buf, .size = sizeof(t_log_buf), .offset = 0};
 
-        vx_mutex_lock(&g_sk_global_ctx.console_lock);
+        vx_mutex_lock(&g_sk_ctx.console_lock);
         vx_sbuf_append(&sbuf, "\n%s\n", argv[idx - 1]);
         vx_sbuf_append(
             &sbuf,
@@ -33,7 +33,7 @@ static void verbose_argv_log(char **argv, u32 idx)
             vx_sbuf_append(&sbuf, "%s ", argv[i]);
         }
         vx_printf("%s\n", t_log_buf);
-        vx_mutex_unlock(&g_sk_global_ctx.console_lock);
+        vx_mutex_unlock(&g_sk_ctx.console_lock);
     }
 }
 
@@ -46,7 +46,7 @@ char *sk_invoke_compile(struct sk_target *t, u32 source_idx)
 
     size_t buf_stride = VX_PATH_MAX * 4;
 
-    char *buf = mem_arena_alloc(g_sk_global_arena, buf_stride);
+    char *buf = mem_arena_alloc(g_sk_arena, buf_stride);
 
     if (buf == nullptr)
     {
@@ -180,7 +180,7 @@ char **sk_invoke_compile_nularr(struct sk_target *t,
     if (is_debug)
     {
         char *map_buf = mem_arena_alloc(arena, VX_PATH_MAX + 32);
-        snprintf(map_buf, VX_PATH_MAX + 32, "-ffile-prefix-map=%s=.", g_sk_global_ctx.rpath);
+        snprintf(map_buf, VX_PATH_MAX + 32, "-ffile-prefix-map=%s=.", g_sk_ctx.rpath);
         argv[idx++] = map_buf;
     }
 
@@ -461,15 +461,15 @@ vx_status sk_ccmds_write(const char *rpath)
 void sk_ccmds_push(const char *file, const char *directory, const char **argv, u32 arg_count)
 {
     u32 slot                   = atomic_fetch_add(&g_sk_ccmds_count, 1);
-    g_sk_ccmds[slot].file      = mem_arena_strdup(g_sk_global_arena, file);
+    g_sk_ccmds[slot].file      = mem_arena_strdup(g_sk_arena, file);
     g_sk_ccmds[slot].directory = directory;
     g_sk_ccmds[slot].arg_count = arg_count;
 
-    const char **args = mem_arena_alloc(g_sk_global_arena, sizeof(char *) * arg_count);
+    const char **args = mem_arena_alloc(g_sk_arena, sizeof(char *) * arg_count);
 
     for (u32 i = 0; i < arg_count; i++)
     {
-        args[i] = mem_arena_strdup(g_sk_global_arena, argv[i]);
+        args[i] = mem_arena_strdup(g_sk_arena, argv[i]);
     }
     g_sk_ccmds[slot].arguments = args;
 }

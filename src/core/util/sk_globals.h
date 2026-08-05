@@ -3,9 +3,9 @@
 
 #include "vx_limits.h"
 
-extern struct sk_ctx g_sk_global_ctx;
+extern struct sk_ctx g_sk_ctx;
 
-extern struct mem_arena *g_sk_global_arena;
+extern struct mem_arena *g_sk_arena;
 
 extern vx_sbuf g_sk_profile_sbuf;
 extern char    g_sk_profile_buf[VX_PATH_MAX];

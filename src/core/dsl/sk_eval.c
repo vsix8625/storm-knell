@@ -67,7 +67,7 @@ static void cfg_push_flags(struct sk_parser *parser,
 
         if (parser->nodes->kinds[cur] == SK_NODE_FLAG)
         {
-            flags[(*count)++] = sv_to_arena(g_sk_global_arena, sv);
+            flags[(*count)++] = sv_to_arena(g_sk_arena, sv);
         }
         else if (parser->nodes->kinds[cur] == SK_NODE_LIT_STRING)
         {
@@ -97,7 +97,7 @@ static void cfg_push_flags(struct sk_parser *parser,
                 }
 
                 u32   len   = p - start;
-                char *entry = mem_arena_alloc(g_sk_global_arena, len + 1);
+                char *entry = mem_arena_alloc(g_sk_arena, len + 1);
                 memcpy(entry, start, len);
 
                 entry[len]        = CHAR_NULTERM;
@@ -140,7 +140,7 @@ static void cfg_push_paths(struct sk_parser *p,
             return;
         }
 
-        paths[*count] = sv_to_arena(g_sk_global_arena, sv);
+        paths[*count] = sv_to_arena(g_sk_arena, sv);
         sk_path_strip_trailing_sep(paths[*count]);
         (*count)++;
         cur = p->nodes->nexts[cur];
@@ -171,21 +171,21 @@ static void eval_cfg(struct sk_parser *p,
         case SK_TOKEN_KWORD_COMPILER:
         {
             vx_sv sv = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
-            cfg->cc  = sv_to_arena(g_sk_global_arena, sv);
+            cfg->cc  = sv_to_arena(g_sk_arena, sv);
             break;
         }
 
         case SK_TOKEN_KWORD_LINKER:
         {
             vx_sv sv    = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
-            cfg->linker = sv_to_arena(g_sk_global_arena, sv);
+            cfg->linker = sv_to_arena(g_sk_arena, sv);
             break;
         }
 
         case SK_TOKEN_KWORD_RPATH:
         {
             vx_sv sv   = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
-            cfg->rpath = sv_to_arena(g_sk_global_arena, sv);
+            cfg->rpath = sv_to_arena(g_sk_arena, sv);
             break;
         }
 
@@ -249,7 +249,7 @@ static void eval_cfg(struct sk_parser *p,
         case SK_TOKEN_KWORD_KIND:
         {
             vx_sv sv     = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
-            char *t_kind = sv_to_arena(g_sk_global_arena, sv);
+            char *t_kind = sv_to_arena(g_sk_arena, sv);
 
             if (target)
             {
@@ -280,7 +280,7 @@ static void eval_cfg(struct sk_parser *p,
         case SK_TOKEN_KWORD_MODE:
         {
             vx_sv sv   = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
-            char *mode = sv_to_arena(g_sk_global_arena, sv);
+            char *mode = sv_to_arena(g_sk_arena, sv);
 
             if (target)
             {
@@ -295,7 +295,7 @@ static void eval_cfg(struct sk_parser *p,
             {
                 vx_sv sv = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
 
-                target->out_name = sv_to_arena(g_sk_global_arena, sv);
+                target->out_name = sv_to_arena(g_sk_arena, sv);
             }
             break;
         }
@@ -306,7 +306,7 @@ static void eval_cfg(struct sk_parser *p,
             {
                 vx_sv sv = tok_to_sv(p, stormfile, p->nodes->token_idxs[val_node]);
 
-                target->out_dir = sv_to_arena(g_sk_global_arena, sv);
+                target->out_dir = sv_to_arena(g_sk_arena, sv);
             }
             break;
         }
@@ -363,7 +363,7 @@ static void eval_cfg(struct sk_parser *p,
             {
                 vx_sv sv = tok_to_sv(p, stormfile, p->nodes->token_idxs[cur]);
 
-                char *path = sv_to_arena(g_sk_global_arena, sv);
+                char *path = sv_to_arena(g_sk_arena, sv);
                 sk_path_strip_trailing_sep(path);
 
                 if (vx_isdir(path))
@@ -498,8 +498,8 @@ static void eval_if(struct sk_parser      *p,
 
                     vx_sv sv = tok_to_sv(p, stormfile, path_to_idx);
 
-                    const char *raw     = sv_to_arena(g_sk_global_arena, sv);
-                    target->install_dir = (char *) sk_expand_path(g_sk_global_arena, raw);
+                    const char *raw     = sv_to_arena(g_sk_arena, sv);
+                    target->install_dir = (char *) sk_expand_path(g_sk_arena, raw);
                     break;
                 }
 
@@ -616,8 +616,8 @@ static void eval_if(struct sk_parser      *p,
 
                         vx_sv sv = tok_to_sv(p, stormfile, path_to_idx);
 
-                        const char *raw     = sv_to_arena(g_sk_global_arena, sv);
-                        target->install_dir = (char *) sk_expand_path(g_sk_global_arena, raw);
+                        const char *raw     = sv_to_arena(g_sk_arena, sv);
+                        target->install_dir = (char *) sk_expand_path(g_sk_arena, raw);
                         break;
                     }
 
@@ -667,8 +667,8 @@ static void eval_target(struct sk_parser      *p,
 
             case SK_NODE_IF:
             {
-                char **snapshot = mem_arena_alloc(g_sk_global_arena, sizeof(char *) * SK_MAX_VARS);
-                eval_if(p, stormfile, child, target, result, g_sk_global_arena, snapshot);
+                char **snapshot = mem_arena_alloc(g_sk_arena, sizeof(char *) * SK_MAX_VARS);
+                eval_if(p, stormfile, child, target, result, g_sk_arena, snapshot);
                 break;
             }
 
@@ -703,8 +703,8 @@ static void eval_target(struct sk_parser      *p,
 
                 vx_sv sv = tok_to_sv(p, stormfile, path_to_idx);
 
-                const char *raw     = sv_to_arena(g_sk_global_arena, sv);
-                target->install_dir = (char *) sk_expand_path(g_sk_global_arena, raw);
+                const char *raw     = sv_to_arena(g_sk_arena, sv);
+                target->install_dir = (char *) sk_expand_path(g_sk_arena, raw);
                 break;
             }
 
@@ -718,7 +718,7 @@ static void eval_target(struct sk_parser      *p,
 
                     vx_sv sv = tok_to_sv(p, stormfile, dep_tok_idx);
 
-                    target->depends[target->depend_count++] = sv_to_arena(g_sk_global_arena, sv);
+                    target->depends[target->depend_count++] = sv_to_arena(g_sk_arena, sv);
 
                     dep_node = p->nodes->nexts[dep_node];
                 }
@@ -787,15 +787,15 @@ static void eval_var(struct sk_parser *p, vx_sv stormfile, u32 node, struct sk_e
         if (strncmp(result->var_keys[i], key.data, key.len) == 0 &&
             result->var_keys[i][key.len] == CHAR_NULTERM)
         {
-            result->var_vals[i] = sv_to_arena(g_sk_global_arena, val);
+            result->var_vals[i] = sv_to_arena(g_sk_arena, val);
             return;
         }
     }
 
     if (result->var_count < SK_MAX_VARS)
     {
-        result->var_keys[result->var_count] = sv_to_arena(g_sk_global_arena, key);
-        result->var_vals[result->var_count] = sv_to_arena(g_sk_global_arena, val);
+        result->var_keys[result->var_count] = sv_to_arena(g_sk_arena, key);
+        result->var_vals[result->var_count] = sv_to_arena(g_sk_arena, val);
         result->var_count++;
     }
 }
@@ -973,8 +973,8 @@ target_init(struct mem_arena *ar, struct sk_eval_result *result, vx_sv name_sv)
     t->cfg.lib_paths_count = result->global.lib_paths_count;
     memcpy(t->cfg.lib_paths, result->global.lib_paths, sizeof(char *) * t->cfg.lib_paths_count);
 
-    t->sources   = sk_arena_array_create(g_sk_global_arena, VX_BUF_SIZE_8192);
-    t->scan_dirs = sk_arena_array_create(g_sk_global_arena, VX_BUF_SIZE_8192);
+    t->sources   = sk_arena_array_create(g_sk_arena, VX_BUF_SIZE_8192);
+    t->scan_dirs = sk_arena_array_create(g_sk_arena, VX_BUF_SIZE_8192);
 
     t->cfg.cc     = result->global.cc;
     t->cfg.linker = result->global.linker;
@@ -990,7 +990,7 @@ vx_status sk_top_level_eval(struct sk_parser *p, struct sk_eval_result *result)
         return VX_ERROR;
     }
 
-    struct mem_arena *ar     = g_sk_global_arena;
+    struct mem_arena *ar     = g_sk_arena;
     result->global.cflags    = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_FLAGS);
     result->global.lflags    = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_FLAGS);
     result->global.defines   = mem_arena_alloc(ar, sizeof(char *) * SK_MAX_DEFINES);
@@ -1017,11 +1017,11 @@ vx_status sk_top_level_eval(struct sk_parser *p, struct sk_eval_result *result)
         return VX_ERROR;
     }
 
-    vx_sv stormfile = g_sk_global_ctx.sk_source;
+    vx_sv stormfile = g_sk_ctx.stormfile;
 
     u32 node = p->nodes->data_a[1];  // program first child
 
-    char **snapshot = mem_arena_alloc(g_sk_global_arena, sizeof(char *) * SK_MAX_VARS);
+    char **snapshot = mem_arena_alloc(g_sk_arena, sizeof(char *) * SK_MAX_VARS);
 
     load_builtin_vars(result);
 
@@ -1323,14 +1323,14 @@ static void load_builtin_vars(struct sk_eval_result *result)
         return;
     }
 
-    char *maj_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_16);
-    char *min_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_16);
-    char *pat_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_16);
+    char *maj_buf = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_16);
+    char *min_buf = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_16);
+    char *pat_buf = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_16);
     snprintf(maj_buf, VX_BUF_SIZE_16, "%d", SK_VERSION_MAJOR);
     snprintf(min_buf, VX_BUF_SIZE_16, "%d", SK_VERSION_MINOR);
     snprintf(pat_buf, VX_BUF_SIZE_16, "%d", SK_VERSION_PATCH);
 
-    char *cache_line_buf = mem_arena_alloc(g_sk_global_arena, VX_BUF_SIZE_16);
+    char *cache_line_buf = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_16);
     snprintf(cache_line_buf, VX_BUF_SIZE_16, "%d", vx_cpu_get_cache_line());
 
     sk_eval_set_builtin(result, "__sk_version__", SK_VERSION_STRING);
@@ -1347,14 +1347,14 @@ static void load_builtin_vars(struct sk_eval_result *result)
     sk_eval_set_builtin(result, "__has_bmi__", vx_cpu_has_bmi() ? "1" : "0");
     sk_eval_set_builtin(result, "__cache_line__", cache_line_buf);
 
-    if (g_sk_global_ctx.setvars == nullptr)
+    if (g_sk_ctx.setvars == nullptr)
     {
         return;
     }
 
-    for (u32 i = 0; i < g_sk_global_ctx.setvars->count; i++)
+    for (u32 i = 0; i < g_sk_ctx.setvars->count; i++)
     {
-        const char *name = (const char *) g_sk_global_ctx.setvars->items[i];
+        const char *name = (const char *) g_sk_ctx.setvars->items[i];
 
         if (sk_eval_get_builtin(result, name) != nullptr)
         {
