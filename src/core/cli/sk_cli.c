@@ -307,6 +307,10 @@ static vx_status parse_opts(struct sk_ctx *ctx, i32 argc, char **argv)
 
 static vx_status cli_execute(struct sk_ctx *ctx)
 {
+    if (ctx == nullptr)
+    {
+        return VX_ERROR;
+    }
     // ----------------------------------------------------------------------------------------------------
     // global config
 
@@ -347,13 +351,13 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         vx_ticks_start(&total_time);
     }
 
-    if (ctx->active_cmd & SK_CMD_CONFIG)
-    {
-        if (sk_cmd_config_fn(ctx) != VX_OK)
-        {
-            vx_warn("Config function exited abnormally");
-        }
-    }
+    //    if (ctx->active_cmd & SK_CMD_CONFIG)
+    //    {
+    //        if (sk_cmd_config_fn(ctx) != VX_OK)
+    //        {
+    //            vx_warn("Config function exited abnormally");
+    //        }
+    //    }
 
     vx_dbglog("active_cmd: 0x%08lX", ctx->active_cmd);
     vx_dbglog("active_opt: 0x%08lX", ctx->active_opt);

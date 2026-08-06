@@ -70,7 +70,8 @@ struct sk_target
 
     sk_target_kind kind;
 
-    u8 pad[7];
+    bool was_relinked;
+    u8   pad[6];
 };
 
 struct sk_eval_result

@@ -29,11 +29,6 @@ static vx_status sk_scan_inc(const char            *src_path,
 vx_status
 sk_xxh3_hash(struct sk_hash_input *input, u8 out_hash[SK_XXHASH_LEN], struct mem_arena *arena)
 {
-    if (input == nullptr || arena == nullptr)
-    {
-        return VX_ERROR;
-    }
-
     XXH3_state_t state;
 
     if (XXH3_64bits_reset(&state) == XXH_ERROR)
@@ -111,117 +106,126 @@ static vx_status sk_scan_inc(const char            *src_path,
 
     while (p < end)
     {
-        const char *line = p;
+        const char *hash_ptr = (const char *) memchr(p, CHAR_HASH, end - p);
 
-        while (p < end && *p != CHAR_NEWLINE)
+        if (hash_ptr == nullptr)
+        {
+            break;
+        }
+
+        p = hash_ptr + 1;  // advance past '#'
+
+        while (p < end && (*p == CHAR_SPACE || *p == CHAR_TAB))
         {
             p++;
         }
 
-        p++;
-
-        while (line < p && isspace((u8) *line))
+        if (end - p >= 7 && (0 == memcmp(p, "include", 7)))
         {
-            line++;
-        }
+            p += 7;
 
-        if (strncmp(line, "#include \"", 10) != 0)
-        {
-            continue;
-        }
-        // found the #include line if reach here
-        line += 10;
-
-        const char *inc_start = line;
-
-        while (line < p && *line != CHAR_DOUBLE_QUOTE)
-        {
-            line++;
-        }
-
-        if (line == p)
-        {
-            vx_errlog("Missing terminating quote in file: %s", src_path);
-            return VX_ERROR;
-        }
-
-        // if #include ""
-        if (line == inc_start)
-        {
-            continue;
-        }
-
-        char resolved[VX_PATH_MAX];
-        bool found = false;
-
-        const char *last_sep = strrchr(src_path, VX_PATH_SEP);
-
-        if (last_sep)
-        {
-            size_t dir_len = last_sep - src_path + 1;
-            memcpy(resolved, src_path, dir_len);
-            memcpy(resolved + dir_len, inc_start, line - inc_start);
-            resolved[dir_len + (line - inc_start)] = CHAR_NULTERM;
-
-            if (vx_isfile(resolved))
+            while (p < end && (*p == CHAR_SPACE || *p == CHAR_TAB))
             {
-                found = true;
+                p++;
+            }
+
+            if (p < end && *p == CHAR_DOUBLE_QUOTE)
+            {
+                p++;
+                const char *inc_start = p;
+
+                const char *quote_end = inc_start;
+
+                while (quote_end < end && *quote_end != CHAR_DOUBLE_QUOTE &&
+                       *quote_end != CHAR_NEWLINE)
+                {
+                    quote_end++;
+                }
+
+                if (quote_end >= end || *quote_end != CHAR_DOUBLE_QUOTE)
+                {
+                    continue;
+                }
+
+                size_t inc_len = quote_end - inc_start;
+
+                p = quote_end + 1;
+
+                char resolved[VX_PATH_MAX];
+                bool found = false;
+
+                const char *last_sep = strrchr(src_path, VX_PATH_SEP);
+
+                if (last_sep)
+                {
+                    size_t dir_len = last_sep - src_path + 1;
+                    memcpy(resolved, src_path, dir_len);
+                    memcpy(resolved + dir_len, inc_start, inc_len);
+                    resolved[dir_len + (inc_len)] = CHAR_NULTERM;
+
+                    if (vx_isfile(resolved))
+                    {
+                        found = true;
+                        // sk_path_canonicalize(resolved);
+                    }
+                }
+
+                if (!found)
+                {
+                    for (u32 i = 0; i < cfg->includes_count; i++)
+                    {
+                        const char *ipath = cfg->includes[i];
+
+                        if (strncmp(ipath, "-I", 2) == 0)
+                        {
+                            ipath += 2;
+                        }
+
+                        snprintf(resolved,
+                                 VX_PATH_MAX,
+                                 "%s%s%.*s",
+                                 ipath,
+                                 VX_PATH_SEP_STR,
+                                 (i32) inc_len,
+                                 inc_start);
+
+                        if (vx_isfile(resolved))
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!found)
+                {
+                    continue;
+                }
+
                 sk_path_canonicalize(resolved);
-            }
-        }
 
-        if (!found)
-        {
-            for (u32 i = 0; i < cfg->includes_count; i++)
-            {
-                const char *ipath = cfg->includes[i];
-
-                if (strncmp(ipath, "-I", 2) == 0)
+                if (sk_arena_array_contains(seen, resolved))
                 {
-                    ipath += 2;
+                    continue;
                 }
 
-                snprintf(resolved,
-                         VX_PATH_MAX,
-                         "%s%s%.*s",
-                         ipath,
-                         VX_PATH_SEP_STR,
-                         (i32) (line - inc_start),
-                         inc_start);
+                sk_arena_array_push(seen, sv_to_arena(arena, vx_sv_from_cstr(resolved)));
 
-                if (vx_isfile(resolved))
+                vx_sv inc_sv = vx_fs_read(resolved, sk_arena_alloc, arena);
+                if (inc_sv.data == nullptr)
                 {
-                    found = true;
-                    break;
+                    continue;
+                }
+
+                XXH3_64bits_update(state, inc_sv.data, inc_sv.len);
+
+                if (sk_scan_inc(resolved, inc_sv, seen, cfg, state, arena) != VX_OK)
+                {
+                    return VX_ERROR;
                 }
             }
-        }
-
-        if (!found)
-        {
-            continue;
-        }
-
-        if (sk_arena_array_contains(seen, resolved))
-        {
-            continue;
-        }
-        sk_arena_array_push(seen, sv_to_arena(arena, vx_sv_from_cstr(resolved)));
-
-        vx_sv inc_sv = vx_fs_read(resolved, sk_arena_alloc, arena);
-        if (inc_sv.data == nullptr)
-        {
-            continue;
-        }
-
-        XXH3_64bits_update(state, inc_sv.data, inc_sv.len);
-
-        if (sk_scan_inc(resolved, inc_sv, seen, cfg, state, arena) != VX_OK)
-        {
-            return VX_ERROR;
         }
     }
-
     return VX_OK;
 }
 
@@ -295,7 +299,7 @@ vx_status sk_hash_setup(struct sk_target     *t,
             {
                 offset += snprintf(h_buf + offset, total_alloc - offset, " -I.%s", sub_path);
             }
-            else if (*sub_path == '\0')
+            else if (*sub_path == CHAR_NULTERM)
             {
                 offset += snprintf(h_buf + offset, total_alloc - offset, " -I.");
             }

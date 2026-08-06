@@ -11,10 +11,6 @@
 
 vx_status sk_cmd_clean_fn(struct sk_ctx *ctx)
 {
-    if (ctx == nullptr)
-    {
-        return VX_ERROR;
-    }
     if (sk_resolve_project_root(ctx) != VX_OK)
     {
         vx_errlog("Storm-knell is not initialized in '%s' directory or any parent",

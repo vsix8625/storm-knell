@@ -32,6 +32,8 @@ _Atomic u64 g_compile_end_ns   = 0;
 // NOTE: No worker cleanup atm but OS reclaims the allocation when process exits
 static _Thread_local struct mem_arena *tls_worker_arena = nullptr;
 
+#define WHITE_ANSI "\033[97;1m"
+
 struct sk_work_unit
 {
     struct sk_target *target;
@@ -63,10 +65,6 @@ static vx_status topo_visit(struct sk_eval_result *result,
 
 vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 {
-    if (ctx == nullptr)
-    {
-        return VX_ERROR;
-    }
     if (sk_resolve_project_root(ctx) != VX_OK)
     {
         vx_errlog("Storm-knell is not initialized in '%s'  directory or any parent",
@@ -496,7 +494,14 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         }
         else if (g_cache_hits == g_cache_hits + g_cache_misses)
         {
-            vx_log("\033[35;1mNothing to compile, cache and files up-to-date\033[0m");
+            if (vx_isatty(STDOUT_FILENO))
+            {
+                vx_log(WHITE_ANSI "Nothing to compile, cache and files up-to-date\033[0m");
+            }
+            else
+            {
+                vx_log("Nothing to compile, cache and files up-to-datei");
+            }
         }
 
         //----------------------------------------------------------------------------------------------------
@@ -634,6 +639,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 //----------------------------------------------------------------------------------------------------
                 // depends injection
 
+                bool dep_relinked = false;
                 for (u32 d = 0; d < t->depend_count; d++)
                 {
                     for (u32 j = 0; j < eval_result->target_count; j++)
@@ -642,6 +648,11 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
                         if (strcmp(dep->name, t->depends[d]) == 0)
                         {
+                            if (dep->was_relinked)
+                            {
+                                dep_relinked = true;
+                            }
+
                             if (dep->kind == SK_TARGET_KIND_STATIC ||
                                 dep->kind == SK_TARGET_KIND_SHARED)
                             {
@@ -660,6 +671,24 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
                 //----------------------------------------------------------------------------------------------------
 
+                bool artifact_exists = vx_isfile(t->artifact_path);
+                bool target_dirty    = dep_relinked || (g_cache_misses > 0);
+
+                if (artifact_exists && !target_dirty)
+                {
+                    if (vx_isatty(STDOUT_FILENO))
+                    {
+                        vx_log(WHITE_ANSI "Target up-to-date, skipping link: %s\033[0m", t->name);
+                    }
+                    else
+                    {
+                        vx_log("Target up-to-date, skipping link: %s", t->name);
+                    }
+
+                    continue;
+                }
+
+                vx_log("Linking target: %s", t->name);
                 struct vx_process proc = {0};
 
                 char **argv;
@@ -692,6 +721,8 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                         // libs to prefix/lib, executables to prefix/bin everything else to
                         // prefix/share/target,
                         // written on a manifest for unistalls
+
+                        t->was_relinked = true;
 
                         char *dest_path = sk_path_join(g_sk_arena, t->install_dir, t->out_name);
 
@@ -1066,8 +1097,11 @@ static void *sk_worker_compile_fn(void *arg)
     u64 now = vx_time_ns();
     atomic_compare_exchange_strong(&g_compile_start_ns, &expected, now);
 
+    u64 tmp_time = vx_time_ns();
     if (sk_hash_setup(t, unit->source_idx, unit->meta, &h_in, out_hash, arena) == VX_OK)
     {
+        u64 tmp_time2 = vx_time_ns();
+        vx_dbglog("hash_setup_elapsed_time_ns: %s -> %lu", t->name, tmp_time2 - tmp_time);
         const char *src_path  = (const char *) t->sources->items[unit->source_idx];
         const char *file_name = strrchr(src_path, VX_PATH_SEP);
         file_name             = file_name ? file_name + 1 : src_path;

@@ -7,11 +7,6 @@
 
 void sk_cmd_purge_fn(struct sk_ctx *ctx)
 {
-    if (ctx == nullptr)
-    {
-        return;
-    }
-
     if (sk_resolve_project_root(ctx) != VX_OK)
     {
         vx_warn("Storm-Knell not initialized here or in any parent directory.");

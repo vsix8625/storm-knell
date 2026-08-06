@@ -60,12 +60,14 @@ vx_status sk_cache_store(const struct sk_cache_entry *entry, const char *local_o
     {
         return VX_ERROR;
     }
+
     if (!vx_fs_ln(local_obj, entry->cache_path, false))
     {
         if (errno == EXDEV)
         {
             return vx_fs_cp(local_obj, entry->cache_path) ? VX_OK : VX_ERROR;
         }
+
         return VX_ERROR;
     }
 

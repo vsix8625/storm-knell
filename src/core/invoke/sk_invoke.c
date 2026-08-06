@@ -3,10 +3,7 @@
 #include "sk_cmd_init.h"
 #include "sk_eval.h"
 #include "sk_globals.h"
-#include "sk_config.h"
-
 #include "vx_io.h"
-#include "vx_fs.h"
 #include "vx_thread.h"
 
 _Atomic u32 g_sk_ccmds_count = 0;

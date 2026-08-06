@@ -27,9 +27,8 @@ if(__os__ == "linux")
 // defines:: -DSK_ARENA_SIZE_MB=256
 
 major: 0
-minor: 11
+minor: 12
 patch: 0
-
 
 codegen src/core/sk_config.h {
     literal: "#pragma once"
@@ -63,9 +62,19 @@ target sk
 
     if(full_opt)
     {
-        print: "Toggled full optimizations: cflags::  -O3 -flto=auto lflags::  -flto=auto -Wl,-O1 -Wl,--as-needed"
-        cflags::  -O3 -flto=auto
-        lflags::  -flto=auto -Wl,-O1 -Wl,--as-needed
+        print: "Toggled full aggressive optimizations & stripping"
+        cflags::
+            -O3
+            -flto=auto
+            -fno-semantic-interposition
+            -fdevirtualize-at-ltrans
+            -ftree-vectorize
+        lflags::
+            -flto=auto
+            -Wl,-O1
+            -Wl,--as-needed
+            -Wl,--gc-sections
+            -Wl,-s
     }
     else
     {
