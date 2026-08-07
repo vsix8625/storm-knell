@@ -1,4 +1,5 @@
 #include "sk_cmd_purge.h"
+#include "sk_cmd_clean.h"
 #include "sk_globals.h"
 #include "sk_paths.h"
 #include "sk_util.h"
@@ -14,13 +15,53 @@ void sk_cmd_purge_fn(struct sk_ctx *ctx)
 
     const char *target = ctx->rpath ? ctx->rpath : vx_getcwd_fn();
 
-    char *stormfile = sk_path_join(g_sk_arena, target, SK_PATH_STORMFILE);
-    vx_fs_rmrf(stormfile);
-    vx_log("Removed: %s", stormfile);
+    bool do_purge = false;
+    if (!(ctx->active_opt & SK_OPT_FORCE))
+    {
+        vx_log("About to purge '%s': build artifacts, cache, Stormfile .storm directory", target);
+        fputs("Are you sure? [y/N]: ", stdout);
+        fflush(stdout);
 
-    char *storm_dir = sk_path_join(g_sk_arena, target, SK_PATH_STORM_DIR);
-    vx_fs_rmrf(storm_dir);
-    vx_log("Removed: %s", storm_dir);
+        i32 ch = getchar();
 
-    vx_log("Storm-Knell purged for: %s", target);
+        if (ch != CHAR_NEWLINE && ch != EOF)
+        {
+            i32 c;
+            while ((c = getchar()) != CHAR_NEWLINE && c != EOF)
+            {
+                // drain buffer till newline or EOF
+                ;
+            }
+        }
+
+        if (ch == 'y' || ch == 'Y')
+        {
+            do_purge = true;
+        }
+        else
+        {
+            vx_log("Purge aborted");
+            return;
+        }
+    }
+    else
+    {
+        // --force
+        do_purge = true;
+    }
+
+    if (do_purge)
+    {
+        sk_cmd_clean_fn(ctx);
+
+        char *stormfile = sk_path_join(g_sk_arena, target, SK_PATH_STORMFILE);
+        vx_fs_rmrf(stormfile);
+        vx_log("Removed: %s", stormfile);
+
+        char *storm_dir = sk_path_join(g_sk_arena, target, SK_PATH_STORM_DIR);
+        vx_fs_rmrf(storm_dir);
+        vx_log("Removed: %s", storm_dir);
+
+        vx_log("Storm-Knell purged for: %s", target);
+    }
 }

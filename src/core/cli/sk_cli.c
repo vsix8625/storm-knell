@@ -381,6 +381,7 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         }
     }
 
+    // sk purge
     if (ctx->active_cmd & SK_CMD_PURGE)
     {
         if ((ctx->active_cmd & SK_CMD_STRIKE) || (ctx->active_cmd & SK_CMD_SURGE))
@@ -390,11 +391,21 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         }
         else
         {
-            sk_cmd_purge_fn(ctx);
+            ctx->active_cmd |= SK_CMD_CLEAN;
+            ctx->active_opt |= SK_OPT_CLEAN_FULL;
+
+            bool is_both_flags =
+                (ctx->active_cmd & (SK_CMD_CLEAN | SK_CMD_PURGE)) == (SK_CMD_CLEAN | SK_CMD_PURGE);
+
+            if (is_both_flags)
+            {
+                sk_cmd_purge_fn(ctx);
+            }
         }
     }
 
-    if (ctx->active_cmd & SK_CMD_CLEAN)
+    // sk clean
+    if (ctx->active_cmd & SK_CMD_CLEAN && !(ctx->active_cmd & SK_CMD_PURGE))
     {
         if (sk_cmd_clean_fn(ctx) != VX_OK)
         {
