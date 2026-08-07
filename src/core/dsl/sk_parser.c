@@ -815,7 +815,8 @@ static void parse_value_list(struct sk_parser *p, u32 node)
 
         if (first == SK_NODE_INVALID)
         {
-            first                  = val;
+            first = val;
+
             p->nodes->data_a[node] = val;
         }
         else

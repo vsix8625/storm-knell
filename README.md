@@ -19,8 +19,6 @@ Before running the bootstrap script, ensure the following are installed:
 
 ## Installation
 
-### From source (recommended)
-
 ```bash
 git clone --recurse-submodules https://github.com/vsix8625/storm-knell.git
 cd storm-knell
@@ -63,7 +61,7 @@ sk -C myproject init strike --profile --main-c surge
 
 ## In practice
 
-sk builds itself. Clean build with warm object cache — 41 source files, 345ms total:
+sk builds itself. Clean build with warm object cache — 41 source files:
 
 ```
 $ sk clean strike --profile

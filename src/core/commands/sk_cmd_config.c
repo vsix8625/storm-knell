@@ -5,7 +5,6 @@
 #include "storm-knell.h"
 #include "vx_fs.h"
 
-// Does nothing
 vx_status sk_cmd_config_fn(struct sk_ctx *ctx)
 {
     if (ctx == nullptr)

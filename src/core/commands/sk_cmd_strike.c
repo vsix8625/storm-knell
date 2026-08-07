@@ -26,9 +26,6 @@ _Atomic u32 g_cache_hits     = 0;
 _Atomic u32 g_cache_misses   = 0;
 _Atomic u32 g_compile_errors = 0;
 
-_Atomic u64 g_compile_start_ns = 0;
-_Atomic u64 g_compile_end_ns   = 0;
-
 // NOTE: No worker cleanup atm but OS reclaims the allocation when process exits
 static _Thread_local struct mem_arena *tls_worker_arena = nullptr;
 
@@ -171,6 +168,8 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         u32 unit_idx = 0;
 
+        u64 compile_start = 0;
+
         vx_platform_get_cache_dir();  // warm up
 
         for (u32 i = 0; i < sorted_count; i++)
@@ -181,7 +180,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             char abs_cc[VX_PATH_MAX];
             if (vx_fs_which(t->cfg.cc, abs_cc, sizeof(abs_cc)) != VX_OK)
             {
-                vx_errlog("Compiler executable '%s' not found in PATH", t->cfg.cc);
+                vx_errlog("Compiler '%s' not found in PATH", t->cfg.cc);
                 continue;
             }
 
@@ -274,12 +273,15 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                         break;
                     }
                 }
+
                 if (strike_status == VX_ERROR)
                 {
                     break;
                 }
                 continue;
             }
+
+            compile_start = vx_time_ns();
 
             for (u32 j = 0; j < t->sources->count; j++)
             {
@@ -317,10 +319,11 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         vx_thread_pool_wait(&pool);
         vx_thread_pool_destroy(&pool);
 
+        u64 compile_end = vx_time_ns();
+
         if (ctx->active_opt & SK_OPT_PROFILE)
         {
-            vx_ticks compile_time = {.start = atomic_load(&g_compile_start_ns),
-                                     .end   = atomic_load(&g_compile_end_ns)};
+            vx_ticks compile_time = {.start = compile_start, .end = compile_end};
 
             sk_log_time("Compile", &compile_time);
         }
@@ -342,6 +345,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                     char *tty_color = "";
                     char *tty_bold  = "";
                     char *tty_reset = "";
+
                     if (is_tty)
                     {
                         tty_color = "\033[38;5;160m";
@@ -411,7 +415,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             fclose(manifest_f);
         }
 
-        // obj manifest
+        // obj manifest tracking for clean cmd
         u32 record_count = atomic_load(&g_sk_cache_record_count);
         if (record_count > 0)
         {
@@ -516,95 +520,93 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             {
                 struct sk_target *t = &eval_result->targets[sorted[i]];
 
-                if (t->kind == SK_TARGET_KIND_TEST)
+                if (t->kind != SK_TARGET_KIND_TEST)
                 {
-                    if (tests_run == 0)
-                    {
-                        vx_printf("\n==================================================\n");
-                        vx_printf("Storm-Knell Test Suite Runner\n");
-                        vx_printf("==================================================\n");
-                    }
+                    continue;
+                }
 
-                    tests_run++;
+                if (tests_run == 0)
+                {
+                    vx_printf("\n==================================================\n");
+                    vx_printf("Storm-Knell Test Suite Runner\n");
+                    vx_printf("==================================================\n");
+                }
 
-                    for (u32 d = 0; d < t->depend_count; d++)
+                tests_run++;
+
+                for (u32 d = 0; d < t->depend_count; d++)
+                {
+                    for (u32 j = 0; j < eval_result->target_count; j++)
                     {
-                        for (u32 j = 0; j < eval_result->target_count; j++)
+                        struct sk_target *dep = &eval_result->targets[j];
+                        if (strcmp(dep->name, t->depends[d]) == 0)
                         {
-                            struct sk_target *dep = &eval_result->targets[j];
-                            if (strcmp(dep->name, t->depends[d]) == 0)
+                            if (dep->kind == SK_TARGET_KIND_STATIC ||
+                                dep->kind == SK_TARGET_KIND_SHARED)
                             {
-                                if ((t->kind == SK_TARGET_KIND_EXEC ||
-                                     t->kind == SK_TARGET_KIND_SHARED) &&
-                                    (dep->kind == SK_TARGET_KIND_STATIC ||
-                                     dep->kind == SK_TARGET_KIND_SHARED))
-                                {
-                                    char *lflag_L = mem_arena_alloc(g_sk_arena, VX_PATH_MAX);
-                                    snprintf(
-                                        lflag_L, VX_PATH_MAX, "-L%s", dep->finalized_bin_dirpath);
-                                    t->cfg.lflags[t->cfg.lflags_count++] = lflag_L;
+                                char *lflag_L = mem_arena_alloc(g_sk_arena, VX_PATH_MAX);
+                                snprintf(lflag_L, VX_PATH_MAX, "-L%s", dep->finalized_bin_dirpath);
+                                t->cfg.lflags[t->cfg.lflags_count++] = lflag_L;
 
-                                    char *lflag_l = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_64);
-                                    snprintf(lflag_l, VX_BUF_SIZE_64, "-l%s", dep->out_name);
-                                    t->cfg.lflags[t->cfg.lflags_count++] = lflag_l;
+                                char *lflag_l = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_64);
+                                snprintf(lflag_l, VX_BUF_SIZE_64, "-l%s", dep->out_name);
+                                t->cfg.lflags[t->cfg.lflags_count++] = lflag_l;
 
-                                    vx_dbglog("Target '%s' kind is %d", t->name, t->kind);
-                                }
-                                break;
+                                vx_dbglog("Target '%s' kind is %d", t->name, t->kind);
                             }
+                            break;
                         }
                     }
-
-                    struct vx_process proc = {0};
-
-                    char **argv = sk_invoke_link_nularr(t, g_sk_arena);
-
-                    if (vx_process_spawn(&proc, argv[0], argv, nullptr) != VX_OK)
-                    {
-                        vx_errlog("Could not spawn linker for test target: %s", t->name);
-                        strike_status = VX_ERROR;
-                        break;
-                    }
-
-                    vx_process_wait(&proc);
-                    if (proc.exit_code != 0)
-                    {
-                        vx_errlog("Failed to link test target: %s", t->name);
-                        strike_status = VX_ERROR;
-                        break;
-                    }
-
-                    vx_log("Running: '%s'", t->name);
-                    vx_printf("--------------------------------------------------\n\n");
-
-                    struct vx_process  run_proc = {0};
-                    struct vx_proc_cfg run_cfg  = {0};
-
-                    char *run_argv[] = {t->artifact_path, nullptr};
-
-                    if (vx_process_spawn(&run_proc, run_argv[0], run_argv, &run_cfg) != VX_OK)
-                    {
-                        vx_printf("--------------------------------------------------\n");
-                        vx_errlog("Could not execute test binary: %s", t->artifact_path);
-                        strike_status = VX_ERROR;
-                        break;
-                    }
-
-                    vx_process_wait(&run_proc);
-                    vx_printf("\n--------------------------------------------------\n");
-
-                    if (run_proc.exit_code != 0)
-                    {
-                        vx_errlog("Target '%s' crashed or exited with code %d",
-                                  t->name,
-                                  run_proc.exit_code);
-                        strike_status = VX_ERROR;
-                        break;
-                    }
-
-                    tests_passed++;
-                    vx_log("Test '%s' completed successfully.\n\n", t->name);
                 }
+
+                struct vx_process proc = {0};
+
+                char **argv = sk_invoke_link_nularr(t, g_sk_arena);
+
+                if (vx_process_spawn(&proc, argv[0], argv, nullptr) != VX_OK)
+                {
+                    vx_errlog("Could not spawn linker for test target: %s", t->name);
+                    strike_status = VX_ERROR;
+                    break;
+                }
+
+                vx_process_wait(&proc);
+                if (proc.exit_code != 0)
+                {
+                    vx_errlog("Failed to link test target: %s", t->name);
+                    strike_status = VX_ERROR;
+                    break;
+                }
+
+                vx_log("Running: '%s'", t->name);
+                vx_printf("--------------------------------------------------\n\n");
+
+                struct vx_process  run_proc = {0};
+                struct vx_proc_cfg run_cfg  = {0};
+
+                char *run_argv[] = {t->artifact_path, nullptr};
+
+                if (vx_process_spawn(&run_proc, run_argv[0], run_argv, &run_cfg) != VX_OK)
+                {
+                    vx_printf("--------------------------------------------------\n");
+                    vx_errlog("Could not execute test binary: %s", t->artifact_path);
+                    strike_status = VX_ERROR;
+                    break;
+                }
+
+                vx_process_wait(&run_proc);
+                vx_printf("\n--------------------------------------------------\n");
+
+                if (run_proc.exit_code != 0)
+                {
+                    vx_errlog(
+                        "Target '%s' crashed or exited with code %d", t->name, run_proc.exit_code);
+                    strike_status = VX_ERROR;
+                    break;
+                }
+
+                tests_passed++;
+                vx_log("Test '%s' completed successfully.\n\n", t->name);
             }
 
             if (tests_run > 0)
@@ -1092,16 +1094,8 @@ static void *sk_worker_compile_fn(void *arg)
 
     u8 out_hash[SK_XXHASH_LEN];
 
-    u64 expected = 0;
-
-    u64 now = vx_time_ns();
-    atomic_compare_exchange_strong(&g_compile_start_ns, &expected, now);
-
-    u64 tmp_time = vx_time_ns();
     if (sk_hash_setup(t, unit->source_idx, unit->meta, &h_in, out_hash, arena) == VX_OK)
     {
-        u64 tmp_time2 = vx_time_ns();
-        vx_dbglog("hash_setup_elapsed_time_ns: %s -> %lu", t->name, tmp_time2 - tmp_time);
         const char *src_path  = (const char *) t->sources->items[unit->source_idx];
         const char *file_name = strrchr(src_path, VX_PATH_SEP);
         file_name             = file_name ? file_name + 1 : src_path;
@@ -1136,7 +1130,6 @@ static void *sk_worker_compile_fn(void *arg)
                 if (sk_cache_restore(&cache_entry, obj_path) == VX_OK)
                 {
                     atomic_fetch_add(&g_cache_hits, 1);
-                    atomic_store(&g_compile_end_ns, vx_time_ns());
                     mem_arena_soft_reset(arena);
                     return nullptr;
                 }
@@ -1183,13 +1176,11 @@ static void *sk_worker_compile_fn(void *arg)
             vx_errlog("Could not spawn compiler for: %s", unit->tag);
         }
 
-        atomic_store(&g_compile_end_ns, vx_time_ns());
         mem_arena_soft_reset(arena);
     }
     else
     {
         atomic_fetch_add(&g_compile_errors, 1);
-        atomic_store(&g_compile_end_ns, vx_time_ns());
     }
 
     return nullptr;
