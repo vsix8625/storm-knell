@@ -27,8 +27,8 @@ if(__os__ == "linux")
 // defines:: -DSK_ARENA_SIZE_MB=256
 
 major: 0
-minor: 12
-patch: 1
+minor: 13
+patch: 0
 
 codegen src/core/sk_config.h {
     literal: "#pragma once"
