@@ -55,8 +55,8 @@ static vx_status sk_init(i32 argc, char **argv)
     }
     vx_set_debug(sk_is_debug());
 
-    vx_io_set_prefix(VX_LOG_LEVEL_INFO, "[storm-knell]: ", VX_COLOR_GREEN);
-    vx_io_set_prefix(VX_LOG_LEVEL_DEBUG, "[DEBUG]: ", VX_COLOR_BLUE);
+    vx_io_set_prefix(VX_LOG_LEVEL_INFO, "[sk]: ", VX_COLOR_GREEN);
+    vx_io_set_prefix(VX_LOG_LEVEL_DEBUG, "[sk-debug]: ", VX_COLOR_CORAL);
 
     if (!mem_init())
     {

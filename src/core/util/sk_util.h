@@ -141,7 +141,44 @@ bool sk_util_is_show_tips_on(void);
 #define SK_MAX_EXCLUDES 32
 #define SK_MAX_DEPLOYS  64
 
-#define SK_ANSI_GRAY  "\x1b[90m"
 #define SK_ANSI_RESET "\x1b[0m"
+
+#define SK_ANSI_BLACK   "\x1b[30m"
+#define SK_ANSI_RED     "\x1b[31m"
+#define SK_ANSI_GREEN   "\x1b[32m"
+#define SK_ANSI_YELLOW  "\x1b[33m"
+#define SK_ANSI_BLUE    "\x1b[34m"
+#define SK_ANSI_MAGENTA "\x1b[35m"
+#define SK_ANSI_CYAN    "\x1b[36m"
+#define SK_ANSI_WHITE   "\x1b[37m"
+
+#define SK_ANSI_GRAY           "\x1b[90m"
+#define SK_ANSI_BRIGHT_RED     "\x1b[91m"
+#define SK_ANSI_BRIGHT_GREEN   "\x1b[92m"
+#define SK_ANSI_BRIGHT_YELLOW  "\x1b[93m"
+#define SK_ANSI_BRIGHT_BLUE    "\x1b[94m"
+#define SK_ANSI_BRIGHT_MAGENTA "\x1b[95m"
+#define SK_ANSI_BRIGHT_CYAN    "\x1b[96m"
+#define SK_ANSI_BRIGHT_WHITE   "\x1b[97m"
+
+#define SK_ANSI_CORAL  "\x1b[38;5;209m"
+#define SK_ANSI_ORANGE "\x1b[38;5;214m"
+#define SK_ANSI_PURPLE "\x1b[38;5;141m"
+#define SK_ANSI_PINK   "\x1b[38;5;206m"
+#define SK_ANSI_TEAL   "\x1b[38;5;37m"
+
+#define SK_ANSI_BOLD      "\x1b[1m"
+#define SK_ANSI_DIM       "\x1b[2m"
+#define SK_ANSI_ITALIC    "\x1b[3m"
+#define SK_ANSI_UNDERLINE "\x1b[4m"
+
+#define SK_ANSI_BG_BLACK   "\x1b[40m"
+#define SK_ANSI_BG_RED     "\x1b[41m"
+#define SK_ANSI_BG_GREEN   "\x1b[42m"
+#define SK_ANSI_BG_YELLOW  "\x1b[43m"
+#define SK_ANSI_BG_BLUE    "\x1b[44m"
+#define SK_ANSI_BG_MAGENTA "\x1b[45m"
+#define SK_ANSI_BG_CYAN    "\x1b[46m"
+#define SK_ANSI_BG_WHITE   "\x1b[47m"
 
 #endif  // SK_UTIL_H_

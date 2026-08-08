@@ -30,7 +30,8 @@ _Atomic u32 g_compile_errors  = 0;
 // NOTE: No worker cleanup atm but OS reclaims the allocation when process exits
 static _Thread_local struct mem_arena *tls_worker_arena = nullptr;
 
-#define WHITE_ANSI "\033[97;1m"
+#define COLOR_MAIN   SK_ANSI_BRIGHT_WHITE SK_ANSI_BOLD
+#define COLOR_ACCENT SK_ANSI_CORAL
 
 struct sk_work_unit
 {
@@ -487,11 +488,24 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         //----------------------------------------------------------------------------------------------------
 
-        vx_log("[cache]: %u hits, %u compiled, %u unchanged: %u total",
-               g_cache_hits,
-               g_cache_misses,
-               g_cache_unchanged,
-               g_cache_hits + g_cache_misses + g_cache_unchanged);
+        if (vx_isatty(STDOUT_FILENO))
+        {
+            vx_log(COLOR_MAIN "Cache: " COLOR_ACCENT "%u" COLOR_MAIN " hits, " COLOR_ACCENT
+                              "%u" COLOR_MAIN " compiled, " COLOR_ACCENT "%u" COLOR_MAIN
+                              " unchanged: " COLOR_ACCENT "%u" COLOR_MAIN " total" SK_ANSI_RESET,
+                   g_cache_hits,
+                   g_cache_misses,
+                   g_cache_unchanged,
+                   g_cache_hits + g_cache_misses + g_cache_unchanged);
+        }
+        else
+        {
+            vx_log("Cache: %u hits, %u compiled, %u unchanged: %u total",
+                   g_cache_hits,
+                   g_cache_misses,
+                   g_cache_unchanged,
+                   g_cache_hits + g_cache_misses + g_cache_unchanged);
+        }
 
         if (g_compile_errors > 0)
         {
@@ -502,7 +516,8 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         {
             if (vx_isatty(STDOUT_FILENO))
             {
-                vx_log(WHITE_ANSI "Nothing to compile, cache and files up-to-date\033[0m");
+                vx_log(SK_ANSI_BRIGHT_WHITE
+                       "Nothing to compile, cache and files up-to-date" SK_ANSI_RESET);
             }
             else
             {
@@ -682,7 +697,12 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 {
                     if (vx_isatty(STDOUT_FILENO))
                     {
-                        vx_log(WHITE_ANSI "Target up-to-date, skipping link: %s\033[0m", t->name);
+                        vx_log("%sTarget (%s%s%s) up-to-date, skipping link%s",
+                               SK_ANSI_BRIGHT_WHITE,
+                               SK_ANSI_CORAL,
+                               t->name,
+                               SK_ANSI_BRIGHT_WHITE,
+                               SK_ANSI_RESET);
                     }
                     else
                     {
@@ -692,7 +712,14 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                     continue;
                 }
 
-                vx_log("Linking target: %s", t->name);
+                if (vx_isatty(STDOUT_FILENO))
+                {
+                    vx_log("Linking target: " SK_ANSI_CORAL "%s" SK_ANSI_RESET, t->name);
+                }
+                else
+                {
+                    vx_log("Linking target: %s", t->name);
+                }
                 struct vx_process proc = {0};
 
                 char **argv;
