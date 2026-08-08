@@ -61,3 +61,5 @@ vx_status sk_cache_store(const struct sk_cache_entry *entry, const char *local_o
 vx_status sk_cache_restore(const struct sk_cache_entry *entry, const char *local_obj);
 
 void sk_cache_record(const u8 *hash, const char *s_path, const char *o_path, const char *t_name);
+
+bool sk_cache_identical(const struct sk_cache_entry *entry, const char *local_obj);

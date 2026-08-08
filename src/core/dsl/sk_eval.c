@@ -1333,6 +1333,7 @@ static void load_builtin_vars(struct sk_eval_result *result)
     char *cache_line_buf = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_16);
     snprintf(cache_line_buf, VX_BUF_SIZE_16, "%d", vx_cpu_get_cache_line());
 
+    // NOTE: will probably refactor builtins
     sk_eval_set_builtin(result, "__sk_version__", SK_VERSION_STRING);
     sk_eval_set_builtin(result, "__sk_version_major__", maj_buf);
     sk_eval_set_builtin(result, "__sk_version_minor__", min_buf);

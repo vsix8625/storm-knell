@@ -49,6 +49,78 @@ bool sk_cache_exists(const struct sk_cache_entry *entry)
     return vx_isfile(entry->cache_path);
 }
 
+static vx_status filecmp(const char *path1, const char *path2)
+{
+    FILE *f1 = fopen(path1, "rb");
+    if (f1 == nullptr)
+    {
+        return VX_ERROR;
+    }
+
+    FILE *f2 = fopen(path2, "rb");
+    if (f2 == nullptr)
+    {
+        fclose(f1);
+        return VX_ERROR;
+    }
+
+    u8 buf1[VX_BUF_SIZE_8192];
+    u8 buf2[VX_BUF_SIZE_8192];
+
+    i32 result = 0;
+
+    while (1)
+    {
+        size_t n1 = fread(buf1, 1, sizeof(buf1), f1);
+        size_t n2 = fread(buf2, 1, sizeof(buf1), f2);
+
+        if (n1 != n2 || memcmp(buf1, buf2, n1) != 0)
+        {
+            result = VX_ERROR;  // diff or len mismatch
+            break;
+        }
+
+        if (n1 == 0)
+        {
+            result = VX_OK;
+            break;
+        }
+    }
+
+    fclose(f1);
+    fclose(f2);
+    return result;
+}
+
+bool sk_cache_identical(const struct sk_cache_entry *entry, const char *local_obj)
+{
+    vx_stat_struct st_cache, st_local;
+
+    if (vx_stat(entry->cache_path, &st_cache) != 0)
+    {
+        return false;
+    }
+
+    if (vx_stat(local_obj, &st_local) != 0)
+    {
+        return false;
+    }
+
+    if (!S_ISREG(st_cache.st_mode) || !S_ISREG(st_local.st_mode))
+    {
+        return false;
+    }
+
+#if defined(__unix__) || defined(__APPLE__)
+    if (st_cache.st_ino == st_local.st_ino && st_cache.st_dev == st_local.st_dev)
+    {
+        return true;
+    }
+#endif
+
+    return (VX_OK == filecmp(entry->cache_path, local_obj));
+}
+
 vx_status sk_cache_store(const struct sk_cache_entry *entry, const char *local_obj)
 {
     if (sk_cache_exists(entry))

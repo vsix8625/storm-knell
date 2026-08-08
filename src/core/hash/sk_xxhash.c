@@ -89,6 +89,13 @@ void sk_xxh3_hash_merge(u8 h1[SK_XXHASH_LEN], u8 h2[SK_XXHASH_LEN], u8 out[SK_XX
 //----------------------------------------------------------------------------------------------------
 // hash includes
 
+/*
+ * NOTE: this is a byte-level scan, not a real preprocessor.
+ * It does not understand string literals, comments, or #if/#endif blocks,
+ * so text like printf("#include \"foo.h\"");
+ * or a #include inside `#if 0` will be treated as a real include if the
+ * named file happens to exist on disk.
+ */
 static vx_status sk_scan_inc(const char            *src_path,
                              vx_sv                  src,
                              struct sk_arena_array *seen,
@@ -159,14 +166,20 @@ static vx_status sk_scan_inc(const char            *src_path,
                 if (last_sep)
                 {
                     size_t dir_len = last_sep - src_path + 1;
+
+                    if (dir_len + inc_len + 1 > VX_PATH_MAX)
+                    {
+                        continue;
+                    }
+
                     memcpy(resolved, src_path, dir_len);
                     memcpy(resolved + dir_len, inc_start, inc_len);
+
                     resolved[dir_len + (inc_len)] = CHAR_NULTERM;
 
                     if (vx_isfile(resolved))
                     {
                         found = true;
-                        // sk_path_canonicalize(resolved);
                     }
                 }
 
@@ -181,13 +194,18 @@ static vx_status sk_scan_inc(const char            *src_path,
                             ipath += 2;
                         }
 
-                        snprintf(resolved,
-                                 VX_PATH_MAX,
-                                 "%s%s%.*s",
-                                 ipath,
-                                 VX_PATH_SEP_STR,
-                                 (i32) inc_len,
-                                 inc_start);
+                        i32 n = snprintf(resolved,
+                                         VX_PATH_MAX,
+                                         "%s%s%.*s",
+                                         ipath,
+                                         VX_PATH_SEP_STR,
+                                         (i32) inc_len,
+                                         inc_start);
+
+                        if (n < 0 || n >= VX_PATH_MAX)
+                        {
+                            continue;
+                        }
 
                         if (vx_isfile(resolved))
                         {

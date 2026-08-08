@@ -22,9 +22,10 @@
 
 //----------------------------------------------------------------------------------------------------
 
-_Atomic u32 g_cache_hits     = 0;
-_Atomic u32 g_cache_misses   = 0;
-_Atomic u32 g_compile_errors = 0;
+_Atomic u32 g_cache_hits      = 0;
+_Atomic u32 g_cache_misses    = 0;
+_Atomic u32 g_cache_unchanged = 0;
+_Atomic u32 g_compile_errors  = 0;
 
 // NOTE: No worker cleanup atm but OS reclaims the allocation when process exits
 static _Thread_local struct mem_arena *tls_worker_arena = nullptr;
@@ -486,17 +487,18 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         //----------------------------------------------------------------------------------------------------
 
-        vx_log("[cache]: %u hits, %u, %u total",
+        vx_log("[cache]: %u hits, %u compiled, %u unchanged: %u total",
                g_cache_hits,
                g_cache_misses,
-               g_cache_hits + g_cache_misses);
+               g_cache_unchanged,
+               g_cache_hits + g_cache_misses + g_cache_unchanged);
 
         if (g_compile_errors > 0)
         {
             vx_errlog("Build failed: %u file(s) failed to compile", g_compile_errors);
             strike_status = VX_ERROR;
         }
-        else if (g_cache_hits == g_cache_hits + g_cache_misses)
+        else if (g_cache_hits == 0 && g_cache_misses == 0)
         {
             if (vx_isatty(STDOUT_FILENO))
             {
@@ -674,7 +676,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 //----------------------------------------------------------------------------------------------------
 
                 bool artifact_exists = vx_isfile(t->artifact_path);
-                bool target_dirty    = dep_relinked || (g_cache_misses > 0);
+                bool target_dirty    = dep_relinked || t->dirty;
 
                 if (artifact_exists && !target_dirty)
                 {
@@ -1127,9 +1129,17 @@ static void *sk_worker_compile_fn(void *arg)
         {
             if (sk_cache_exists(&cache_entry))
             {
+                if (sk_cache_identical(&cache_entry, obj_path))
+                {
+                    atomic_fetch_add(&g_cache_unchanged, 1);
+                    mem_arena_soft_reset(arena);
+                    return nullptr;
+                }
+
                 if (sk_cache_restore(&cache_entry, obj_path) == VX_OK)
                 {
                     atomic_fetch_add(&g_cache_hits, 1);
+                    t->dirty = true;
                     mem_arena_soft_reset(arena);
                     return nullptr;
                 }
@@ -1158,6 +1168,8 @@ static void *sk_worker_compile_fn(void *arg)
                 }
 
                 u32 c_idx = atomic_fetch_add(&g_cache_misses, 1) + 1;
+
+                t->dirty = true;
 
                 if (!verbose)
                 {
