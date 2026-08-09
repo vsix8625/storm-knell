@@ -28,9 +28,10 @@ if(__os__ == "linux")
 
 major: 0
 minor: 14
-patch: 0
+patch: 1
 
-codegen src/core/sk_config.h {
+codegen src/core/sk_config.h
+{
     literal: "#pragma once"
 
     define: SK_VERSION_MAJOR major
@@ -60,7 +61,7 @@ target sk
         cflags:: -mbmi
     }
 
-    if(full_opt)
+    if(fopt)
     {
         print: "Toggled full aggressive optimizations & stripping"
         cflags::
@@ -131,7 +132,7 @@ if(sk_debug)
         out: skdbg
         mode: debug
 
-        // defines also can be set in cflags
+        // defines can also be set in cflags
         cflags:: -g -DDEBUG
 
         exclude:

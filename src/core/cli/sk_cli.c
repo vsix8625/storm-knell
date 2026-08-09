@@ -38,6 +38,9 @@ static inline vx_status
 opt_set_var(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **argv);
 
 static inline vx_status
+opt_logfile(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32, char **argv);
+
+static inline vx_status
 opt_set_jobs(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **argv);
 
 static inline vx_status
@@ -121,6 +124,7 @@ static struct sk_opt_entry g_sk_opts[] = {
     {"--node-dump", SK_CMD_STRIKE, SK_OPT_NODE_DUMP, opt_set_bit, "Show Stormfile nodes"},
     {"--eval-dump", SK_CMD_STRIKE, SK_OPT_EVAL_DUMP, opt_set_bit, "Show Stormfile eval"},
     {"--set", SK_CMD_STRIKE, SK_OPT_SETVAR, opt_set_var, "Inject boolean variable into eval"},
+    {"--logfile", SK_CMD_STRIKE, SK_OPT_STRIKE_LOGFILE, opt_logfile, "Redirect logs to file"},
     // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
@@ -500,7 +504,7 @@ vx_status sk_cli_driver(struct sk_ctx *ctx, i32 argc, char **argv)
     ctx->cores = vx_cpu_get_nproc();
 
     // --set=
-    ctx->setvars = sk_arena_array_create(g_sk_arena, 16);
+    ctx->setvars = sk_arena_array_create(g_sk_arena, SK_CLI_MAX_SET_FLAG);
 
     if (parse_subcmds(ctx, argc, argv) != VX_OK)
     {
@@ -902,8 +906,9 @@ static bool ctx_var_is_set(struct sk_ctx *ctx, const char *name)
 }
 
 static inline vx_status
-opt_set_var(struct sk_ctx *ctx, sk_cmd, sk_opt opt, i32 *i, i32, char **argv)
+opt_set_var(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32, char **argv)
 {
+    ctx->active_cmd |= owner;
     ctx->active_opt |= opt;
 
     char *arg = argv[*i];
@@ -923,6 +928,40 @@ opt_set_var(struct sk_ctx *ctx, sk_cmd, sk_opt opt, i32 *i, i32, char **argv)
     }
 
     sk_arena_array_push(ctx->setvars, name);
+
+    (*i)++;
+    return VX_OK;
+}
+
+static inline vx_status
+opt_logfile(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32, char **argv)
+{
+    ctx->active_cmd |= owner;
+    ctx->active_opt |= opt;
+
+    char *arg = argv[*i];
+    char *eq  = strchr(arg, CHAR_EQUAL);
+
+    if (eq == nullptr || eq[1] == CHAR_NULTERM)
+    {
+        return VX_ERROR;
+    }
+    char *path = eq + 1;
+
+    vx_log("Logs redirected to: %s", path);
+
+    if (freopen(path, "w", stdout) == nullptr)
+    {
+        return VX_ERROR;
+    }
+
+    if (dup2(VX_FILENO(stdout), VX_FILENO(stderr)) < 0)
+    {
+        return VX_ERROR;
+    }
+
+    // unbuffered logging
+    setvbuf(stdout, nullptr, _IONBF, 0);
 
     (*i)++;
     return VX_OK;

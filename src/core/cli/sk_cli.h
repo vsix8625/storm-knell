@@ -5,6 +5,8 @@
 
 #define SK_STREQ_LIT(s, len, lit) vx_strncmplit(s, len, lit, sizeof(lit) - 1)
 
+#define SK_CLI_MAX_SET_FLAG (size_t) 8
+
 struct sk_ctx;
 
 typedef enum sk_cmd : u64
@@ -50,6 +52,7 @@ typedef enum sk_opt : u64
     SK_OPT_CONFIG_ADD_CC    = 1 << 20,
     SK_OPT_VSCODE           = 1 << 21,
     SK_OPT_CONFIG_SHOW_TIPS = 1 << 22,
+    SK_OPT_STRIKE_LOGFILE   = 1 << 23,
 } sk_opt;
 
 typedef vx_status (*sk_cmd_fn)(struct sk_ctx *ctx, sk_cmd cmd_id, i32 *i, i32 argc, char **argv);
