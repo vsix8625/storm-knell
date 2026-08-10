@@ -70,43 +70,46 @@ sk strike
 Commands and flags can be mixed freely. The only positional rule is that `-C <path>` must be followed immediately by its directory. `init` should come before `strike` when setting up a new project.
 
 ```bash
-sk -C myproject init strike --profile --main-c surge 
+sk -C myproject init strike --profile 
 ```
 
 ---
 
 ## In practice
 
-sk builds itself. Clean build with warm object cache — 41 source files:
+`sk` builds itself: 
 
 ```
-$ sk clean strike --profile
-[log]: Cleaning workspace targets...
-[log]:   Wiping target [sk] outputs -> crater/
-[log]: [cache]: 41 hits, 0, 41 total
+sk strike --profile
+[Stormfile]: Linux detected
+[Stormfile]: __sk_version__ = 0.15.0
+[sk]: Generated: src/core/sk_config.h
+[sk]: Cache: 0 hits, 0 compiled, 38 unchanged: 38 total
+[sk]: Nothing to compile, cache and files up-to-date
+[sk]: Target (sk) up-to-date, skipping link
 ====== Profiler ======
-Lexer  : 97.79 us
-Parser : 5.36 ms
-Eval   : 4.22 ms
-Compile: 60.52 ms
-Link   : 227.18 ms
-Strike : 345.81 ms
+Lexer  : 36.24 us
+Parser : 1.65 ms
+Eval   : 1.83 ms
+Compile: 33.95 ms
+Link   : 96.61 us
+Strike : 48.97 ms
 ======================
-Total: 353.25 ms
+Total: 49.13 ms
 ======================
 ```
 
 ```
-$ sk status
-Storm-Knell Version: 0.5.3
-================================= STORM-KNELL STATUS ==================================
-  Target Name   Kind    Status Check     Total Files   Size          Age
-  --------------------------------------------------------------------------------------
-  ✔ sk          EXEC    [OPERATIONAL]    41            184.82 KB     just now
-  --------------------------------------------------------------------------------------
-  Cache Summary:  41 hits, 0 misses (Total Ops: 41)
-  Workspace Status: READY / HEALTHY (All targets verified up-to-date).
-=======================================================================================
+sk status
+================================= STORM-KNELL STATUS ==============================================
+  Target Name             Kind      Status Check          Total Files     Size          Age         
+  ------------------------------------------------------------------------------------------------
+  ✔ sk                    EXEC      [OPERATIONAL]         38              204.59 KB     8s ago      
+  ------------------------------------------------------------------------------------------------
+  Cache Summary    :  38 hits, 0 misses (Total Ops: 38, 100.0% cached)
+  Total Footprint  :  204.59 KB
+  Workspace Status : READY / HEALTHY
+==================================================================================================
 ```
 
 ---
@@ -219,6 +222,14 @@ sk maintains a global object cache keyed on source content, compiler version, sk
 sk cache          # view cache size
 sk cache --nuke   # clear cache
 ```
+
+---
+
+## Benchmark
+
+A detailed benchmark against CMake + Ninja using the Lua 5.5 source tree is available in [docs/benchmark/BENCHMARK.md](docs/benchmark/BENCHMARK.md).
+
+The benchmark covers clean builds, unchanged rebuilds, timestamp-only changes, modified sources, and Storm-Knell's project-local artifact removal with its global object cache retained
 
 ---
 

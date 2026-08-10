@@ -19,9 +19,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char *g_sk_template_c;
-static const char *g_sk_template_cpp;
-
 // ----------------------------------------------------------------------------------------------------
 
 // static bool is_subcmd(const char *arg);
@@ -94,8 +91,6 @@ static struct sk_opt_entry g_sk_opts[] = {
     {"--force", SK_CMD_NONE, SK_OPT_FORCE, opt_set_bit, "Force action"},
     {"--profile", SK_CMD_NONE, SK_OPT_PROFILE, opt_set_bit, "Enable profiling"},
     {"--memstat", SK_CMD_NONE, SK_OPT_MEMSTAT, opt_set_bit, "Print memory statistics"},
-    {"--main-c", SK_CMD_NONE, SK_OPT_MAIN_C, opt_set_bit, "Generate 'Hello, from sk' main.c"},
-    {"--main-cpp", SK_CMD_NONE, SK_OPT_MAIN_CPP, opt_set_bit, "Generate 'Hello, from sk' main.cpp"},
     {"--vscode", SK_CMD_NONE, SK_OPT_VSCODE, opt_set_bit, "Generate VS Code tasks.json"},
 
     {"--add-cc",
@@ -414,39 +409,6 @@ static vx_status cli_execute(struct sk_ctx *ctx)
         if (sk_cmd_clean_fn(ctx) != VX_OK)
         {
             return VX_ERROR;
-        }
-    }
-
-    if (ctx->active_opt & SK_OPT_MAIN_C)
-    {
-        const char *rpath = ctx->rpath ? ctx->rpath : vx_getcwd_fn();
-        const char *path  = sk_path_join(g_sk_arena, rpath, "main.c");
-
-        vx_dbglog("opt: --main-c -> %s", path);
-        if (vx_mkdir_p(rpath) == VX_OK)
-        {
-            vx_fwrite(path, "%s", g_sk_template_c);
-            vx_log("Created '%s'", path);
-        }
-
-        if (sk_util_is_show_tips_on())
-        {
-            vx_printf(SK_ANSI_GRAY "[TIP]: To compile run: sk strike\n" SK_ANSI_RESET);
-        }
-    }
-
-    if (ctx->active_opt & SK_OPT_MAIN_CPP)
-    {
-        const char *rpath = ctx->rpath ? ctx->rpath : vx_getcwd_fn();
-        const char *path  = sk_path_join(g_sk_arena, rpath, "main.cpp");
-
-        vx_dbglog("opt: --main-cpp -> %s", path);
-        if (vx_mkdir_p(rpath) == VX_OK)
-        {
-            if (vx_fwrite(path, "%s", g_sk_template_cpp) == VX_OK)
-            {
-                vx_log("Created: main.cpp (make sure target 'cc' set to a C++ compiler");
-            }
         }
     }
 
@@ -997,29 +959,6 @@ opt_config_add_cc(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32, cha
     (*i)++;
     return VX_OK;
 }
-
-static const char *g_sk_template_c = "#include <stdio.h>\n"
-                                     "\n"
-                                     "int main(int argc, char **argv)\n"
-                                     "{\n"
-                                     "    (void)argc;\n"
-                                     "    (void)argv;\n"
-                                     "\n"
-                                     "    printf(\"Hello from Storm-Knell C project!\\n\");\n"
-                                     "    return 0;\n"
-                                     "}\n";
-
-static const char *g_sk_template_cpp =
-    "#include <iostream>\n"
-    "\n"
-    "int main(int argc, char *argv[])\n"
-    "{\n"
-    "    (void)argc;\n"
-    "    (void)argv;\n"
-    "\n"
-    "    std::cout << \"Hello from Storm-Knell C++ project!\\n\";\n"
-    "    return 0;\n"
-    "}\n";
 
 //----------------------------------------------------------------------------------------------------
 

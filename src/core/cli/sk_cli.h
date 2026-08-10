@@ -45,8 +45,8 @@ typedef enum sk_opt : u64
     SK_OPT_EVAL_DUMP        = 1 << 13,
     SK_OPT_GEN_CMDS         = 1 << 14,
     SK_OPT_CACHE_NUKE       = 1 << 15,
-    SK_OPT_MAIN_C           = 1 << 16,
-    SK_OPT_MAIN_CPP         = 1 << 17,
+    SK_OPT_UNUSED           = 1 << 16,  // unused
+    SK_OPT_UNUSED2          = 1 << 17,  // unused
     SK_OPT_SETVAR           = 1 << 18,
     SK_OPT_CLEAN_FULL       = 1 << 19,
     SK_OPT_CONFIG_ADD_CC    = 1 << 20,

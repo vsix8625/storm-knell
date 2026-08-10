@@ -1129,25 +1129,6 @@ vx_status sk_top_level_eval(struct sk_parser *p, struct sk_eval_result *result)
         node = p->nodes->nexts[node];
     }
 
-    // other builtins are loaded before eval
-    // but these are set after
-    if (result->global.cc != nullptr)
-    {
-        char abs_cc[VX_PATH_MAX];
-        if (vx_fs_which(result->global.cc, abs_cc, sizeof(abs_cc)) == VX_OK)
-        {
-            const char *base = strrchr(abs_cc, VX_PATH_SEP);
-
-            base = base ? base + 1 : abs_cc;
-
-            bool is_clang = strncmp(base, "clang", 5) == 0;
-            bool is_gcc   = strncmp(base, "gcc", 3) == 0;
-
-            sk_eval_set_builtin(result, "__clang__", is_clang ? "1" : "0");
-            sk_eval_set_builtin(result, "__gcc__", is_gcc ? "1" : "0");
-        }
-    }
-
     return VX_OK;
 }
 

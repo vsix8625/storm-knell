@@ -146,6 +146,8 @@ vx_status sk_cache_store(const struct sk_cache_entry *entry, const char *local_o
     return vx_fs_ln(local_obj, entry->cache_path, false) ? VX_OK : VX_ERROR;
 }
 
+// TODO: validate cache integrity before reuse!!!
+// BUG: if global cache entry has garbage sk will think its valid!!
 vx_status sk_cache_restore(const struct sk_cache_entry *entry, const char *local_obj)
 {
     if (!vx_fs_ln(entry->cache_path, local_obj, true))

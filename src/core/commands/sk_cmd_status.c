@@ -236,6 +236,7 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
               "------------------------------------------------------------------------------------"
               "------------\n");
 
+    // NOTE: add unchanged
     u32   total_ops = header.global_cache_hits + header.global_cache_misses;
     float hit_rate = total_ops > 0 ? ((float) header.global_cache_hits / total_ops) * 100.0f : 0.0f;
 

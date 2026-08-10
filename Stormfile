@@ -27,8 +27,8 @@ if(__os__ == "linux")
 // defines:: -DSK_ARENA_SIZE_MB=256
 
 major: 0
-minor: 14
-patch: 1
+minor: 15
+patch: 0
 
 codegen src/core/sk_config.h
 {
@@ -39,8 +39,6 @@ codegen src/core/sk_config.h
     define: SK_VERSION_PATCH patch
 
     define: SK_VERSION_STRING "major.minor.patch"
-    define: SK_COMPILED_GCC __gcc__
-    define: SK_COMPILED_CLANG __clang__
 }
 
 target sk
@@ -49,12 +47,6 @@ target sk
     mode: release
 
     print: __sk_version__
-
-    if (__clang__)
-    {
-        print: "cc: clang"
-        cflags:: -Wloop-analysis -Wthread-safety-pointer -Wdocumentation -Wunicode-whitespace
-    }
 
     if(__has_mbmi__)
     {
