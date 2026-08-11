@@ -2,9 +2,13 @@
 #include "sk_paths.h"
 #include "sk_globals.h"
 #include "sk_util.h"
+#include "sk_xxhash.h"
 
 #include <errno.h>
 #include <stdatomic.h>
+
+static vx_status cache_write_sum(const struct sk_cache_entry *entry, const u8 *hash);
+static vx_status cache_read_sum(const struct sk_cache_entry *entry, u8 *out);
 
 vx_status sk_cache_resolve(const u8 *out_hash, struct sk_cache_entry *entry)
 {
@@ -40,6 +44,8 @@ vx_status sk_cache_resolve(const u8 *out_hash, struct sk_cache_entry *entry)
              entry->shard_dir,
              VX_PATH_SEP_STR,
              entry->hash_str);
+
+    snprintf(entry->sum_path, sizeof(entry->sum_path), "%s.sum", entry->cache_path);
 
     return VX_OK;
 }
@@ -123,7 +129,7 @@ bool sk_cache_identical(const struct sk_cache_entry *entry, const char *local_ob
 
 vx_status sk_cache_store(const struct sk_cache_entry *entry, const char *local_obj)
 {
-    if (sk_cache_exists(entry))
+    if (sk_cache_exists(entry) && sk_cache_validate(entry))
     {
         return VX_OK;
     }
@@ -133,21 +139,34 @@ vx_status sk_cache_store(const struct sk_cache_entry *entry, const char *local_o
         return VX_ERROR;
     }
 
-    if (!vx_fs_ln(local_obj, entry->cache_path, false))
+    u8 content_hash[SK_XXHASH_LEN];
+    if (sk_xxh3_hash_file(local_obj, content_hash) != VX_OK)
     {
-        if (errno == EXDEV)
-        {
-            return vx_fs_cp(local_obj, entry->cache_path) ? VX_OK : VX_ERROR;
-        }
-
         return VX_ERROR;
     }
 
-    return vx_fs_ln(local_obj, entry->cache_path, false) ? VX_OK : VX_ERROR;
+    if (!vx_fs_ln(local_obj, entry->cache_path, false))
+    {
+        if (errno != EXDEV)
+        {
+            return VX_ERROR;
+        }
+
+        if (!vx_fs_cp(local_obj, entry->cache_path))
+        {
+            return VX_ERROR;
+        }
+    }
+
+    return cache_write_sum(entry, content_hash);
 }
 
-// TODO: validate cache integrity before reuse!!!
-// BUG: if global cache entry has garbage sk will think its valid!!
+void sk_cache_rm(const struct sk_cache_entry *entry)
+{
+    vx_fs_rmrf(entry->cache_path);
+    vx_fs_rmrf(entry->sum_path);
+}
+
 vx_status sk_cache_restore(const struct sk_cache_entry *entry, const char *local_obj)
 {
     if (!vx_fs_ln(entry->cache_path, local_obj, true))
@@ -172,4 +191,65 @@ void sk_cache_record(const u8 *hash, const char *s_path, const char *o_path, con
     sk_strncpy_safe(e->s_path, s_path, sizeof(e->s_path));
     sk_strncpy_safe(e->o_path, o_path, sizeof(e->o_path));
     sk_strncpy_safe(e->t_name, t_name, sizeof(e->t_name));
+}
+
+static vx_status cache_write_sum(const struct sk_cache_entry *entry, const u8 *hash)
+{
+    char tmp_path[VX_PATH_MAX * 2 + 16];
+    snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", entry->sum_path);
+
+    FILE *f = fopen(tmp_path, "wb");
+    if (f == nullptr)
+    {
+        return VX_ERROR;
+    }
+
+    size_t written = fwrite(hash, 1, SK_XXHASH_LEN, f);
+    fclose(f);
+    if (written != SK_XXHASH_LEN)
+    {
+        vx_fs_rmrf(tmp_path);
+        return VX_ERROR;
+    }
+
+    if (!vx_fs_mv(tmp_path, entry->sum_path))
+    {
+        vx_fs_rmrf(tmp_path);
+        return VX_ERROR;
+    }
+
+    return VX_OK;
+}
+
+static vx_status cache_read_sum(const struct sk_cache_entry *entry, u8 *out)
+{
+    FILE *f = fopen(entry->sum_path, "rb");
+    if (f == nullptr)
+    {
+        return VX_ERROR;
+    }
+
+    size_t n = fread(out, 1, SK_XXHASH_LEN, f);
+    fclose(f);
+
+    return (n == SK_XXHASH_LEN) ? VX_OK : VX_ERROR;
+}
+
+bool sk_cache_validate(const struct sk_cache_entry *entry)
+{
+    u8 expected[SK_XXHASH_LEN];
+
+    if (cache_read_sum(entry, expected) != VX_OK)
+    {
+        return false;
+    }
+
+    u8 actual[SK_XXHASH_LEN];
+
+    if (sk_xxh3_hash_file(entry->cache_path, actual) != VX_OK)
+    {
+        return false;
+    }
+
+    return (0 == memcmp(expected, actual, SK_XXHASH_LEN));
 }

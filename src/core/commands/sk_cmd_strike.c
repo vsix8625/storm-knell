@@ -177,7 +177,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         for (u32 i = 0; i < sorted_count; i++)
         {
             struct sk_target *t    = &eval_result->targets[sorted[i]];
-            struct sk_meta    meta = {0};
+            struct sk_meta   *meta = mem_arena_zalloc(g_sk_arena, sizeof(struct sk_meta));
 
             char abs_cc[VX_PATH_MAX];
             if (vx_fs_which(t->cfg.cc, abs_cc, sizeof(abs_cc)) != VX_OK)
@@ -186,7 +186,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 continue;
             }
 
-            if (!sk_meta_load(&meta, abs_cc))
+            if (!sk_meta_load(meta, abs_cc))
             {
                 vx_errlog("Compiler %s not initialized (try: sk config --add-cc=<path>)", abs_cc);
                 continue;
@@ -294,7 +294,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
                 unit->target     = t;
                 unit->source_idx = j;
-                unit->meta       = &meta;
+                unit->meta       = meta;
                 unit->tag        = (const char *) t->sources->items[j];
                 unit->dry_run    = dry_run;
 
@@ -1034,7 +1034,7 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
 
     if (ctx->active_opt & SK_OPT_VERBOSE)
     {
-        vx_log("Created: %s -> Artifact: %s", final_bin_dir_buf, t->finalized_filename);
+        vx_log("Created: %15s -> Artifact: %s", final_bin_dir_buf, t->finalized_filename);
     }
 
     return VX_OK;
@@ -1148,7 +1148,6 @@ static void *sk_worker_compile_fn(void *arg)
         {
             sk_ccmds_push(src_path, g_sk_ctx.rpath, (const char **) argv, arg_count);
         }
-
         struct sk_cache_entry cache_entry = {0};
         sk_cache_resolve(out_hash, &cache_entry);
 
@@ -1156,19 +1155,26 @@ static void *sk_worker_compile_fn(void *arg)
         {
             if (sk_cache_exists(&cache_entry))
             {
-                if (sk_cache_identical(&cache_entry, obj_path))
+                if (sk_cache_validate(&cache_entry))
                 {
-                    atomic_fetch_add(&g_cache_unchanged, 1);
-                    mem_arena_soft_reset(arena);
-                    return nullptr;
+                    if (sk_cache_identical(&cache_entry, obj_path))
+                    {
+                        atomic_fetch_add(&g_cache_unchanged, 1);
+                        mem_arena_soft_reset(arena);
+                        return nullptr;
+                    }
+                    else if (sk_cache_restore(&cache_entry, obj_path) == VX_OK)
+                    {
+                        atomic_fetch_add(&g_cache_hits, 1);
+                        t->dirty = true;
+                        mem_arena_soft_reset(arena);
+                        return nullptr;
+                    }
                 }
-
-                if (sk_cache_restore(&cache_entry, obj_path) == VX_OK)
+                else
                 {
-                    atomic_fetch_add(&g_cache_hits, 1);
-                    t->dirty = true;
-                    mem_arena_soft_reset(arena);
-                    return nullptr;
+                    vx_warn("Corrupted cache entry detected, purging: %s", cache_entry.cache_path);
+                    sk_cache_rm(&cache_entry);
                 }
             }
         }

@@ -50,6 +50,7 @@ vx_status sk_cmd_clean_fn(struct sk_ctx *ctx)
                                 vx_log("Purging: %s", resolved.cache_path);
                             }
                             vx_fs_rmrf(resolved.cache_path);
+                            vx_fs_rmrf(resolved.sum_path);
                         }
                         else
                         {

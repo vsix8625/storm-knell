@@ -5,6 +5,7 @@
 struct sk_cache_entry
 {
     char cache_path[VX_PATH_MAX * 2];
+    char sum_path[VX_PATH_MAX * 2 + 8];
     char shard_dir[VX_PATH_MAX];
     char hash_str[17];
 };
@@ -63,3 +64,7 @@ vx_status sk_cache_restore(const struct sk_cache_entry *entry, const char *local
 void sk_cache_record(const u8 *hash, const char *s_path, const char *o_path, const char *t_name);
 
 bool sk_cache_identical(const struct sk_cache_entry *entry, const char *local_obj);
+
+bool sk_cache_validate(const struct sk_cache_entry *entry);
+
+void sk_cache_rm(const struct sk_cache_entry *entry);

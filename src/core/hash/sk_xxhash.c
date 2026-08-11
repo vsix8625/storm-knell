@@ -249,6 +249,13 @@ static vx_status sk_scan_inc(const char            *src_path,
 
 //----------------------------------------------------------------------------------------------------
 
+void sk_hash_log(const char *label, const u8 hash[SK_XXHASH_LEN])
+{
+    u64 h;
+    memcpy(&h, hash, sizeof(h));
+    vx_log("%s: %016llx", label, (unsigned long long) h);
+}
+
 vx_status sk_hash_setup(struct sk_target     *t,
                         u32                   source_idx,
                         struct sk_meta       *meta,
@@ -342,12 +349,51 @@ vx_status sk_hash_setup(struct sk_target     *t,
         offset += snprintf(h_buf + offset, total_alloc - offset, " %s", t->cfg.defines[i]);
     }
 
-    if (g_sk_ctx.active_opt & SK_OPT_VERBOSE)
-    {
-        vx_log("Injected hash: %s", h_buf);
-    }
-
     hsh_input->cmd = vx_sv_from_cstr(h_buf);
 
-    return sk_xxh3_hash(hsh_input, out_hash, arena);
+    vx_status result = sk_xxh3_hash(hsh_input, out_hash, arena);
+
+    if (g_sk_ctx.active_opt & SK_OPT_VERBOSE)
+    {
+        sk_hash_log(t->name, out_hash);
+    }
+
+    return result;
+}
+
+vx_status sk_xxh3_hash_file(const char *path, u8 out_hash[SK_XXHASH_LEN])
+{
+    FILE *f = fopen(path, "rb");
+    if (f == nullptr)
+    {
+        return VX_ERROR;
+    }
+
+    XXH3_state_t state;
+    if (XXH3_64bits_reset(&state) == XXH_ERROR)
+    {
+        fclose(f);
+        return VX_ERROR;
+    }
+
+    u8     buf[VX_BUF_SIZE_8192];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0)
+    {
+        if (XXH3_64bits_update(&state, buf, n) == XXH_ERROR)
+        {
+            fclose(f);
+            return VX_ERROR;
+        }
+    }
+    bool had_error = ferror(f);
+    fclose(f);
+    if (had_error)
+    {
+        return VX_ERROR;
+    }
+
+    XXH64_hash_t hash = XXH3_64bits_digest(&state);
+    memcpy(out_hash, &hash, SK_XXHASH_LEN);
+    return VX_OK;
 }
