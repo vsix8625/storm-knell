@@ -6,6 +6,7 @@ crater/
 test/
 Barrfile
 compile_commands.json
+TAGS
 *.o
 *.ko
 *.obj

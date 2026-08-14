@@ -115,6 +115,7 @@ static struct sk_opt_entry g_sk_opts[] = {
     // owner = SK_CMD_STRIKE
     {"--dry", SK_CMD_STRIKE, SK_OPT_STRIKE_DRY, opt_set_bit, "Dry run"},
     {"--gen-cmds", SK_CMD_STRIKE, SK_OPT_GEN_CMDS, opt_set_bit, "Generate compile_commands.json"},
+    {"--gen-tags", SK_CMD_STRIKE, SK_OPT_STRIKE_GEN_TAGS, opt_set_bit, "Generate tags"},
     {"--token-dump", SK_CMD_STRIKE, SK_OPT_TOK_DUMP, opt_set_bit, "Show Stormfile tokens"},
     {"--node-dump", SK_CMD_STRIKE, SK_OPT_NODE_DUMP, opt_set_bit, "Show Stormfile nodes"},
     {"--eval-dump", SK_CMD_STRIKE, SK_OPT_EVAL_DUMP, opt_set_bit, "Show Stormfile eval"},

@@ -197,3 +197,26 @@ bool sk_util_is_show_tips_on(void)
 
     return vx_isfile(path_buf);
 }
+
+bool sk_util_array_contains_str(vx_array *arr, const char *str)
+{
+    if (arr == nullptr || arr->count == 0 || str == nullptr || str[0] == CHAR_NULTERM)
+    {
+        return false;
+    }
+
+    if ((0 == strcmp(arr->elements[0], str)) || (0 == strcmp(arr->elements[arr->count], str)))
+    {
+        return true;
+    }
+
+    for (size_t i = 1; i < arr->count - 1; i++)
+    {
+        if ((0 == strcmp(arr->elements[i], str)))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}

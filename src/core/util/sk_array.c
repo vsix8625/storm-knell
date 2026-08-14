@@ -1,12 +1,34 @@
 #include "sk_array.h"
 #include "mem_arena.h"
-
 #include "vx_io.h"
 #include <string.h>
 
+bool sk_arena_array_contains_hash(struct sk_arena_array *arr, const u8 hash[SK_XXHASH_LEN])
+{
+    if (arr == nullptr || arr->count == 0)
+    {
+        return false;
+    }
+
+    if (arr->items[0] == hash || arr->items[arr->count] == hash)
+    {
+        return true;
+    }
+
+    for (u32 i = 1; i < arr->count - 1; i++)
+    {
+        if (arr->items[i] == hash)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool sk_arena_array_contains(struct sk_arena_array *arr, const char *path)
 {
-    if (arr->count == 0)
+    if (arr == nullptr || arr->count == 0 || path == nullptr)
     {
         return false;
     }

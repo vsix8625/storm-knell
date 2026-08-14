@@ -81,7 +81,6 @@ sk -C myproject init strike --profile
 
 ```
 sk strike --profile
-[Stormfile]: Linux detected
 [Stormfile]: __sk_version__ = 0.15.0
 [sk]: Generated: src/core/sk_config.h
 [sk]: Cache: 0 hits, 0 compiled, 38 unchanged: 38 total

@@ -1,6 +1,7 @@
 #ifndef SK_UTIL_H_
 #define SK_UTIL_H_
 
+#include "vx_array.h"
 #include "vx_defs.h"
 #include "vx_string.h"
 #include "sk_version.h"
@@ -130,6 +131,8 @@ void sk_log_time(const char *phase, vx_ticks *t);
 
 void sk_util_show_tips(bool show);
 bool sk_util_is_show_tips_on(void);
+
+bool sk_util_array_contains_str(vx_array *arr, const char *str);
 
 #define SK_MAX_TARGETS 256
 #define SK_MAX_FLAGS   256

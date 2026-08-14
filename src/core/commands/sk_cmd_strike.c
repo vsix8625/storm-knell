@@ -10,15 +10,12 @@
 #include "sk_array.h"
 #include "sk_cache.h"
 #include "sk_paths.h"
-
 #include "vx_fs.h"
 #include "vx_io.h"
-#include "vx_cpu.h"
 #include "vx_time.h"
 #include "vx_util.h"
 #include "vx_thread.h"
 #include "vx_process.h"
-#include <string.h>
 
 //----------------------------------------------------------------------------------------------------
 
@@ -38,15 +35,17 @@ struct sk_work_unit
     struct sk_target *target;
 
     u32 source_idx;
-    u8  dry_run;
-    u8  gen_ccmds;
-    u8  pad[2];
 
     struct sk_meta *meta;
+
+    u8 hash[SK_XXHASH_LEN];
 
     const char *tag;
 
     vx_sbuf diagnostic_log;
+
+    u8 dry_run;
+    u8 gen_ccmds;
 };
 
 static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t);
@@ -118,11 +117,39 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         for (u32 i = 0; i < eval_result->target_count; i++)
         {
-            total_sources += eval_result->targets[i].sources->count;
-        }
+            struct sk_target *t = &eval_result->targets[i];
 
+            total_sources += t->sources->count;
+        }
         total_tasks = total_sources + eval_result->target_count;
 
+        bool gen_tags = (ctx->active_opt & SK_OPT_STRIKE_GEN_TAGS);
+        if (gen_tags)
+        {
+            u32    arg_count = 8;
+            char **argv      = mem_arena_zalloc(g_sk_arena, sizeof(*argv) * (arg_count + 1));
+
+            u32 idx     = 0;
+            argv[idx++] = "ctags";
+            argv[idx++] = "-R";
+            argv[idx++] = "--languages=C,C++";
+            argv[idx++] = "--exclude=.git";
+            argv[idx++] = "--output-format=etags";
+            argv[idx++] = "-f";
+            argv[idx++] = "TAGS";
+            argv[idx++] = nullptr;
+
+            struct vx_process  proc = {0};
+            struct vx_proc_cfg cfg  = {.flags = VX_PROCESS_FLAGS_BG};
+
+            vx_status status = vx_process_spawn(&proc, argv[0], argv, &cfg);
+            if (status != VX_OK)
+            {
+                vx_errlog("Process failed for %s", argv[0]);
+            }
+        }
+
+        // compile_commands
         g_sk_ccmds = mem_arena_alloc(g_sk_arena, sizeof(struct sk_ccmds_entry) * total_tasks);
 
         if (eval_result->target_count == 0 || total_sources == 0)
@@ -312,6 +339,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                     unit->gen_ccmds = true;
                 }
 
+                // BUG: instantly pushes N jobs compilations to worker even with 1 source file
                 vx_thread_pool_push(&pool, sk_worker_compile_fn, unit);
             }
 
@@ -320,6 +348,10 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         vx_thread_pool_wait(&pool);
         vx_thread_pool_destroy(&pool);
+
+        // ------
+
+        // ------
 
         u64 compile_end = vx_time_ns();
 
@@ -1148,6 +1180,7 @@ static void *sk_worker_compile_fn(void *arg)
         {
             sk_ccmds_push(src_path, g_sk_ctx.rpath, (const char **) argv, arg_count);
         }
+
         struct sk_cache_entry cache_entry = {0};
         sk_cache_resolve(out_hash, &cache_entry);
 
@@ -1163,7 +1196,8 @@ static void *sk_worker_compile_fn(void *arg)
                         mem_arena_soft_reset(arena);
                         return nullptr;
                     }
-                    else if (sk_cache_restore(&cache_entry, obj_path) == VX_OK)
+
+                    if (sk_cache_restore(&cache_entry, obj_path) == VX_OK)
                     {
                         atomic_fetch_add(&g_cache_hits, 1);
                         t->dirty = true;

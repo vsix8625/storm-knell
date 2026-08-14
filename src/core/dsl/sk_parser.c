@@ -408,8 +408,7 @@ static u32 parse_bundle(struct sk_parser *p)
         return SK_NODE_INVALID;
     }
 
-    // NOTE:
-    // parse package block
+    // NOTE: parse package block
 
     if (!expect(p, SK_TOKEN_RBRACE))
     {

@@ -52,7 +52,7 @@ vx_status sk_cache_resolve(const u8 *out_hash, struct sk_cache_entry *entry)
 
 bool sk_cache_exists(const struct sk_cache_entry *entry)
 {
-    return vx_isfile(entry->cache_path);
+    return (vx_fs_exists(entry->cache_path) && vx_fs_exists(entry->sum_path));
 }
 
 static vx_status filecmp(const char *path1, const char *path2)
