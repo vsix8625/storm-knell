@@ -33,13 +33,6 @@ static void sk_lx_next_token(struct sk_lexer *lx);
 
 vx_status sk_lx_init(struct sk_ctx *ctx, struct sk_lexer *lx)
 {
-    if (ctx == nullptr || lx == nullptr)
-    {
-        lx->status |= SK_LEXER_FATAL;
-        VX_ASSERT_LOG("sk_lexer or sk_ctx are nullptr");
-        return VX_FATAL;
-    }
-
     lx->source = ctx->stormfile;
 
     lx->lex_start = 0;
@@ -63,8 +56,6 @@ vx_status sk_lx_init(struct sk_ctx *ctx, struct sk_lexer *lx)
         return VX_FATAL;
     }
 
-    lx->status = SK_LEXER_OK;
-
     static_assert(sizeof(sk_token_kind) == sizeof(u32));
 
     ctx->tokens->offsets = (u32 *) block;
@@ -79,15 +70,8 @@ vx_status sk_lx_init(struct sk_ctx *ctx, struct sk_lexer *lx)
 
 static void sk_lx_next_token(struct sk_lexer *lx)
 {
-    if (lx == nullptr)
-    {
-        lx->status |= SK_LEXER_ERROR;
-        return;
-    }
-
     if (isatend(lx))
     {
-        lx->status |= SK_LEXER_EOF;
         record(lx, SK_TOKEN_EOF);
         return;
     }
@@ -267,7 +251,6 @@ static void sk_lx_next_token(struct sk_lexer *lx)
 
                                     case CHAR_NULTERM:
                                     {
-                                        lx->status |= SK_LEXER_EOF;
                                         record(lx, SK_TOKEN_EOF);
                                         return;
                                     }
@@ -284,7 +267,6 @@ static void sk_lx_next_token(struct sk_lexer *lx)
 
                             if (isatend(lx))
                             {
-                                lx->status |= SK_LEXER_EOF;
                                 record(lx, SK_TOKEN_EOF);
                                 return;
                             }
@@ -386,7 +368,6 @@ vx_status sk_lex(struct sk_ctx *ctx, struct sk_lexer *lx)
 {
     if (ctx == nullptr || lx == nullptr)
     {
-        lx->status |= SK_LEXER_FATAL;
         return VX_FATAL;
     }
 
@@ -652,7 +633,6 @@ static void handle_string(struct sk_lexer *lx, char quote_type)
 
             case CHAR_NULTERM:
             {
-                lx->status |= SK_LEXER_EOF;
                 record(lx, SK_TOKEN_EOF);
                 return;
             }
@@ -669,7 +649,6 @@ static void handle_string(struct sk_lexer *lx, char quote_type)
 
     if (isatend(lx))
     {
-        lx->status |= SK_LEXER_EOF;
         record(lx, SK_TOKEN_EOF);
         return;
     }

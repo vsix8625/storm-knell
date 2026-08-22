@@ -100,10 +100,13 @@ void sk_cache_config_init_global(struct sk_cache_config *cfg)
 
     g_sk_ctx.sk_global_config_dir = mem_arena_strdup(g_sk_arena, global_dir);
 
-    if (vx_mkdir_p(global_dir) != VX_OK)
+    if (!vx_isdir(global_dir))
     {
-        vx_errlog("Failed to create: '%s' directory", global_dir);
-        return;
+        if (vx_mkdir_p(global_dir) != VX_OK)
+        {
+            vx_errlog("Failed to create: '%s' directory", global_dir);
+            return;
+        }
     }
 
     if (sk_cache_config_load(resolved_config_fpath, cfg) != VX_OK)

@@ -2,5 +2,5 @@
 #pragma once
 #define SK_VERSION_MAJOR 0
 #define SK_VERSION_MINOR 15
-#define SK_VERSION_PATCH 3
-#define SK_VERSION_STRING "0.15.3"
+#define SK_VERSION_PATCH 5
+#define SK_VERSION_STRING "0.15.5"

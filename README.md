@@ -262,6 +262,13 @@ To generate a `compile_commands.json` for `clangd` or other language servers, pa
 sk strike --gen-cmds
 ```
 
+### CTags
+To generate `TAGS` with etags format pass `--gen-tags` flag during a strike:
+
+```bash
+sk strike --gen-tags
+```
+
 ### Visual Studio Code
 To generate `.vscode/tasks.json` with **Strike** (Ctrl+Shift+B) and **Surge** tasks:
 ```bash

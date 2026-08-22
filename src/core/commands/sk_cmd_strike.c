@@ -126,15 +126,17 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         bool gen_tags = (ctx->active_opt & SK_OPT_STRIKE_GEN_TAGS);
         if (gen_tags)
         {
-            u32    arg_count = 8;
+            u32    arg_count = 9;
             char **argv      = mem_arena_zalloc(g_sk_arena, sizeof(*argv) * (arg_count + 1));
 
+            // add more exludes
             u32 idx     = 0;
             argv[idx++] = "ctags";
             argv[idx++] = "-R";
             argv[idx++] = "--languages=C,C++";
             argv[idx++] = "--exclude=.git";
             argv[idx++] = "--output-format=etags";
+            argv[idx++] = "--tag-relative=never";
             argv[idx++] = "-f";
             argv[idx++] = "TAGS";
             argv[idx++] = nullptr;

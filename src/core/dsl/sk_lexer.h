@@ -110,11 +110,8 @@ struct sk_tokens
 struct sk_lexer
 {
     vx_sv source;
-
-    u32 lex_start;
-    u32 current;
-
-    sk_lx_status status;
+    u32   lex_start;
+    u32   current;
 };
 
 vx_status sk_lx_init(struct sk_ctx *ctx, struct sk_lexer *lx);

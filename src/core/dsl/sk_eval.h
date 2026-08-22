@@ -72,7 +72,6 @@ struct sk_target
 
     bool was_relinked;
     bool dirty;
-    u8   pad[5];
 };
 
 struct sk_eval_result
