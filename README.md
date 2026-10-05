@@ -35,12 +35,10 @@ python3 ./scripts/build.py
 
 ## Self build and install
 
-Once bootstrapped, `sk` rebuilds itself via its own `Stormfile` and installs the finalized binary directly to local user-directory:
+Once bootstrapped, `sk` rebuilds itself via its own `Stormfile` and installs the binary directly to local user-directory:
 
 - Default Install Location: `~/.local/bin`
 - Custom Install Location: Edit the `install` keyword value inside the `Stormfile` if you want to place the binary in a different `$PATH`-aware user directory.
-
-NOTE: **Ensure `~/.local/bin` is in your environment's `$PATH` to run `sk` from anywhere.**
 
 ---
 

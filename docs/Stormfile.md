@@ -352,13 +352,6 @@ Set automatically by sk at eval time. Available in `if()` conditions and `print`
 | `__arch__` | CPU architecture (e.g. `x86_64`) |
 | `__cache_line__` | CPU cache line size in bytes |
 
-### Compiler
-
-| Variable | Description |
-|---|---|
-| `__gcc__` | Set if compiling with GCC |
-| `__clang__` | Set if compiling with Clang |
-
 ### CPU features
 
 | Variable | Description |
@@ -443,6 +436,6 @@ target myapp
 | Defines per target | 512 |
 | Flags per target | 256 |
 | Libs | 128 |
-| Variables | 8192 |
+| Variables | 1024 |
 
-> These are compile-time constants. If your project approaches these limits, consider splitting into multiple targets with `depends`.
+> These are compile-time constants. 
