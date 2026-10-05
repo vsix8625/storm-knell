@@ -138,7 +138,7 @@ bool sk_util_array_contains_str(vx_array *arr, const char *str);
 #define SK_MAX_FLAGS   256
 #define SK_MAX_DEFINES 512
 #define SK_MAX_LIBS    128
-#define SK_MAX_VARS    8192
+#define SK_MAX_VARS    1024
 
 #define SK_MAX_DEPS     32
 #define SK_MAX_EXCLUDES 32

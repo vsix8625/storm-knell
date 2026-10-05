@@ -216,8 +216,6 @@ codegen include/version.h
     define: APP_VERSION_MINOR  minor
     define: APP_VERSION_PATCH  patch
     define: APP_VERSION_STRING "major.minor.patch"
-    define: APP_COMPILED_GCC   __gcc__
-    define: APP_COMPILED_CLANG __clang__
 }
 
 target foo
@@ -242,8 +240,6 @@ A few things worth noting:
   is not what you want
 - `"major.minor.patch"` in a string context expands to the actual values,
   e.g. `"1.0.0"`
-- `__gcc__` and `__clang__` are built-in sk tokens that resolve to `1` or `0`
-  depending on which compiler is active
 
 ### Build
 

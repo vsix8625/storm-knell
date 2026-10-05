@@ -414,7 +414,6 @@ static vx_status resolve_depends(struct sk_eval_result *result)
         return VX_ERROR;
     }
 
-    // TODO: a deduplicte check somewhere, but do i need it
     for (u32 i = 0; i < result->target_count; i++)
     {
         struct sk_target *t = &result->targets[i];
