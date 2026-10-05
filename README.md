@@ -7,7 +7,6 @@ A fast, cache-aware build tool with its own DSL — describe your project once, 
 
 - GCC or Clang (C23)
 - [xxhash](https://github.com/Cyan4973/xxHash)
-- pthreads *(usually ships with your system)*
 - [mold](https://github.com/rui314/mold) *(recommended, but not required)*
 
 Before running the bootstrap script, ensure the following are installed:

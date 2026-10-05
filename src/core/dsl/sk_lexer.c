@@ -788,7 +788,7 @@ static sk_token_kind check_keywords(struct sk_lexer *lx)
                 return SK_TOKEN_KWORD_CODEGEN;
             }
 
-            if (len == 8 && vx_strncmplit(s, len, "compiler", 8))
+            if (len == 8 && vx_strncmplit(s, len, "compiler", 8)) /*  */
             {
                 return SK_TOKEN_KWORD_COMPILER;
             }
