@@ -195,6 +195,13 @@ char **sk_invoke_compile_nularr(struct sk_target *t,
 
     file_name = file_name ? file_name + 1 : src_path;
 
+    char *compile_arg = "-c";
+    if (t->gen_asm && !is_header)
+    {
+        out_ext     = ".S";
+        compile_arg = "-S";
+    }
+
     char *obj_path = mem_arena_alloc(arena, VX_PATH_MAX);
     snprintf(obj_path,
              VX_PATH_MAX,
@@ -204,7 +211,7 @@ char **sk_invoke_compile_nularr(struct sk_target *t,
              file_name,
              out_ext);
 
-    argv[idx++] = "-c";
+    argv[idx++] = compile_arg;
     argv[idx++] = (char *) src_path;
     argv[idx++] = "-o";
     argv[idx++] = obj_path;

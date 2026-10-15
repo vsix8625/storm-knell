@@ -541,12 +541,14 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                    g_cache_hits + g_cache_misses + g_cache_unchanged);
         }
 
+        bool genasm = ctx->active_opt & SK_OPT_STRIKE_GEN_ASM;
+
         if (g_compile_errors > 0)
         {
             vx_errlog("Build failed: %u file(s) failed to compile", g_compile_errors);
             strike_status = VX_ERROR;
         }
-        else if (g_cache_hits == 0 && g_cache_misses == 0)
+        else if (g_cache_hits == 0 && g_cache_misses == 0 && !genasm)
         {
             if (vx_isatty(STDOUT_FILENO))
             {
@@ -555,7 +557,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             }
             else
             {
-                vx_log("Nothing to compile, cache and files up-to-datei");
+                vx_log("Nothing to compile, cache and files up-to-date");
             }
         }
 
@@ -678,6 +680,16 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         //----------------------------------------------------------------------------------------------------
         // LINK
 
+        if (ctx->active_opt & SK_OPT_STRIKE_GEN_ASM)
+        {
+            vx_printf(
+                "-->NOTE: Assembly generation flag detected, make sure its a clean run to avoid "
+                "cache hit from skipping compilation\n");
+            vx_printf(
+                "-->NOTE: If no assembly file created try again with: 'sk clean --full strike "
+                "--gen_asm'\n");
+        }
+
         if (!dry_run && g_compile_errors == 0 && strike_status != VX_ERROR)
         {
             vx_ticks link_time = {0};
@@ -746,6 +758,28 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                     continue;
                 }
 
+                if (t->kind == SK_TARGET_KIND_PCH || t->kind == SK_TARGET_KIND_TEST)
+                {
+                    continue;  // nothing to link
+                }
+
+                if (t->gen_asm)
+                {
+                    if (vx_isatty(STDOUT_FILENO))
+                    {
+                        vx_log("Assembly files created for: " SK_ANSI_CORAL "%s" SK_ANSI_RESET,
+                               t->name);
+                    }
+                    else
+                    {
+                        vx_log("Assembly files created for: %s", t->name);
+                    }
+
+                    vx_log("Path: %s", t->finalized_obj_dirpath);
+                    vx_log("No linker invoke or objects created");
+                    continue;
+                }
+
                 if (vx_isatty(STDOUT_FILENO))
                 {
                     vx_log("Linking target: " SK_ANSI_CORAL "%s" SK_ANSI_RESET, t->name);
@@ -757,11 +791,6 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 struct vx_process proc = {0};
 
                 char **argv;
-
-                if (t->kind == SK_TARGET_KIND_PCH || t->kind == SK_TARGET_KIND_TEST)
-                {
-                    continue;  // nothing to link
-                }
 
                 if (t->kind == SK_TARGET_KIND_STATIC)
                 {

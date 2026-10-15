@@ -979,6 +979,11 @@ target_init(struct mem_arena *ar, struct sk_eval_result *result, vx_sv name_sv)
     t->cfg.cc     = result->global.cc;
     t->cfg.linker = result->global.linker;
 
+    if (g_sk_ctx.active_opt & SK_OPT_STRIKE_GEN_ASM)
+    {
+        t->gen_asm = true;
+    }
+
     return t;
 }
 

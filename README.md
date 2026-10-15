@@ -29,7 +29,9 @@ Run the bootstrap script once to compile `sk` with system C compiler:
 
 ```bash
 ./scripts/build_linux.sh
-# or
+```
+### or
+```bash
 python3 ./scripts/build.py
 ```
 
@@ -194,6 +196,7 @@ if(lto)
     lflags:: -flto=auto -Wl,-O1 -Wl,--as-needed
 }
 ```
+***NOTE:*** For more Stormfile examples see: [docs/examples-1.md](docs/examples-1.md)
 
 ---
 

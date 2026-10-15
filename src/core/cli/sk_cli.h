@@ -54,6 +54,7 @@ typedef enum sk_opt : u64
     SK_OPT_CONFIG_SHOW_TIPS = 1 << 22,
     SK_OPT_STRIKE_LOGFILE   = 1 << 23,
     SK_OPT_STRIKE_GEN_TAGS  = 1 << 24,
+    SK_OPT_STRIKE_GEN_ASM   = 1 << 25,
 } sk_opt;
 
 typedef vx_status (*sk_cmd_fn)(struct sk_ctx *ctx, sk_cmd cmd_id, i32 *i, i32 argc, char **argv);

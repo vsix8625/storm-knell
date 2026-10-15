@@ -71,7 +71,7 @@ struct sk_target
     sk_target_kind kind;
 
     bool was_relinked;
-    bool dirty;
+    bool dirty, gen_asm;
 };
 
 struct sk_eval_result
