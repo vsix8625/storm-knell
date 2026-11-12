@@ -1125,8 +1125,6 @@ static vx_status topo_visit(struct sk_eval_result *result,
     visited[idx]  = true;
     in_stack[idx] = true;
 
-    // for 256 max targets and 32 depends per target this should be fine
-
     struct sk_target *t = &result->targets[idx];
 
     for (u32 d = 0; d < t->depend_count; d++)

@@ -202,14 +202,38 @@ if(lto)
 
 ## Passing Arguments to Surged Targets
 
-Use `:::` to separate sk arguments from arguments passed to the target binary:
+Use `:::` to separate `sk` arguments from arguments passed to the target binary.
+
+Everything after `:::` is forwarded to the target binary executed by `surge`.
 
 ```bash
 sk strike surge ::: --my-app-flag --verbose
 sk clean strike surge ::: -h
 ```
 
-Everything after `:::` is forwarded to the binary that `surge` runs.
+## Executing Targets with Tools
+
+Use `--tool=<tool_name>` before specifying a target to execute it with an external tool.
+
+You can pass arguments to the tool by appending `:` followed by its arguments to the tool name. Use `:::` to separate tool arguments from arguments passed to the target binary.
+
+```bash
+# Execute the target with nm
+sk --tool=nm surge
+
+# Pass arguments to nm
+sk --tool=nm:-D surge my_app ::: --verbose
+
+# Pass multiple arguments to valgrind
+sk --tool=valgrind:--tool=memcheck:--leak=full surge my_app2
+```
+
+**Argument separation:**
+
+- `:` separates the tool name from its arguments.
+- `:::` separates the tool invocation from the target binary's arguments.
+
+Arguments after `:::` are always forwarded to the target binary, not the tool.
 
 ---
 

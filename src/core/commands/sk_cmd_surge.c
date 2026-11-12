@@ -111,17 +111,61 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
         return VX_ERROR;
     }
 
-    // build argv: [bin_path, ...passthrough_args, nullptr]
-    i32 extra_argc = ctx->surge_passthrough_argc;
+    bool is_surge_tool    = ctx->active_opt & SK_OPT_SURGE_TOOL;
+    i32  surge_tool_count = 0;
+    i32  pd               = 0;
 
-    char **argv = mem_arena_alloc(g_sk_arena, sizeof(char *) * (extra_argc + 2));
-
-    argv[0] = run_target->bin_path;
-    for (i32 i = 0; i < extra_argc; i++)
+    if (is_surge_tool)
     {
-        argv[i + 1] = ctx->surge_passthrough_argv[i];
+        surge_tool_count = ctx->surge_tool.args_count;
     }
-    argv[extra_argc + 1] = nullptr;
+
+    // build argv: [bin_path, ...passthrough_args, nullptr]
+    i32    total_argc = ctx->surge_passthrough_argc + surge_tool_count + 1;
+    char **argv       = mem_arena_alloc(g_sk_arena, sizeof(char *) * total_argc);
+
+    vx_log("tool_args: %d + surge: %d  = total %d",
+           surge_tool_count,
+           ctx->surge_passthrough_argc,
+           surge_tool_count + ctx->surge_passthrough_argc);
+
+    if (is_surge_tool)
+    {
+        argv[pd] = (char *) ctx->surge_tool.name;
+        pd++;
+        for (i32 i = pd; i < surge_tool_count; i++)
+        {
+            if (ctx->surge_tool.args[i] == nullptr)
+            {
+                continue;
+            }
+
+            argv[i] = ctx->surge_tool.args[i];
+            pd++;
+        }
+
+        argv[pd] = run_target->bin_path;
+
+        vx_log("Running: %s with %s tool", argv[pd], ctx->surge_tool.name);
+    }
+    else
+    {
+        pd = 0;
+
+        argv[pd] = run_target->bin_path;
+    }
+
+    vx_log("%s: pad = %d", __func__, pd);
+
+    for (i32 i = 0; i < ctx->surge_passthrough_argc; i++)
+    {
+        argv[pd + i + 1] = ctx->surge_passthrough_argv[i];
+        vx_log("extra_arg %s", argv[pd + i + 1]);
+    }
+
+    argv[total_argc + 1] = nullptr;
+
+    //-------------------------------------------------------------
 
     if (getenv("SK_SURGE") != nullptr)
     {
@@ -134,12 +178,20 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
     vx_printf(
         "================================================================================\n\n");
 
+    for (i32 i = 0; i < total_argc; i++)
+    {
+        vx_printf("%s ", argv[i]);
+    }
+    vx_printf("\n");
+
     struct vx_process  proc = {0};
     struct vx_proc_cfg cfg  = {0};
 
-    if (vx_process_spawn(&proc, run_target->bin_path, argv, &cfg) != VX_OK)
+    vx_status result = vx_process_spawn(&proc, argv[0], argv, &cfg);
+
+    if (result != VX_OK)
     {
-        vx_errlog("Failed to launch: %s", run_target->bin_path);
+        vx_errlog("Failed to launch: %s", argv[0]);
         return VX_ERROR;
     }
     vx_process_wait(&proc);
@@ -147,5 +199,7 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
     vx_printf(
         "\n\n================================================================================\n");
     vx_log("Target [%s] exited with code: %d", run_target->name, proc.exit_code);
-    return VX_OK;
+
+    return result;
+    ;
 }

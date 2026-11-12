@@ -35,7 +35,7 @@ typedef enum sk_opt : u64
     SK_OPT_HELP             = 1 << 3,
     SK_OPT_RUN_FROM_PATH    = 1 << 4,
     SK_OPT_STRIKE_DRY       = 1 << 5,
-    SK_OPT_SURGE_WITH       = 1 << 6,
+    SK_OPT_SURGE_TOOL       = 1 << 6,
     SK_OPT_FORCE            = 1 << 7,
     SK_OPT_THREADS          = 1 << 8,
     SK_OPT_PROFILE          = 1 << 9,

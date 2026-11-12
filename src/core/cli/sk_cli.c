@@ -57,6 +57,9 @@ subcmd_surge_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i32 argc, char **arg
 static inline vx_status
 opt_show_tips(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32 argc, char **argv);
 
+static inline vx_status
+opt_set_surge_tool(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32, char **);
+
 // ----------------------------------------------------------------------------------------------------
 
 static inline vx_status subcmd_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i32, char **)
@@ -126,7 +129,7 @@ static struct sk_opt_entry g_sk_opts[] = {
 
     // ----------------------------------------------------------------------------------------------------
     // owner = SK_CMD_SURGE
-    {"--with", SK_CMD_SURGE, SK_OPT_SURGE_WITH, opt_set_bit, "Run under tool (NYI)"},
+    {"--tool", SK_CMD_SURGE, SK_OPT_SURGE_TOOL, opt_set_surge_tool, "Run under tool (NYI)"},
     // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
@@ -660,6 +663,73 @@ opt_set_bit(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32, char **)
     return VX_OK;
 }
 
+static char *next_tool_arg(char **args)
+{
+    if (args == nullptr || *args == nullptr || **args == CHAR_NULTERM)
+    {
+        return nullptr;
+    }
+
+    char *start = *args;
+    char *p     = start;
+
+    while (*p)
+    {
+        if (*p == CHAR_COLON)
+        {
+            *p    = CHAR_NULTERM;
+            *args = p + 1;
+            return start;
+        }
+
+        p++;
+    }
+
+    *args = p;
+    return start;
+}
+
+static inline vx_status
+opt_set_surge_tool(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32, char **argv)
+{
+    ctx->active_cmd |= owner;
+    ctx->active_opt |= opt;
+
+    if (!(ctx->active_cmd & SK_CMD_SURGE))
+    {
+        vx_errlog("--tool opt requires 'surge' command");
+        return VX_ERROR;
+    }
+
+    char *arg = argv[*i];
+    char *eq  = strchr(arg, CHAR_EQUAL);
+
+    if (eq == nullptr || eq[1] == CHAR_NULTERM)
+    {
+        return VX_ERROR;
+    }
+    char *tool_opt = eq + 1;
+
+    char *tool_args = strchr(arg, CHAR_COLON);
+
+    u32 arg_idx = 0;
+    while ((tool_args = next_tool_arg(&tool_opt)) != nullptr)
+    {
+        if (arg_idx > SK_MAX_SURGE_TOOL_ARGS)
+        {
+            continue;
+        }
+
+        ctx->surge_tool.args[arg_idx++] = mem_arena_strdup(g_sk_arena, tool_args);
+    }
+
+    ctx->surge_tool.name       = mem_arena_strdup(g_sk_arena, ctx->surge_tool.args[0]);
+    ctx->surge_tool.args_count = arg_idx;
+
+    (*i)++;
+    return VX_OK;
+}
+
 //----------------------------------------------------------------------------------------------------
 
 static inline vx_status
@@ -683,6 +753,7 @@ subcmd_surge_handler(struct sk_ctx *ctx, sk_cmd id, i32 *i, i32 argc, char **arg
         *i = argc;
     }
 
+    vx_dbglog("%s: ARGC = %d", __func__, ctx->surge_passthrough_argc);
     return VX_OK;
 }
 

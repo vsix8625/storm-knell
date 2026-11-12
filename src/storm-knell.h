@@ -4,6 +4,15 @@
 #include "sk_cli.h"
 #include "sk_cmd_cache.h"
 
+#define SK_MAX_SURGE_TOOL_ARGS 8
+
+struct sk_surge_tool
+{
+    const char *name;
+    char       *args[SK_MAX_SURGE_TOOL_ARGS];
+    i32         args_count;
+};
+
 struct sk_ctx
 {
     // initialized in sk_lexer.c
@@ -33,6 +42,8 @@ struct sk_ctx
     struct sk_arena_array *setvars;
 
     vx_mutex console_lock;
+
+    struct sk_surge_tool surge_tool;
 
     // NYI
     //    char sk_server_ssname[16];
