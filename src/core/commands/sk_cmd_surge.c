@@ -99,12 +99,6 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
         }
     }
 
-    if (run_target->kind != SK_TARGET_KIND_EXEC && run_target->kind != SK_TARGET_KIND_TEST)
-    {
-        vx_errlog("Target '%s' is not an executable.", run_target->name);
-        return VX_ERROR;
-    }
-
     if (!vx_isfile(run_target->bin_path))
     {
         vx_errlog("Binary not found on disk: %s", run_target->bin_path);
@@ -151,6 +145,12 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
     else
     {
         pd = 0;
+
+        if (run_target->kind != SK_TARGET_KIND_EXEC && run_target->kind != SK_TARGET_KIND_TEST)
+        {
+            vx_errlog("Target '%s' is not an executable.", run_target->name);
+            return VX_ERROR;
+        }
 
         argv[pd] = run_target->bin_path;
     }
