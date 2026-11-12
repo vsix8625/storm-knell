@@ -178,11 +178,12 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
     vx_printf(
         "================================================================================\n\n");
 
+    vx_printf("Command: ");
     for (i32 i = 0; i < total_argc; i++)
     {
         vx_printf("%s ", argv[i]);
     }
-    vx_printf("\n");
+    vx_printf("\n\n");
 
     struct vx_process  proc = {0};
     struct vx_proc_cfg cfg  = {0};
