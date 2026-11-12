@@ -693,38 +693,39 @@ static char *next_tool_arg(char **args)
 static inline vx_status
 opt_set_surge_tool(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32, char **argv)
 {
-    ctx->active_cmd |= owner;
-    ctx->active_opt |= opt;
-
     if (!(ctx->active_cmd & SK_CMD_SURGE))
     {
         vx_errlog("--tool opt requires 'surge' command");
         return VX_ERROR;
     }
 
+    ctx->active_cmd |= owner;
+    ctx->active_opt |= opt;
+
     char *arg = argv[*i];
     char *eq  = strchr(arg, CHAR_EQUAL);
 
     if (eq == nullptr || eq[1] == CHAR_NULTERM)
     {
+        vx_errlog("--tool requires a tool name");
         return VX_ERROR;
     }
     char *tool_opt = eq + 1;
+    char *tok      = strchr(arg, CHAR_COLON);
+    u32   arg_idx  = 0;
 
-    char *tool_args = strchr(arg, CHAR_COLON);
-
-    u32 arg_idx = 0;
-    while ((tool_args = next_tool_arg(&tool_opt)) != nullptr)
+    while ((tok = next_tool_arg(&tool_opt)) != nullptr)
     {
-        if (arg_idx > SK_MAX_SURGE_TOOL_ARGS)
+        if (arg_idx >= SK_MAX_SURGE_TOOL_ARGS)
         {
-            continue;
+            vx_errlog("--tool: too many arguments (max %d)", SK_MAX_SURGE_TOOL_ARGS);
+            return VX_ERROR;
         }
 
-        ctx->surge_tool.args[arg_idx++] = mem_arena_strdup(g_sk_arena, tool_args);
+        ctx->surge_tool.args[arg_idx++] = mem_arena_strdup(g_sk_arena, tok);
     }
 
-    ctx->surge_tool.name       = mem_arena_strdup(g_sk_arena, ctx->surge_tool.args[0]);
+    ctx->surge_tool.name       = ctx->surge_tool.args[0];
     ctx->surge_tool.args_count = arg_idx;
 
     (*i)++;

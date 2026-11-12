@@ -116,12 +116,7 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
 
     // build argv: [bin_path, ...passthrough_args, nullptr]
     i32    total_argc = ctx->surge_passthrough_argc + surge_tool_count + 1;
-    char **argv       = mem_arena_alloc(g_sk_arena, sizeof(char *) * total_argc);
-
-    vx_log("tool_args: %d + surge: %d  = total %d",
-           surge_tool_count,
-           ctx->surge_passthrough_argc,
-           surge_tool_count + ctx->surge_passthrough_argc);
+    char **argv       = mem_arena_alloc(g_sk_arena, sizeof(char *) * (total_argc + 1));
 
     if (is_surge_tool)
     {
@@ -134,13 +129,12 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
                 continue;
             }
 
-            argv[i] = ctx->surge_tool.args[i];
-            pd++;
+            argv[pd++] = ctx->surge_tool.args[i];
         }
 
         argv[pd] = run_target->bin_path;
 
-        vx_log("Running: %s with %s tool", argv[pd], ctx->surge_tool.name);
+        vx_log("Running '%s' with: %s", argv[pd], ctx->surge_tool.name);
     }
     else
     {
@@ -155,15 +149,12 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
         argv[pd] = run_target->bin_path;
     }
 
-    vx_log("%s: pad = %d", __func__, pd);
-
     for (i32 i = 0; i < ctx->surge_passthrough_argc; i++)
     {
         argv[pd + i + 1] = ctx->surge_passthrough_argv[i];
-        vx_log("extra_arg %s", argv[pd + i + 1]);
     }
 
-    argv[total_argc + 1] = nullptr;
+    argv[total_argc] = nullptr;
 
     //-------------------------------------------------------------
 
@@ -174,7 +165,6 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
     }
     vx_platform_setenv("SK_SURGE", "1");
 
-    vx_log("Surging target [%s] -> %s", run_target->name, run_target->bin_path);
     vx_printf(
         "================================================================================\n\n");
 
@@ -199,8 +189,11 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
 
     vx_printf(
         "\n\n================================================================================\n");
-    vx_log("Target [%s] exited with code: %d", run_target->name, proc.exit_code);
+
+    vx_log("%s [%s] exited with code: %d",
+           is_surge_tool ? "Tool" : "Target",
+           is_surge_tool ? ctx->surge_tool.name : run_target->name,
+           proc.exit_code);
 
     return result;
-    ;
 }
