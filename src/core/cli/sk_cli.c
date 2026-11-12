@@ -95,6 +95,7 @@ static struct sk_opt_entry g_sk_opts[] = {
     {"--profile", SK_CMD_NONE, SK_OPT_PROFILE, opt_set_bit, "Enable profiling"},
     {"--memstat", SK_CMD_NONE, SK_OPT_MEMSTAT, opt_set_bit, "Print memory statistics"},
     {"--vscode", SK_CMD_NONE, SK_OPT_VSCODE, opt_set_bit, "Generate VS Code tasks.json"},
+    {"--logfile", SK_CMD_NONE, SK_OPT_LOGFILE, opt_logfile, "Redirect logs to file"},
 
     {"--add-cc",
      SK_CMD_CONFIG,
@@ -124,7 +125,7 @@ static struct sk_opt_entry g_sk_opts[] = {
     {"--node-dump", SK_CMD_STRIKE, SK_OPT_NODE_DUMP, opt_set_bit, "Show Stormfile nodes"},
     {"--eval-dump", SK_CMD_STRIKE, SK_OPT_EVAL_DUMP, opt_set_bit, "Show Stormfile eval"},
     {"--set", SK_CMD_STRIKE, SK_OPT_SETVAR, opt_set_var, "Inject boolean variable into eval"},
-    {"--logfile", SK_CMD_STRIKE, SK_OPT_STRIKE_LOGFILE, opt_logfile, "Redirect logs to file"},
+
     // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
