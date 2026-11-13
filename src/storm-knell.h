@@ -4,7 +4,7 @@
 #include "sk_cli.h"
 #include "sk_cmd_cache.h"
 
-#define SK_MAX_SURGE_TOOL_ARGS 8
+#define SK_MAX_SURGE_TOOL_ARGS 32
 
 struct sk_surge_tool
 {

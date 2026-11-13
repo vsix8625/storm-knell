@@ -203,5 +203,10 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
            is_surge_tool ? ctx->surge_tool.name : run_target->name,
            proc.exit_code);
 
+    if (proc.exit_code != 0)
+    {
+        return VX_ERROR;
+    }
+
     return result;
 }

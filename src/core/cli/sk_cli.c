@@ -130,7 +130,11 @@ static struct sk_opt_entry g_sk_opts[] = {
 
     // ----------------------------------------------------------------------------------------------------
     // owner = SK_CMD_SURGE
-    {"--tool", SK_CMD_SURGE, SK_OPT_SURGE_TOOL, opt_set_surge_tool, "Run under tool (NYI)"},
+    {"--tool",
+     SK_CMD_SURGE,
+     SK_OPT_SURGE_TOOL,
+     opt_set_surge_tool,
+     "Run target under a tool: --tool=<name>[::arg...]"},
     // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
@@ -710,12 +714,24 @@ opt_set_surge_tool(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32, ch
         vx_errlog("--tool: requires a tool name");
         return VX_ERROR;
     }
+
     char *tool_opt = eq + 1;
     char *tok      = strchr(arg, CHAR_COLON);
     u32   arg_idx  = 0;
 
+    if (strncmp(tool_opt, "::", 2) == 0)
+    {
+        vx_errlog("--tool requires a tool name");
+        return VX_ERROR;
+    }
+
     while ((tok = next_tool_arg(&tool_opt)) != nullptr)
     {
+        if (tok[0] == CHAR_NULTERM)
+        {
+            continue;
+        }
+
         if (arg_idx >= SK_MAX_SURGE_TOOL_ARGS)
         {
             vx_errlog("--tool: too many arguments (max %d)", SK_MAX_SURGE_TOOL_ARGS);
@@ -780,19 +796,32 @@ static const struct sk_deep_help_entry g_sk_deep_helps[] = {
      "  sk strike --dry       Validates the Stormfile parsing without starting compilation."},
 
     {SK_CMD_SURGE,
-     "Usage: sk surge [target] [::: arguments...]\n\n"
+     "Usage: sk [--tool=<tool>[::tool_args...]] surge [target] [::: arguments...]\n\n"
      "Details:\n"
      "  Executes a compiled binary target. It reads 'manifest.bin' (generated\n"
      "  by 'strike' inside the .storm directory) to locate valid outputs.\n\n"
      "  If no target is specified, surge spawns the most recently compiled executable.\n\n"
-     "  Use the ':::' separator to pass raw flags or options to the target process.\n"
-     "  Everything after ':::' bypasses Storm-Knell's parser and is forwarded directly\n"
-     "  into the child process's argv array.\n\n"
+     "  Use the ':::' separator to pass raw flags or options to the spawned process.\n"
+     "  Everything after ':::' bypasses Storm-Knell's parser and is appended to the\n"
+     "  spawned process's argv array.\n\n"
+     "  Use --tool to run the target under an external tool (nm, valgrind, perf,\n"
+     "  gdb, ...). Tool arguments are separated by '::' so single colons stay\n"
+     "  literal (e.g. cycles:u). The tool command line is built as:\n\n"
+     "    <tool> [tool_args...] <target_path> [::: arguments...]\n\n"
+     "  Arguments after ':::' are appended after the target path. Whether they reach\n"
+     "  the target depends on the tool: valgrind forwards them, nm treats them as\n"
+     "  its own options. In tool mode the target may be any kind, including\n"
+     "  libraries, so inspectors like nm and objdump work too.\n\n"
      "Examples:\n"
      "  sk surge                          Spawns the last successfully built target.\n"
      "  sk surge foo                      Spawns the target named 'foo'.\n"
      "  sk surge foo ::: -arg1 --flags    Spawns 'foo' and forwards '-arg1 --flags' directly to "
-     "it."},
+     "it.\n"
+     "  sk --tool=nm surge foo            Lists symbols of 'foo'.\n"
+     "  sk --tool=valgrind::--leak-check=full surge foo ::: -arg1\n"
+     "                                    Runs 'foo -arg1' under valgrind.\n"
+     "  sk --tool=perf::stat::-e::cycles:u surge\n"
+     "                                    Counts user cycles of the last built target.\n"},
 
     {SK_CMD_INIT,
      "Usage: sk init [options]\n\n"
