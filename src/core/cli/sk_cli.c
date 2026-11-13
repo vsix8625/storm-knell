@@ -676,10 +676,10 @@ static char *next_tool_arg(char **args)
 
     while (*p)
     {
-        if (*p == CHAR_COLON)
+        if (*p == CHAR_COLON && p[1] == CHAR_COLON)
         {
             *p    = CHAR_NULTERM;
-            *args = p + 1;
+            *args = p + 2;
             return start;
         }
 
@@ -707,7 +707,7 @@ opt_set_surge_tool(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32, ch
 
     if (eq == nullptr || eq[1] == CHAR_NULTERM)
     {
-        vx_errlog("--tool requires a tool name");
+        vx_errlog("--tool: requires a tool name");
         return VX_ERROR;
     }
     char *tool_opt = eq + 1;

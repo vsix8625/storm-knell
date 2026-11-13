@@ -215,19 +215,19 @@ sk clean strike surge ::: -h
 
 Use `--tool=<tool_name>` before specifying a target to execute it with an external tool.
 
-You can pass arguments to the tool by appending `:` followed by its arguments to the tool name. Use `:::` to separate tool arguments from arguments passed to the target binary.
+You can pass arguments to the tool by appending `::` followed by its arguments to the tool name. Use `:::` to separate tool arguments from arguments passed to the target binary.
 
 ```bash
 # Execute the target with nm
-sk --tool=nm surge
+sk --tool=nm::-D surge
 
 # Pass multiple arguments to valgrind
-sk --tool=valgrind:--tool=memcheck:--leak=full surge my_app2
+sk --tool=valgrind::--tool=memcheck::--leak=full surge my_app2
 ```
 
 **Argument separation:**
 
-- `:` separates the tool name from its arguments.
+- `::` separates the tool name from its arguments.
 - `:::` separates the tool invocation from the target binary's arguments.
 
 **Note**: Arguments after `:::` are passed to the target binary. In tool mode they are appended after the target path on the tool’s command line, so the tool receives them. Whether they reach the target depends on the tool (valgrind and gdb --args forward them, nm treats them as its own options).

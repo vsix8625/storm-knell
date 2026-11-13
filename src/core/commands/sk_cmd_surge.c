@@ -134,7 +134,10 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
 
         argv[pd] = run_target->bin_path;
 
-        vx_log("Running '%s' with: %s", argv[pd], ctx->surge_tool.name);
+        if (ctx->surge_tool.name != nullptr)
+        {
+            vx_log("Running '%s' with: %s", argv[pd], ctx->surge_tool.name);
+        }
     }
     else
     {
@@ -171,14 +174,19 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
     vx_printf("Command: ");
     for (i32 i = 0; i < total_argc; i++)
     {
-        vx_printf("%s ", argv[i]);
+        vx_printf("%s ", argv[i] != nullptr ? argv[i] : "N/a");
     }
     vx_printf("\n\n");
 
     struct vx_process  proc = {0};
     struct vx_proc_cfg cfg  = {0};
 
-    vx_status result = vx_process_spawn(&proc, argv[0], argv, &cfg);
+    vx_status result = VX_OK;
+
+    if (argv[0] != nullptr)
+    {
+        result = vx_process_spawn(&proc, argv[0], argv, &cfg);
+    }
 
     if (result != VX_OK)
     {
