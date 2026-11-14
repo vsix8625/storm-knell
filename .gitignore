@@ -1,4 +1,8 @@
 # Prerequisites
+
+/storm-knell-pkg/*
+!/storm-knell-pkg/PKGBUILD
+
 *.d
 .*
 build/

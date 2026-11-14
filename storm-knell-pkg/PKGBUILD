@@ -1,0 +1,29 @@
+# Maintainer: vsix8625 <panagiotis.panteli.dev@gmail.com>
+pkgname="storm-knell"
+pkgver="0.17.5"
+pkgrel=1
+
+pkgdesc="A C/C++ build and project automation tool"
+arch=(x86_64)
+url="https://github.com/vsix8625/storm-knell"
+license=('MIT')
+depends=(glibc xxhash)
+makedepends=(gcc)
+install=
+changelog=
+source=("https://github.com/vsix8625/storm-knell/releases/download/v${pkgver}/storm-knell-${pkgver}.tar.gz")
+noextract=()
+
+sha256sums=('74bb7b95c8451a36b34ac703daf42269584b3da6b3be162c02d671bef9f2a531')
+
+validpgpkeys=()
+
+build() {
+	cd "$pkgname-$pkgver"
+	bash scripts/build_linux.sh
+}
+
+package() {
+	cd "$pkgname-$pkgver"
+	install -Dm755 crater/sk/release/bin/sk "$pkgdir/usr/bin/sk"
+}

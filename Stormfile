@@ -109,9 +109,6 @@ target sk
         -Isrc/core/sk_cache
         -Isrc/core/util
         -Iexternal/vx/include
-
-    // Installs the binary directly to the desired path
-    install: ~/.local/bin
 }
 
 // sk strike --set=sk_debug
