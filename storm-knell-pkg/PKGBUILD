@@ -14,7 +14,7 @@ changelog=
 source=("https://github.com/vsix8625/storm-knell/releases/download/v${pkgver}/storm-knell-${pkgver}.tar.gz")
 noextract=()
 
-sha256sums=('74bb7b95c8451a36b34ac703daf42269584b3da6b3be162c02d671bef9f2a531')
+sha256sums=('169c590c081306dccfb7133bdef554441d88d5dad127b2c5ebed52c479341f95')
 
 validpgpkeys=()
 

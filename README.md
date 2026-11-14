@@ -1,4 +1,5 @@
 # Storm-Knell (sk)
+
 A fast, cache-aware build tool with its own DSL — describe your project once, let sk figure out the rest.
 
 ---
@@ -11,36 +12,55 @@ A fast, cache-aware build tool with its own DSL — describe your project once, 
 
 Before running the bootstrap script, ensure the following are installed:
 
-- **General:** `git`, `libxxhash` (Development Headers)
+- **General:** `git`, `libxxhash` (development headers)
 - **Arch Linux:** `sudo pacman -S base-devel xxhash`
 
 ---
 
 ## Installation
 
+Clone the repository:
+
 ```bash
 git clone --recurse-submodules https://github.com/vsix8625/storm-knell.git
 cd storm-knell
 ```
 
-## Bootstrap
+### Arch Linux Package
 
-Run the bootstrap script once to compile `sk` with system C compiler:
+Storm-Knell can be built and installed as a native Arch Linux package using `makepkg`.
+
+```bash
+cd storm-knell-pkg
+makepkg -si
+```
+
+This downloads the source archive from GitHub Releases, verifies its SHA-256 checksum, builds the package, and installs it through pacman.
+
+### Manual Installation
+
+#### Bootstrap
+
+Run the bootstrap script once to compile `sk` with your system C compiler:
 
 ```bash
 ./scripts/build_linux.sh
 ```
-### or
+
+Alternatively, use the Python build script:
+
 ```bash
 python3 ./scripts/build.py
 ```
 
-## Self build and install
+#### Self-build and Optional Installation
 
-Once bootstrapped, `sk` rebuilds itself via its own `Stormfile` and installs the binary directly to local user-directory:
+Once bootstrapped, `sk` can rebuild itself via its own `Stormfile`.
 
-- Default Install Location: `~/.local/bin`
-- Custom Install Location: Edit the `install` keyword value inside the `Stormfile` if you want to place the binary in a different `$PATH`-aware user directory.
+Installation is optional and can be configured to place the binary in a user-owned directory:
+
+- **Example Install Location:** `~/.local/bin`
+- **Custom Install Location:** Edit the `install` keyword value inside the `Stormfile` to specify another user directory.
 
 ---
 
