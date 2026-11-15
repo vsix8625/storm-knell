@@ -19,14 +19,22 @@ out="$root/$PKGDIR"
 cd "$root"
 
 if [[ -n "$(git status --porcelain)" ]]; then
-    echo "Working tree not clean. Commit first." >&2
-    exit 1
+    if [[ -n "${DRY_RUN:-}" ]]; then
+        echo "Warning: working tree not clean (dry run, continuing)." >&2
+    else
+        echo "Working tree not clean. Commit first." >&2
+        exit 1
+    fi
 fi
 
 git submodule update --init --recursive
 
 git ls-files -z --recurse-submodules \
-    | grep -zv '^storm-knell-pkg/' \
+    | grep -zvE \
+        -e '^(storm-knell-pkg|docs|utils/nvim|utils/emacs|\.github)/' \
+        -e '^(\.gitignore|\.gitmodules|README\.md)$' \
+        -e '^scripts/release\.sh$' \
+        -e '^external/vx/compile_commands\.json$' \
     | tar --null -T - \
           --transform="s,^,${NAME}-${ver}/," \
           -czf "$out/$tarball"

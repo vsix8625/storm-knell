@@ -9,6 +9,7 @@ url="https://github.com/vsix8625/storm-knell"
 license=('MIT')
 depends=(glibc xxhash)
 makedepends=(gcc)
+optdepends=('bash-completion: tab completion for sk')
 options=(!debug)
 install=
 changelog=
@@ -27,4 +28,5 @@ build() {
 package() {
 	cd "$pkgname-$pkgver"
 	install -Dm755 crater/sk/release/bin/sk "$pkgdir/usr/bin/sk"
+	install -Dm644 utils/bash/sk_completion.sh "$pkgdir/usr/share/bash-completion/completions/sk"
 }
