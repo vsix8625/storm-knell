@@ -9,6 +9,7 @@ url="https://github.com/vsix8625/storm-knell"
 license=('MIT')
 depends=(glibc xxhash)
 makedepends=(gcc)
+options=(!debug)
 install=
 changelog=
 source=("https://github.com/vsix8625/storm-knell/releases/download/v${pkgver}/storm-knell-${pkgver}.tar.gz")

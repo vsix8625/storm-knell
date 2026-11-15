@@ -1,7 +1,7 @@
 # Prerequisites
 
-/storm-knell-pkg/*
-!/storm-knell-pkg/PKGBUILD
+/storm-knell-pkg/arch/*
+!/storm-knell-pkg/arch/PKGBUILD
 
 *.d
 .*
