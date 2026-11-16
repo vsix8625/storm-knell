@@ -115,7 +115,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         u32 total_sources = 0;
 
-        for (u32 i = 0; i < eval_result->target_count; i++)
+        for (u32 i = 0; i < eval_result->target_count; ++i)
         {
             struct sk_target *t = &eval_result->targets[i];
 
@@ -183,7 +183,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
         u32 sorted_count = 0;
         // ----------------------------------------------------------
 
-        for (u32 i = 0; i < t_count; i++)
+        for (u32 i = 0; i < t_count; ++i)
         {
             if (topo_visit(eval_result, i, sorted, &sorted_count, visited, in_stack) != VX_OK)
             {
@@ -203,7 +203,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
         vx_platform_get_cache_dir();  // warm up
 
-        for (u32 i = 0; i < sorted_count; i++)
+        for (u32 i = 0; i < sorted_count; ++i)
         {
             struct sk_target *t    = &eval_result->targets[sorted[i]];
             struct sk_meta   *meta = mem_arena_zalloc(g_sk_arena, sizeof(struct sk_meta));
@@ -232,7 +232,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             //----------------------------------------------------------------------------------------------------
             // pch depends injection
 
-            for (u32 d = 0; d < t->depend_count; d++)
+            for (u32 d = 0; d < t->depend_count; ++d)
             {
                 for (u32 j = 0; j < eval_result->target_count; j++)
                 {

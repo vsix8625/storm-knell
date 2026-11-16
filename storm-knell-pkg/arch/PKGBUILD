@@ -1,6 +1,6 @@
 # Maintainer: vsix8625 <panagiotis.panteli.dev@gmail.com>
 pkgname="storm-knell"
-pkgver="0.17.5"
+pkgver=0.17.6
 pkgrel=1
 
 pkgdesc="A C/C++ build and project automation tool"
@@ -16,7 +16,7 @@ changelog=
 source=("https://github.com/vsix8625/storm-knell/releases/download/v${pkgver}/storm-knell-${pkgver}.tar.gz")
 noextract=()
 
-sha256sums=('169c590c081306dccfb7133bdef554441d88d5dad127b2c5ebed52c479341f95')
+sha256sums=('19ff83af9987cd79d8f36576ea661726c090e7c5d53fd0fbfa7c4b64f848243c')
 
 validpgpkeys=()
 

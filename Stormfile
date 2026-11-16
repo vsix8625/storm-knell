@@ -82,11 +82,6 @@ target sk
         -fvisibility=hidden
         -DNDEBUG
 
-    exclude:
-        build/
-        test/
-        docs/
-
     if(__os__ == "linux")
     {
         exclude::
@@ -124,11 +119,6 @@ if(sk_debug)
         // defines can also be set in cflags
         cflags:: -g -DDEBUG
 
-        exclude:
-            build/
-            test/
-            docs/
-
         if(__os__ == "linux")
         {
             exclude::
@@ -139,6 +129,7 @@ if(sk_debug)
         sources:
             src/
             external/vx/src/
+
         includes:
             -Isrc
             -Isrc/core

@@ -31,7 +31,7 @@ cd storm-knell
 Storm-Knell can be built and installed as a native Arch Linux package using `makepkg`.
 
 ```bash
-cd storm-knell-pkg
+cd storm-knell-pkg/arch
 makepkg -si
 ```
 
