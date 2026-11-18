@@ -695,6 +695,19 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             vx_ticks link_time = {0};
             vx_ticks_start(&link_time);
 
+            if (vx_isatty(STDOUT_FILENO))
+            {
+                vx_log("%sTotal targets: %s%u%s",
+                       SK_ANSI_BRIGHT_WHITE,
+                       SK_ANSI_CORAL,
+                       sorted_count,
+                       SK_ANSI_RESET);
+            }
+            else
+            {
+                vx_log("Total targets: %u", sorted_count);
+            }
+
             for (u32 i = 0; i < sorted_count; i++)
             {
                 struct sk_target *t    = &eval_result->targets[sorted[i]];

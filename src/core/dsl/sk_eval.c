@@ -8,6 +8,7 @@
 
 #include "vx_fs.h"
 #include "vx_cpu.h"
+#include "vx_process.h"
 #include "vx_io.h"
 #include <stdlib.h>
 
@@ -1307,6 +1308,47 @@ static void load_builtin_vars(struct sk_eval_result *result)
     if (result == nullptr)
     {
         return;
+    }
+
+    struct vx_process  proc = {0};
+    struct vx_proc_cfg cfg  = {.flags = VX_PROCESS_FLAGS_CAPTURE};
+
+    char    buf[VX_BUF_SIZE_128];
+    vx_sbuf proc_sbuf = {.data = buf, .size = sizeof(buf), .offset = 0};
+
+    u32   idx                  = 0;
+    char *argv[VX_BUF_SIZE_16] = {0};
+
+    argv[0]     = "git";
+    argv[++idx] = "rev-parse";
+    argv[++idx] = "HEAD";
+    argv[++idx] = nullptr;
+
+    vx_status status = vx_process_spawn(&proc, argv[0], argv, &cfg);
+
+    if (status == VX_OK)
+    {
+        vx_process_consume_output(&proc, &proc_sbuf);
+        vx_process_wait(&proc);
+
+        if (proc.exit_code == 0)
+        {
+            char *latest_commit = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_256);
+            // trim new-line
+            buf[strcspn(buf, "\r\n")] = '\0';
+            snprintf(latest_commit, VX_BUF_SIZE_256, "\"%s\"", buf);
+            sk_eval_set_builtin(result, "__git_head__", latest_commit);
+
+            vx_dbglog("latest commit hash: %s", latest_commit);
+        }
+        else
+        {
+            vx_errlog("git parse-rev HEAD failed");
+        }
+    }
+    else
+    {
+        vx_errlog("vx_process_spawn failed");
     }
 
     char *maj_buf = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_16);

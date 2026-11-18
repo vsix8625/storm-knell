@@ -28,7 +28,7 @@ if(__os__ == "linux")
 
 major: 0
 minor: 17
-patch: 6
+patch: 9
 
 codegen src/core/sk_config.h
 {
@@ -39,6 +39,8 @@ codegen src/core/sk_config.h
     define: SK_VERSION_PATCH patch
 
     define: SK_VERSION_STRING "major.minor.patch"
+
+    define: SK_GIT_HEAD __git_head__
 }
 
 target sk
@@ -106,14 +108,14 @@ target sk
         -Iexternal/vx/include
 }
 
-// sk strike --set=sk_debug
-if(sk_debug)
+// sk strike --set=dev
+if(dev)
 {
     cc: /usr/bin/clang // will override gcc from top and use clang for this target
     linker: lld
-    target skdbg
+    target skdev
     {
-        out: skdbg
+        out: skdev
         mode: debug
 
         // defines can also be set in cflags

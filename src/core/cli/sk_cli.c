@@ -135,7 +135,6 @@ static struct sk_opt_entry g_sk_opts[] = {
      SK_OPT_SURGE_TOOL,
      opt_set_surge_tool,
      "Run target under a tool: --tool=<name>[::arg...]"},
-    // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
     // owner = SK_CMD_CACHE
@@ -695,15 +694,13 @@ static char *next_tool_arg(char **args)
 }
 
 static inline vx_status
-opt_set_surge_tool(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32, char **argv)
+opt_set_surge_tool(struct sk_ctx *ctx, sk_cmd, sk_opt opt, i32 *i, i32, char **argv)
 {
     if (!(ctx->active_cmd & SK_CMD_SURGE))
     {
         vx_errlog("--tool opt requires 'surge' command");
         return VX_ERROR;
     }
-
-    ctx->active_cmd |= owner;
     ctx->active_opt |= opt;
 
     char *arg = argv[*i];
