@@ -28,7 +28,7 @@ if(__os__ == "linux")
 
 major: 0
 minor: 17
-patch: 9
+patch: 11
 
 codegen src/core/sk_config.h
 {
@@ -37,9 +37,19 @@ codegen src/core/sk_config.h
     define: SK_VERSION_MAJOR major
     define: SK_VERSION_MINOR minor
     define: SK_VERSION_PATCH patch
-
     define: SK_VERSION_STRING "major.minor.patch"
 
+    literal: '#if __has_include("sk_git.h")'
+    literal: '#include "sk_git.h"'
+    literal: "#endif"
+    literal: "#ifndef SK_GIT_HEAD"
+    literal: '#define SK_GIT_HEAD "unknown"'
+    literal: "#endif"
+}
+
+codegen src/sk_git.h
+{
+    literal: "#pragma once"
     define: SK_GIT_HEAD __git_head__
 }
 

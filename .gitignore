@@ -3,6 +3,9 @@
 /storm-knell-pkg/arch/*
 !/storm-knell-pkg/arch/PKGBUILD
 
+src/sk_git.h
+.sk_git_head
+
 *.d
 .*
 build/
@@ -46,3 +49,4 @@ Module.symvers
 Mkfile.old
 dkms.conf
 *.dwo
+

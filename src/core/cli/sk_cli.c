@@ -372,7 +372,7 @@ static vx_status cli_execute(struct sk_ctx *ctx)
 
     if (ctx->active_opt & SK_OPT_VERSION)
     {
-        vx_log("Version: (%s)", SK_VERSION_STRING);
+        vx_log("Version: %s (git: %s)", SK_VERSION_STRING, SK_GIT_HEAD);
 
         sk_shutdown();
         exit(VX_EXIT_SUCCESS);

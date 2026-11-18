@@ -1025,6 +1025,9 @@ vx_status sk_top_level_eval(struct sk_parser *p, struct sk_eval_result *result)
 
     vx_sv stormfile = g_sk_ctx.stormfile;
 
+    bool uses_git_head     = strstr(stormfile.data, "__git_head__") != nullptr;
+    g_sk_ctx.uses_git_head = uses_git_head;
+
     u32 node = p->nodes->data_a[1];  // program first child
 
     char **snapshot = mem_arena_alloc(g_sk_arena, sizeof(char *) * SK_MAX_VARS);
@@ -1310,46 +1313,73 @@ static void load_builtin_vars(struct sk_eval_result *result)
         return;
     }
 
-    struct vx_process  proc = {0};
-    struct vx_proc_cfg cfg  = {.flags = VX_PROCESS_FLAGS_CAPTURE};
-
-    char    buf[VX_BUF_SIZE_128];
-    vx_sbuf proc_sbuf = {.data = buf, .size = sizeof(buf), .offset = 0};
-
-    u32   idx                  = 0;
-    char *argv[VX_BUF_SIZE_16] = {0};
-
-    argv[0]     = "git";
-    argv[++idx] = "rev-parse";
-    argv[++idx] = "HEAD";
-    argv[++idx] = nullptr;
-
-    vx_status status = vx_process_spawn(&proc, argv[0], argv, &cfg);
-
-    if (status == VX_OK)
+    // TODO: need to add a .sk_git_head for tarball then read it from there
+    if (g_sk_ctx.uses_git_head)
     {
-        vx_process_consume_output(&proc, &proc_sbuf);
-        vx_process_wait(&proc);
+        struct vx_process  proc = {0};
+        struct vx_proc_cfg cfg  = {.flags = VX_PROCESS_FLAGS_CAPTURE};
 
-        if (proc.exit_code == 0)
-        {
-            char *latest_commit = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_256);
-            // trim new-line
-            buf[strcspn(buf, "\r\n")] = '\0';
-            snprintf(latest_commit, VX_BUF_SIZE_256, "\"%s\"", buf);
-            sk_eval_set_builtin(result, "__git_head__", latest_commit);
+        char    buf[VX_BUF_SIZE_128];
+        vx_sbuf proc_sbuf = {.data = buf, .size = sizeof(buf), .offset = 0};
 
-            vx_dbglog("latest commit hash: %s", latest_commit);
-        }
-        else
+        char *git_head = nullptr;
+
+        u32   idx                  = 0;
+        char *argv[VX_BUF_SIZE_16] = {0};
+
+        argv[0]     = "git";
+        argv[++idx] = "rev-parse";
+        argv[++idx] = "--verify";
+        argv[++idx] = "--quiet";
+        argv[++idx] = "HEAD";
+        argv[++idx] = nullptr;
+
+        sk_eval_set_builtin(result, "__git_head__", "\"unknown\"");
+
+        vx_status status = vx_process_spawn(&proc, argv[0], argv, &cfg);
+
+        if (status == VX_OK)
         {
-            vx_errlog("git parse-rev HEAD failed");
+            vx_process_consume_output(&proc, &proc_sbuf);
+            vx_process_wait(&proc);
+
+            if (proc.exit_code == 0)
+            {
+                git_head = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_256);
+                // trim new-line
+                buf[strcspn(buf, "\r\n")] = CHAR_NULTERM;
+                if (!(buf[0] == CHAR_NULTERM))
+                {
+                    snprintf(git_head, VX_BUF_SIZE_256, "\"%s\"", buf);
+                }
+            }
+            else
+            {
+                vx_errlog("'git rev-parse HEAD' (exit %d): not a git repo, or no commits yet",
+                          proc.exit_code);
+            }
         }
-    }
-    else
-    {
-        vx_errlog("vx_process_spawn failed");
-    }
+
+        if (git_head == nullptr)
+        {
+            vx_sv sv = vx_fs_read(".sk_git_head", sk_arena_alloc, g_sk_arena);
+            if (sv.data != nullptr && sv.data[0] != CHAR_NULTERM)
+            {
+                char tmp[VX_BUF_SIZE_128] = {0};
+                snprintf(tmp, sizeof(tmp), "%s", sv.data);
+                tmp[strcspn(tmp, "\r\n")] = CHAR_NULTERM;
+
+                git_head = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_256);
+                snprintf(git_head, VX_BUF_SIZE_256, "\"%s\"", tmp);
+            }
+        }
+
+        if (git_head != nullptr)
+        {
+            sk_eval_set_builtin(result, "__git_head__", git_head);
+            vx_dbglog("Git-head: %s", git_head);
+        }
+    }  // end of uses_git_head
 
     char *maj_buf = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_16);
     char *min_buf = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_16);

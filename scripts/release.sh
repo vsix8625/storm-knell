@@ -29,15 +29,21 @@ fi
 
 git submodule update --init --recursive
 
+git rev-parse HEAD > "$root/.sk_git_head"
+
+{
 git ls-files -z --recurse-submodules \
     | grep -zvE \
         -e '^(storm-knell-pkg|docs|utils/nvim|utils/emacs|\.github)/' \
         -e '^(\.gitignore|\.gitmodules|README\.md)$' \
         -e '^scripts/release\.sh$' \
-        -e '^external/vx/compile_commands\.json$' \
-    | tar --null -T - \
+        -e '^external/vx/compile_commands\.json$' 
+	printf '.sk_git_head\0'
+}  | tar --null -T - \
           --transform="s,^,${NAME}-${ver}/," \
           -czf "$out/$tarball"
+
+rm -f "$root/.sk_git_head"
 
 if [[ -n "${DRY_RUN:-}" ]]; then
     tar tzf "$out/$tarball"

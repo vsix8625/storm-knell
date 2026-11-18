@@ -2,6 +2,11 @@
 #pragma once
 #define SK_VERSION_MAJOR 0
 #define SK_VERSION_MINOR 17
-#define SK_VERSION_PATCH 9
-#define SK_VERSION_STRING "0.17.9"
-#define SK_GIT_HEAD "b7e655591b06b6fe3d0c71d8c1eb02bd3a40dcb7"
+#define SK_VERSION_PATCH 11
+#define SK_VERSION_STRING "0.17.11"
+#if __has_include("sk_git.h")
+#include "sk_git.h"
+#endif
+#ifndef SK_GIT_HEAD
+#define SK_GIT_HEAD "unknown"
+#endif

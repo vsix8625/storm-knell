@@ -45,9 +45,7 @@ struct sk_ctx
 
     struct sk_surge_tool surge_tool;
 
-    // NYI
-    //    char sk_server_ssname[16];
-    //    char sk_server_sskey[16];
+    bool uses_git_head;
 };
 
 void sk_shutdown(void);
