@@ -1366,17 +1366,21 @@ static void load_builtin_vars(struct sk_eval_result *result)
         {
             git_failed = true;
 
-            vx_sv sv = vx_fs_read(".sk_git_head", sk_arena_alloc, g_sk_arena);
-            if (sv.data != nullptr && sv.data[0] != CHAR_NULTERM)
+            if (vx_isfile(".sh_git_head"))
             {
-                char tmp[VX_BUF_SIZE_128] = {0};
-                snprintf(tmp, sizeof(tmp), "%s", sv.data);
-                tmp[strcspn(tmp, "\r\n")] = CHAR_NULTERM;
+                vx_sv sv = vx_fs_read(".sk_git_head", sk_arena_alloc, g_sk_arena);
 
-                if (tmp[0] != CHAR_NULTERM)
+                if (sv.data != nullptr && sv.data[0] != CHAR_NULTERM)
                 {
-                    git_head = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_256);
-                    snprintf(git_head, VX_BUF_SIZE_256, "\"%s\"", tmp);
+                    char tmp[VX_BUF_SIZE_128] = {0};
+                    snprintf(tmp, sizeof(tmp), "%s", sv.data);
+                    tmp[strcspn(tmp, "\r\n")] = CHAR_NULTERM;
+
+                    if (tmp[0] != CHAR_NULTERM)
+                    {
+                        git_head = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_256);
+                        snprintf(git_head, VX_BUF_SIZE_256, "\"%s\"", tmp);
+                    }
                 }
             }
         }
