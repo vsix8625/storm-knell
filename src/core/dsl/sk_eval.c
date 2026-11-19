@@ -4,7 +4,7 @@
 #include "sk_util.h"
 #include "sk_paths.h"
 #include "sk_array.h"
-#include "sk_config.h"
+#include "config.h"
 
 #include "vx_fs.h"
 #include "vx_cpu.h"
@@ -1313,16 +1313,16 @@ static void load_builtin_vars(struct sk_eval_result *result)
         return;
     }
 
-    // TODO: need to add a .sk_git_head for tarball then read it from there
     if (g_sk_ctx.uses_git_head)
     {
         struct vx_process  proc = {0};
         struct vx_proc_cfg cfg  = {.flags = VX_PROCESS_FLAGS_CAPTURE};
 
-        char    buf[VX_BUF_SIZE_128];
-        vx_sbuf proc_sbuf = {.data = buf, .size = sizeof(buf), .offset = 0};
+        char    buf[VX_BUF_SIZE_128] = {0};
+        vx_sbuf proc_sbuf            = {.data = buf, .size = sizeof(buf), .offset = 0};
 
-        char *git_head = nullptr;
+        char *git_head   = nullptr;
+        bool  git_failed = false;
 
         u32   idx                  = 0;
         char *argv[VX_BUF_SIZE_16] = {0};
@@ -1345,23 +1345,27 @@ static void load_builtin_vars(struct sk_eval_result *result)
 
             if (proc.exit_code == 0)
             {
-                git_head = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_256);
-                // trim new-line
-                buf[strcspn(buf, "\r\n")] = CHAR_NULTERM;
-                if (!(buf[0] == CHAR_NULTERM))
+                buf[strcspn(buf, "\r\n")] = CHAR_NULTERM;  // trim new-line
+                if (buf[0] != CHAR_NULTERM)
                 {
+                    git_head = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_256);
                     snprintf(git_head, VX_BUF_SIZE_256, "\"%s\"", buf);
                 }
             }
             else
             {
-                vx_errlog("'git rev-parse HEAD' (exit %d): not a git repo, or no commits yet",
-                          proc.exit_code);
+                vx_dbglog("git rev-parse HEAD failed (exit %d)", proc.exit_code);
             }
+        }
+        else
+        {
+            vx_dbglog("vx_process_spawn(git) failed");
         }
 
         if (git_head == nullptr)
         {
+            git_failed = true;
+
             vx_sv sv = vx_fs_read(".sk_git_head", sk_arena_alloc, g_sk_arena);
             if (sv.data != nullptr && sv.data[0] != CHAR_NULTERM)
             {
@@ -1369,15 +1373,22 @@ static void load_builtin_vars(struct sk_eval_result *result)
                 snprintf(tmp, sizeof(tmp), "%s", sv.data);
                 tmp[strcspn(tmp, "\r\n")] = CHAR_NULTERM;
 
-                git_head = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_256);
-                snprintf(git_head, VX_BUF_SIZE_256, "\"%s\"", tmp);
+                if (tmp[0] != CHAR_NULTERM)
+                {
+                    git_head = mem_arena_alloc(g_sk_arena, VX_BUF_SIZE_256);
+                    snprintf(git_head, VX_BUF_SIZE_256, "\"%s\"", tmp);
+                }
             }
         }
 
         if (git_head != nullptr)
         {
             sk_eval_set_builtin(result, "__git_head__", git_head);
-            vx_dbglog("Git-head: %s", git_head);
+            vx_dbglog("Git-head%s: %s", git_failed ? " (from .sk_git_head)" : "", git_head);
+        }
+        else
+        {
+            vx_warn("__git_head__: no git repo and no .sk_git_head, using \"unknown\"");
         }
     }  // end of uses_git_head
 

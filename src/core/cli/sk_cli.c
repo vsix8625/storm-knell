@@ -9,7 +9,7 @@
 #include "sk_paths.h"
 #include "sk_commands.h"
 #include "sk_globals.h"
-#include "sk_config.h"
+#include "config.h"
 #include "sk_cli.h"
 #include "sk_util.h"
 #include "sk_cmd_strike.h"

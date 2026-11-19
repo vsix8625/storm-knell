@@ -28,9 +28,9 @@ if(__os__ == "linux")
 
 major: 0
 minor: 17
-patch: 11
+patch: 12
 
-codegen src/core/sk_config.h
+codegen src/config.h
 {
     literal: "#pragma once"
 

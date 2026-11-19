@@ -4,7 +4,7 @@
 #include "sk_paths.h"
 #include "sk_util.h"
 #include "sk_globals.h"
-#include "sk_config.h"
+#include "config.h"
 #include "sk_array.h"
 #include "sk_cmd_init.h"
 
