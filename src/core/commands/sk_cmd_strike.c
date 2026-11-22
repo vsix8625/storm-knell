@@ -927,10 +927,17 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             VX_CAST(void, prune_target_b);
         }
     }
-    else
-    {
-        vx_errlog("Strike aborted...");
-    }
+    /* else */
+    /* { */
+    /*     if (ctx->active_opt & SK_OPT_EVAL_DUMP) */
+    /*     { */
+    /*         vx_dbglog("Detected: --eval-dump, build aborted"); */
+    /*     } */
+    /*     else */
+    /*     { */
+    /*         vx_errlog("Build aborted"); */
+    /*     } */
+    /* } */
 
     //----------------------------------------------------------------------------------------------------
     // Logs

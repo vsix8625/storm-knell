@@ -5,7 +5,6 @@
 #include "vx_io.h"
 #include "vx_fs.h"
 #include "vx_cpu.h"
-
 #include "sk_paths.h"
 #include "sk_commands.h"
 #include "sk_globals.h"
@@ -14,8 +13,8 @@
 #include "sk_util.h"
 #include "sk_cmd_strike.h"
 #include "storm-knell.h"
-
 #include "mem.h"
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -372,7 +371,7 @@ static vx_status cli_execute(struct sk_ctx *ctx)
 
     if (ctx->active_opt & SK_OPT_VERSION)
     {
-        vx_log("Version: %s (git: %s)", SK_VERSION_STRING, SK_GIT_HEAD);
+        vx_printf("storm-knell: v%s (git: %s)\n", SK_VERSION_STRING, SK_GIT_HEAD);
 
         sk_shutdown();
         exit(VX_EXIT_SUCCESS);

@@ -10,9 +10,14 @@ bool sk_arena_array_contains_hash(struct sk_arena_array *arr, const u8 hash[SK_X
         return false;
     }
 
-    if (arr->items[0] == hash || arr->items[arr->count] == hash)
+    if (arr->items[0] == hash || arr->items[arr->count - 1] == hash)
     {
         return true;
+    }
+
+    if (arr->count <= 2)
+    {
+        return false;
     }
 
     for (u32 i = 1; i < arr->count - 1; i++)
@@ -38,6 +43,11 @@ bool sk_arena_array_contains(struct sk_arena_array *arr, const char *path)
     for (u32 i = 0; i < arr->count; i++)
     {
         const char *item = (const char *) arr->items[i];
+
+        if (item == nullptr)
+        {
+            continue;
+        }
 
         if (strlen(item) != path_len)
         {
