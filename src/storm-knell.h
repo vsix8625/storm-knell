@@ -45,6 +45,8 @@ struct sk_ctx
 
     struct sk_surge_tool surge_tool;
 
+    i32 child_exit;
+
     bool uses_git_head;
 };
 

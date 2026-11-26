@@ -18,6 +18,7 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
                   ctx->rpath ? ctx->rpath : vx_getcwd_fn());
         return VX_ERROR;
     }
+
     if (vx_chdir(ctx->rpath) != VX_OK)
     {
         vx_errlog("Failed to change dir to project root: %s", ctx->rpath);
@@ -81,10 +82,7 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
         // pick the most recent target
         for (u32 i = 0; i < header.target_count; i++)
         {
-            if (targets[i].kind != SK_TARGET_KIND_EXEC)
-            {
-                continue;
-            }
+            if (targets[i].kind != SK_TARGET_KIND_EXEC) continue;
 
             if (run_target == nullptr || targets[i].last_strike_ts > run_target->last_strike_ts)
             {
@@ -105,14 +103,12 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
         return VX_ERROR;
     }
 
+    bool verbose          = ctx->active_opt & SK_OPT_VERBOSE;
     bool is_surge_tool    = ctx->active_opt & SK_OPT_SURGE_TOOL;
     i32  surge_tool_count = 0;
     i32  pd               = 0;
 
-    if (is_surge_tool)
-    {
-        surge_tool_count = ctx->surge_tool.args_count;
-    }
+    if (is_surge_tool) surge_tool_count = ctx->surge_tool.args_count;
 
     // build argv: [bin_path, ...passthrough_args, nullptr]
     i32    total_argc = ctx->surge_passthrough_argc + surge_tool_count + 1;
@@ -124,20 +120,12 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
         pd++;
         for (i32 i = pd; i < surge_tool_count; i++)
         {
-            if (ctx->surge_tool.args[i] == nullptr)
-            {
-                continue;
-            }
+            if (ctx->surge_tool.args[i] == nullptr) continue;
 
             argv[pd++] = ctx->surge_tool.args[i];
         }
 
         argv[pd] = run_target->bin_path;
-
-        if (ctx->surge_tool.name != nullptr)
-        {
-            vx_log("Running '%s' with: %s", argv[pd], ctx->surge_tool.name);
-        }
     }
     else
     {
@@ -171,7 +159,7 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
     vx_printf(
         "================================================================================\n\n");
 
-    if (ctx->active_opt & SK_OPT_VERBOSE)
+    if (verbose)
     {
         vx_printf("Command: ");
         for (i32 i = 0; i < total_argc; i++)
@@ -201,14 +189,29 @@ vx_status sk_cmd_surge_fn(struct sk_ctx *ctx)
     vx_printf(
         "\n\n================================================================================\n");
 
-    vx_log("%s [%s] exited with code: %d",
-           is_surge_tool ? "Tool" : "Target",
-           is_surge_tool ? ctx->surge_tool.name : run_target->name,
-           proc.exit_code);
-
-    if (proc.exit_code != 0)
+    i32 code = proc.exit_code;
+    if (proc.exit_code < 0)
     {
-        return VX_ERROR;
+        code = 128 + (-code);
+    }
+    ctx->child_exit = code;
+
+    const char *kind = is_surge_tool ? "Tool" : "Target";
+    const char *name = is_surge_tool ? ctx->surge_tool.name : run_target->name;
+
+    if (proc.exit_code < 0)
+    {
+        vx_log("%s [%s] killed by signal %d (%s)",
+               kind,
+               name,
+               -proc.exit_code,
+               strsignal(-proc.exit_code));
+
+        result = VX_ERROR;
+    }
+    else
+    {
+        vx_log("%s [%s] exited with code: %d", kind, name, proc.exit_code);
     }
 
     return result;

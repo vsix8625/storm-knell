@@ -233,34 +233,44 @@ sk clean strike surge ::: -h
 
 ## Executing Targets with Tools
 
-Use `--tool=<tool_name>` before specifying a target to execute it with an external tool.
+Use `--tool='<tool> [args...]'` before specifying a target to run it under an external tool.
 
-You can pass arguments to the tool by appending `::` followed by its arguments to the tool name. Use `:::` to separate tool arguments from arguments passed to the target binary.
+The value is split into words using shell-style quoting (single quotes, double quotes, backslash escapes). sk runs the tool directly, not through `/bin/sh`, so `;`, `&&`, `$VAR` and `*` inside the value reach the tool as literal text. Your own shell still processes the command line first, so wrap the whole `--tool` value in quotes. Only one `--tool` is allowed per invocation.
 
 ```bash
-# Execute the target with nm
-sk --tool=nm::-D surge
+# Disassemble the target
+sk --tool='objdump -d -M intel' surge my_app
 
-# Pass multiple arguments to valgrind
-sk --tool=valgrind::--tool=memcheck::--leak=full surge my_app2
+# List dynamic symbols
+sk --tool='nm -D' surge my_app
+
+# Check for leaks
+sk --tool='valgrind --tool=memcheck --leak-check=full' surge my_app
+
+# Trace file access
+sk --tool='strace -f -e trace=openat' surge my_app
+
+# Quote an argument that contains spaces
+sk --tool='gdb -batch -ex "info functions"' surge my_app
 ```
 
-**Argument separation:**
-
-- `::` separates the tool name from its arguments.
-- `:::` separates the tool invocation from the target binary's arguments.
-
-**Note**: Arguments after `:::` are passed to the target binary. In tool mode they are appended after the target path on the tool’s command line, so the tool receives them. Whether they reach the target depends on the tool (valgrind and gdb --args forward them, nm treats them as its own options).
+**Target arguments:** `:::` separates the tool invocation from arguments for the target binary. They are appended after the target path, so the tool receives them. Whether they reach the target depends on the tool.
 
 ```bash
 # valgrind runs the target, so --help reaches it
 sk --tool=valgrind surge my_app ::: --help
 # runs: valgrind <bin> --help
 
+# gdb needs --args to forward them to the target
+sk --tool='gdb -batch -ex run --args' surge my_app ::: --verbose
+# runs: gdb -batch -ex run --args <bin> --verbose
+
 # nm only inspects the file, so --help goes to nm
 sk --tool=nm surge my_app ::: --help
 # runs: nm <bin> --help
 ```
+
+**Exit status:** sk exits with the tool's exit code. If the tool is killed by a signal, sk exits with `128 + signal` (139 for SIGSEGV) and logs the signal name.
 
 ---
 

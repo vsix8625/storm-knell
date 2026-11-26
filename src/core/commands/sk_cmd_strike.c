@@ -78,10 +78,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
     bool is_tty = vx_isatty(STDOUT_FILENO);
 
     vx_ticks profile = {0};
-    if (ctx->active_opt & SK_OPT_PROFILE)
-    {
-        vx_ticks_start(&profile);
-    }
+    if (ctx->active_opt & SK_OPT_PROFILE) vx_ticks_start(&profile);
 
     struct sk_lexer  lx = {0};
     struct sk_parser p  = {0};
@@ -91,10 +88,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
     vx_status strike_status = VX_OK;
 
-    if (sk_pipeline_run(ctx, &lx, &p, eval_result) != VX_OK)
-    {
-        strike_status = VX_ERROR;
-    }
+    if (sk_pipeline_run(ctx, &lx, &p, eval_result) != VX_OK) strike_status = VX_ERROR;
 
     bool dry_run    = ctx->active_opt & SK_OPT_STRIKE_DRY;
     bool skip_build = ctx->active_opt & (SK_OPT_EVAL_DUMP | SK_OPT_NODE_DUMP | SK_OPT_TOK_DUMP);
@@ -145,10 +139,8 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             struct vx_proc_cfg cfg  = {.flags = VX_PROCESS_FLAGS_BG};
 
             vx_status status = vx_process_spawn(&proc, argv[0], argv, &cfg);
-            if (status != VX_OK)
-            {
-                vx_errlog("Process failed for %s", argv[0]);
-            }
+
+            if (status != VX_OK) vx_errlog("Process failed for %s", argv[0]);
         }
 
         // compile_commands
@@ -305,10 +297,8 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                     }
                 }
 
-                if (strike_status == VX_ERROR)
-                {
-                    break;
-                }
+                if (strike_status == VX_ERROR) break;
+
                 continue;
             }
 
@@ -336,10 +326,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 unit->diagnostic_log.size   = log_size;
                 unit->diagnostic_log.offset = 0;
 
-                if (ctx->active_opt & SK_OPT_GEN_CMDS)
-                {
-                    unit->gen_ccmds = true;
-                }
+                if (ctx->active_opt & SK_OPT_GEN_CMDS) unit->gen_ccmds = true;
 
                 // BUG: instantly pushes N jobs compilations to worker even with 1 source file
                 vx_thread_pool_push(&pool, sk_worker_compile_fn, unit);
@@ -371,10 +358,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             {
                 struct sk_work_unit *unit = work_units[j];
 
-                if (unit == nullptr)
-                {
-                    continue;
-                }
+                if (unit == nullptr) continue;
 
                 if (unit->diagnostic_log.offset > 0)
                 {
@@ -504,10 +488,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 }
 
                 // append if this specific compilation hash hasn't been tracked yet
-                if (!hash_exists)
-                {
-                    merged_entries[merged_count++] = g_sk_cache_records[i];
-                }
+                if (!hash_exists) merged_entries[merged_count++] = g_sk_cache_records[i];
             }
 
             FILE *cache_f = fopen(SK_PATH_STORM_PROJ_CACHE_BIN, "wb");
@@ -573,10 +554,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
             {
                 struct sk_target *t = &eval_result->targets[sorted[i]];
 
-                if (t->kind != SK_TARGET_KIND_TEST)
-                {
-                    continue;
-                }
+                if (t->kind != SK_TARGET_KIND_TEST) continue;
 
                 if (tests_run == 0)
                 {
@@ -726,10 +704,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
                         if (strcmp(dep->name, t->depends[d]) == 0)
                         {
-                            if (dep->was_relinked)
-                            {
-                                dep_relinked = true;
-                            }
+                            if (dep->was_relinked) dep_relinked = true;
 
                             if (dep->kind == SK_TARGET_KIND_STATIC ||
                                 dep->kind == SK_TARGET_KIND_SHARED)
@@ -772,9 +747,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 }
 
                 if (t->kind == SK_TARGET_KIND_PCH || t->kind == SK_TARGET_KIND_TEST)
-                {
                     continue;  // nothing to link
-                }
 
                 if (t->gen_asm)
                 {
@@ -835,10 +808,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
                         if (t->kind == SK_TARGET_KIND_EXEC && t->install_dir != nullptr)
                         {
-                            if (vx_isfile(dest_path))
-                            {
-                                vx_fs_rmrf(dest_path);
-                            }
+                            if (vx_isfile(dest_path)) vx_fs_rmrf(dest_path);
 
                             if (vx_mkdir_p(t->install_dir) != VX_OK)
                             {
@@ -864,10 +834,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
                 sk_log_time("Link", &link_time);
             }
 
-            if (ctx->active_opt & SK_OPT_GEN_CMDS)
-            {
-                sk_ccmds_write(ctx->rpath);
-            }
+            if (ctx->active_opt & SK_OPT_GEN_CMDS) sk_ccmds_write(ctx->rpath);
         }
 
         //----------------------------------------------------------------------------------------------------
@@ -942,19 +909,9 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
     //----------------------------------------------------------------------------------------------------
     // Logs
 
-    if (ctx->active_opt & SK_OPT_TOK_DUMP)
-    {
-        sk_lx_dbg_dump_tokens(ctx);
-    }
-    if (ctx->active_opt & SK_OPT_NODE_DUMP)
-    {
-        sk_parser_dbg_dump_ast(&p);
-    }
-    if (ctx->active_opt & SK_OPT_EVAL_DUMP)
-    {
-        sk_dbg_dump_eval(&p, eval_result);
-    }
-
+    if (ctx->active_opt & SK_OPT_TOK_DUMP) sk_lx_dbg_dump_tokens(ctx);
+    if (ctx->active_opt & SK_OPT_NODE_DUMP) sk_parser_dbg_dump_ast(&p);
+    if (ctx->active_opt & SK_OPT_EVAL_DUMP) sk_dbg_dump_eval(&p, eval_result);
     if (ctx->active_opt & SK_OPT_VERBOSE)
     {
         vx_log("Tokens: %u | Nodes: %u | Ratio: %.2f%%",
@@ -1006,10 +963,7 @@ vx_status sk_cmd_strike_fn(struct sk_ctx *ctx)
 
 static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
 {
-    if (ctx == nullptr || t == nullptr)
-    {
-        return VX_ERROR;
-    }
+    if (ctx == nullptr || t == nullptr) return VX_ERROR;
 
     char  final_bin_dir_buf[VX_PATH_MAX];
     char *bin_container = "lib";
@@ -1061,10 +1015,7 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
     }
     t->finalized_obj_dirpath = mem_arena_strdup(g_sk_arena, abs_dir_buf);
 
-    if (t->kind == SK_TARGET_KIND_EXEC || t->kind == SK_TARGET_KIND_TEST)
-    {
-        bin_container = "bin";
-    }
+    if (t->kind == SK_TARGET_KIND_EXEC || t->kind == SK_TARGET_KIND_TEST) bin_container = "bin";
 
     snprintf(final_bin_dir_buf,
              sizeof(final_bin_dir_buf),
@@ -1116,9 +1067,7 @@ static vx_status sk_target_prepare_dirs(struct sk_ctx *ctx, struct sk_target *t)
     t->artifact_path = sk_path_join(g_sk_arena, final_bin_dir_buf, t->finalized_filename);
 
     if (ctx->active_opt & SK_OPT_VERBOSE)
-    {
         vx_log("Created: %15s -> Artifact: %s", final_bin_dir_buf, t->finalized_filename);
-    }
 
     return VX_OK;
 }
@@ -1138,10 +1087,8 @@ static vx_status topo_visit(struct sk_eval_result *result,
         return VX_ERROR;
     }
 
-    if (visited[idx])
-    {
-        return VX_OK;
-    }
+    if (visited[idx]) return VX_OK;
+
     visited[idx]  = true;
     in_stack[idx] = true;
 
@@ -1165,6 +1112,7 @@ static vx_status topo_visit(struct sk_eval_result *result,
                 {
                     return VX_ERROR;
                 }
+
                 break;
             }
         }
@@ -1287,10 +1235,7 @@ static void *sk_worker_compile_fn(void *arg)
 
                 t->dirty = true;
 
-                if (!verbose)
-                {
-                    vx_printf("    [%u]: %s\n", c_idx, unit->tag);
-                }
+                if (!verbose) vx_printf("    [%u]: %s\n", c_idx, unit->tag);
             }
             else
             {

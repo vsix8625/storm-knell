@@ -666,30 +666,87 @@ opt_set_bit(struct sk_ctx *ctx, sk_cmd owner, sk_opt opt, i32 *i, i32, char **)
     return VX_OK;
 }
 
-static char *next_tool_arg(char **args)
+static i32 shell_split(const char *in, char *buf, char **argv, i32 max_args)
 {
-    if (args == nullptr || *args == nullptr || **args == CHAR_NULTERM)
-    {
-        return nullptr;
-    }
+    if (in == nullptr || argv == nullptr) return -1;
 
-    char *start = *args;
-    char *p     = start;
+    i32   argc    = 0;
+    char *w       = buf;
+    bool  in_word = false;
+    char  quote   = 0;
 
-    while (*p)
+    for (const char *p = in;; p++)
     {
-        if (*p == CHAR_COLON && p[1] == CHAR_COLON)
+        char c = *p;
+
+        if (quote == CHAR_SINGLE_QUOTE)
         {
-            *p    = CHAR_NULTERM;
-            *args = p + 2;
-            return start;
-        }
+            if (!c) return -1;
 
-        p++;
+            if (c == CHAR_SINGLE_QUOTE)
+            {
+                quote = 0;
+            }
+            else
+            {
+                *w++ = c;
+            }
+        }
+        else if (quote == CHAR_DOUBLE_QUOTE)
+        {
+            if (!c) return -1;
+
+            if (c == CHAR_DOUBLE_QUOTE)
+            {
+                quote = 0;
+            }
+            else if (c == CHAR_BACKSLASH && p[1] && strchr("\"\\$`", p[1]))
+            {
+                *w++ = *++p;
+            }
+            else
+            {
+                *w++ = c;
+            }
+        }
+        else if (c == CHAR_NULTERM || isspace((u8) c))
+        {
+            if (in_word)
+            {
+                *w++    = CHAR_NULTERM;
+                in_word = false;
+            }
+
+            if (!c) break;
+        }
+        else
+        {
+            if (!in_word)
+            {
+                if (argc >= max_args - 1) return -1;
+                argv[argc++] = w;
+                in_word      = true;
+            }
+
+            if (c == CHAR_SINGLE_QUOTE || c == CHAR_DOUBLE_QUOTE)
+            {
+                quote = c;
+            }
+            else if (c == CHAR_BACKSLASH)
+            {
+                if (!p[1]) return -1;
+
+                *w++ = *++p;
+            }
+            else
+            {
+                *w++ = c;
+            }
+        }
     }
 
-    *args = p;
-    return start;
+    argv[argc] = nullptr;
+    return argc;
 }
 
 static inline vx_status
@@ -697,9 +754,16 @@ opt_set_surge_tool(struct sk_ctx *ctx, sk_cmd, sk_opt opt, i32 *i, i32, char **a
 {
     if (!(ctx->active_cmd & SK_CMD_SURGE))
     {
-        vx_errlog("--tool opt requires 'surge' command");
+        vx_errlog("Option: '--tool' requires 'surge/run' command");
         return VX_ERROR;
     }
+
+    if (ctx->active_opt & opt)
+    {
+        vx_errlog("Option: '--tool' may only be given once");
+        return VX_ERROR;
+    }
+
     ctx->active_opt |= opt;
 
     char *arg = argv[*i];
@@ -707,38 +771,33 @@ opt_set_surge_tool(struct sk_ctx *ctx, sk_cmd, sk_opt opt, i32 *i, i32, char **a
 
     if (eq == nullptr || eq[1] == CHAR_NULTERM)
     {
-        vx_errlog("--tool: requires a tool name");
+        vx_errlog("Option: '--tool' requires a tool name");
         return VX_ERROR;
     }
 
     char *tool_opt = eq + 1;
-    char *tok      = strchr(arg, CHAR_COLON);
-    u32   arg_idx  = 0;
 
-    if (strncmp(tool_opt, "::", 2) == 0)
+    char *buf = mem_arena_alloc(g_sk_arena, strlen(tool_opt) + 1);
+    char *tmp[SK_MAX_SURGE_TOOL_ARGS + 1];
+
+    i32 n = shell_split(tool_opt, buf, tmp, SK_MAX_SURGE_TOOL_ARGS + 1);
+
+    if (n < 0)
     {
-        vx_errlog("--tool requires a tool name");
+        vx_errlog("Option: '--tool' bad quoting or too many arguments (max %d)",
+                  SK_MAX_SURGE_TOOL_ARGS);
         return VX_ERROR;
     }
 
-    while ((tok = next_tool_arg(&tool_opt)) != nullptr)
+    if (n == 0)
     {
-        if (tok[0] == CHAR_NULTERM)
-        {
-            continue;
-        }
-
-        if (arg_idx >= SK_MAX_SURGE_TOOL_ARGS)
-        {
-            vx_errlog("--tool: too many arguments (max %d)", SK_MAX_SURGE_TOOL_ARGS);
-            return VX_ERROR;
-        }
-
-        ctx->surge_tool.args[arg_idx++] = mem_arena_strdup(g_sk_arena, tok);
+        vx_errlog("Option: '--tool' requires a tool name");  // e.g. --tool=" "
+        return VX_ERROR;
     }
 
+    memcpy(ctx->surge_tool.args, tmp, (size_t) n * sizeof *tmp);
     ctx->surge_tool.name       = ctx->surge_tool.args[0];
-    ctx->surge_tool.args_count = arg_idx;
+    ctx->surge_tool.args_count = (u32) n;
 
     (*i)++;
     return VX_OK;

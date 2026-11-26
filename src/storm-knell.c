@@ -31,7 +31,7 @@ i32 main(i32 argc, char **argv)
         case VX_LIB_NOT_INITIALIZED:
         {
             sk_shutdown();
-            return VX_EXIT_FAILURE;
+            return g_sk_ctx.child_exit ? (g_sk_ctx.child_exit & 0xFF) : VX_EXIT_FAILURE;
         }
     }
 
