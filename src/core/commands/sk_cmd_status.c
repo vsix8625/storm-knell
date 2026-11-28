@@ -176,6 +176,7 @@ void sk_cmd_status_fn(struct sk_ctx *ctx)
         bool artifact_ok = vx_isfile(m->bin_path);
 
         u64 file_size = 0;
+
         if (artifact_ok)
         {
             vx_stat_struct st;

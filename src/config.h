@@ -2,8 +2,8 @@
 #pragma once
 #define SK_VERSION_MAJOR 0
 #define SK_VERSION_MINOR 18
-#define SK_VERSION_PATCH 2
-#define SK_VERSION_STRING "0.18.2"
+#define SK_VERSION_PATCH 3
+#define SK_VERSION_STRING "0.18.3"
 #if __has_include("sk_git.h")
 #include "sk_git.h"
 #endif

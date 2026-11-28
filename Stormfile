@@ -28,7 +28,7 @@ if(__os__ == "linux")
 
 major: 0
 minor: 18
-patch: 2
+patch: 3
 
 codegen src/config.h
 {
